@@ -434,7 +434,7 @@ model users {
   telegram_id        BigInt    @unique(map: "client_users_telegram_id_key")
   first_name         String?   @db.VarChar(255)
   last_name          String?   @db.VarChar(255)
-  phone_number       String    @db.VarChar(50)
+  phone_number       String?   @db.VarChar(50)
   email              String?   @db.VarChar(255)
   date_of_birth      DateTime? @db.Date
   reason_for_seeking String?

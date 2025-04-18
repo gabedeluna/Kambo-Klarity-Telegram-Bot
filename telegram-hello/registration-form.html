@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kambo Klarity Registration</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        :root {
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-hint-color: #999999;
+            --tg-theme-link-color: #2481cc;
+            --tg-theme-button-color: #5fb13d;
+            --tg-theme-button-text-color: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            margin: 0;
+            padding: 16px;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding-bottom: 300px;
+        }
+
+        h1 {
+            font-size: 22px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .hint {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #999999);
+            margin-top: 4px;
+        }
+
+        .button {
+            background-color: var(--tg-theme-button-color, #5fb13d);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #e53935;
+            font-size: 14px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .logo {
+            display: block;
+            margin: 0 auto 20px;
+            width: 80px;
+            height: 80px;
+        }
+
+        .frog-emoji {
+            font-size: 40px;
+            text-align: center;
+            display: block;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="frog-emoji">🐸</span>
+        <h1>Kambo Klarity Registration</h1>
+        
+        <form id="registrationForm">
+            <div class="form-group">
+                <label for="firstName">First Name</label>
+                <input type="text" id="firstName" name="firstName" required>
+                <div class="error" id="firstNameError">Please enter your first name</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="lastName">Last Name</label>
+                <input type="text" id="lastName" name="lastName" required>
+                <div class="error" id="lastNameError">Please enter your last name</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+                <div class="error" id="emailError">Please enter a valid email address</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="phoneNumber">Phone Number</label>
+                <input type="tel" id="phoneNumber" name="phoneNumber" required>
+                <div class="error" id="phoneNumberError">Please enter a valid phone number</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="dateOfBirth">Date of Birth</label>
+                <input type="date" id="dateOfBirth" name="dateOfBirth" required>
+                <div class="error" id="dateOfBirthError">Please enter your date of birth</div>
+                <div class="hint">Must be at least 18 years old</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="reasonForSeeking">Reason for Seeking Kambo</label>
+                <textarea id="reasonForSeeking" name="reasonForSeeking" required></textarea>
+                <div class="error" id="reasonForSeekingError">Please share your reason for seeking Kambo</div>
+                <div class="hint">Please share any health concerns or goals you have for your Kambo journey</div>
+            </div>
+            
+            <button type="submit" class="button" id="submitButton">Submit Registration</button>
+        </form>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        // Apply Telegram theme
+        document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
+        document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color);
+        document.documentElement.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color);
+        document.documentElement.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color);
+        document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color);
+        document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color);
+
+        // Form validation and submission
+        const form = document.getElementById('registrationForm');
+        const submitButton = document.getElementById('submitButton');
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            if (validateForm()) {
+                const formData = {
+                    firstName: document.getElementById('firstName').value,
+                    lastName: document.getElementById('lastName').value,
+                    email: document.getElementById('email').value,
+                    phoneNumber: document.getElementById('phoneNumber').value,
+                    dateOfBirth: document.getElementById('dateOfBirth').value,
+                    reasonForSeeking: document.getElementById('reasonForSeeking').value
+                };
+                
+                // Send data back to the Telegram Bot
+                tg.sendData(JSON.stringify(formData));
+                tg.close();
+            }
+        });
+
+        function validateForm() {
+            let isValid = true;
+            
+            // First Name validation
+            const firstName = document.getElementById('firstName');
+            const firstNameError = document.getElementById('firstNameError');
+            if (!firstName.value.trim()) {
+                firstNameError.style.display = 'block';
+                isValid = false;
+            } else {
+                firstNameError.style.display = 'none';
+            }
+            
+            // Last Name validation
+            const lastName = document.getElementById('lastName');
+            const lastNameError = document.getElementById('lastNameError');
+            if (!lastName.value.trim()) {
+                lastNameError.style.display = 'block';
+                isValid = false;
+            } else {
+                lastNameError.style.display = 'none';
+            }
+            
+            // Email validation
+            const email = document.getElementById('email');
+            const emailError = document.getElementById('emailError');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email.value)) {
+                emailError.style.display = 'block';
+                isValid = false;
+            } else {
+                emailError.style.display = 'none';
+            }
+            
+            // Phone validation
+            const phoneNumber = document.getElementById('phoneNumber');
+            const phoneNumberError = document.getElementById('phoneNumberError');
+            if (!phoneNumber.value.trim()) {
+                phoneNumberError.style.display = 'block';
+                isValid = false;
+            } else {
+                phoneNumberError.style.display = 'none';
+            }
+            
+            // Date of Birth validation
+            const dateOfBirth = document.getElementById('dateOfBirth');
+            const dateOfBirthError = document.getElementById('dateOfBirthError');
+            if (!dateOfBirth.value) {
+                dateOfBirthError.style.display = 'block';
+                isValid = false;
+            } else {
+                // Check if user is at least 18 years old
+                const birthDate = new Date(dateOfBirth.value);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                
+                if (age < 18) {
+                    dateOfBirthError.textContent = 'You must be at least 18 years old';
+                    dateOfBirthError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    dateOfBirthError.style.display = 'none';
+                }
+            }
+            
+            // Reason validation
+            const reasonForSeeking = document.getElementById('reasonForSeeking');
+            const reasonForSeekingError = document.getElementById('reasonForSeekingError');
+            if (!reasonForSeeking.value.trim()) {
+                reasonForSeekingError.style.display = 'block';
+                isValid = false;
+            } else {
+                reasonForSeekingError.style.display = 'none';
+            }
+            
+            return isValid;
+        }
+
+        // Pre-fill form with user data if available
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            const user = tg.initDataUnsafe.user;
+            if (user.first_name) {
+                document.getElementById('firstName').value = user.first_name;
+            }
+            if (user.last_name) {
+                document.getElementById('lastName').value = user.last_name;
+            }
+        }
+    </script>
+    <script>
+        (function() {
+            let lastY = window.scrollY;
+            window.addEventListener('scroll', () => {
+                const y = window.scrollY;
+                if (y < lastY && document.activeElement && document.activeElement.blur) {
+                    document.activeElement.blur();
+                }
+                lastY = y;
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -49,5 +49,5 @@ bot.on('text', ctx => ctx.reply(`You said: ${ctx.message.text}`));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Bot server is running on port ${PORT}`);
-  console.log(`Webhook URL: https://6319-67-10-70-70.ngrok-free.app/webhook/${WEBHOOK_SECRET}`);
+  console.log(`Webhook URL: ${process.env.NGROK_URL}/webhook/${WEBHOOK_SECRET}`);
 });
