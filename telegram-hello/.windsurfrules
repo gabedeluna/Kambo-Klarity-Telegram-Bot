@@ -1,0 +1,168 @@
+# .windsurfrules
+
+1. ## This is the main rule for our .js files and the logic behind them ##
+I want everything very organized and clean, with proper commenting so that I understand how everyting is put together. The main thing here is that I want to understand what is being built from a high level perspective, like a project manager. So to help me, I want the logic to be built as if each block of code executing a certain function is like a node, i want to know where the information is going from there, and I want to know what information is coming into the node and from where. What should the information look like, Let's have some logging so that I can clearly see the information coming in  and what it looks like before the node and after the node, and in the log which node is executing at that point. Of course this is an abstraction of a way of thinking about the project but it helps me immensely to understand the project. So, think in nodes, think of if nodes, think of switch nodes, think of webhook nodes, and ai agent nodes, and each tool it uses as a node connected to the ai agent. If you are familiar with n8n, this is what I am talking about. I come from n8n, this is what I understand so think in n8n terms. 
+
+2. ## Workflow Directory Structure
+- Place each workflow in the `workflows/` directory at the project root.
+- File naming: `<workflowName>Workflow.js` (e.g., `clientWorkflow.js`, `newUserWorkflow.js`).
+- **Note**: User existence check is now centralized in `bot.js`, not a separate workflow.
+- Each workflow module must export:
+  - `name`: string identifier used in logs.
+  - `enabled`: boolean to toggle the workflow on/off.
+- Log on load: `✅ [WORKFLOW LOADER] Loaded ${wf.name} (enabled=${wf.enabled})`.
+
+3. ## Workflow Loader Node
+- In `bot.js`, after imports, dynamically load all `*Workflow.js` files from `workflows/`.
+- Log on load: `✅ [WORKFLOW LOADER] Loaded ${wf.name} (enabled=${wf.enabled})`.
+
+4. ## Central User Lookup Middleware Node (in bot.js)
+- Implement `bot.use(async (ctx, next) => { ... })` **before** the Dispatcher node.
+- Purpose: Fetch user from DB based on `ctx.from.id`.
+
+---
+
+## 📦 Workflow Boilerplate Template (Node-Based)
+
+```javascript
+// ======================================================================
+// WORKFLOW: <Workflow Name>
+// ======================================================================
+// Purpose: <High-level workflow purpose>
+// Input: <How this workflow is triggered>
+// Output: <What this workflow produces>
+
+const { Markup } = require('telegraf');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+// Import other agents/tools as needed
+
+module.exports = {
+  name: '<workflowName>', // Short identifier for logs
+  enabled: true, // Toggle workflow
+
+  // ======================================================================
+  // [NODE_TYPE: ENTRY_POINT]
+  // ======================================================================
+  // Purpose: <Describe node purpose>
+  // Input: <inputs>
+  // Output: <outputs>
+  async trigger(ctx) {
+    const wf = this.name;
+    // ...node logic...
+    // Logging example:
+    console.log(`🔄 [${wf}/entry] Input:`, { ctxData: /*relevant ctx info*/ });
+    // ...
+  },
+
+  // ======================================================================
+  // [NODE_TYPE: <NODE_NAME>]
+  // ======================================================================
+  // Purpose: <Describe node purpose>
+  // Input: <inputs>
+  // Output: <outputs>
+  async <nodeName>(params) {
+    // ...node logic...
+    // Logging example:
+    console.log(`[${this.name}/<nodeName>] Input:`, params);
+    // ...
+  },
+
+  // Add more nodes as needed, following the above pattern
+};
+```
+
+**Commenting Conventions:**
+- Use the node header format for every exported function/node:
+  ```js
+  // ======================================================================
+  // [NODE_TYPE: <NODE_NAME>]
+  // ======================================================================
+  // Purpose: ...
+  // Input: ...
+  // Output: ...
+  ```
+- Log inputs/outputs at the start and end of each node for traceability.
+- Node functions should be properties of the exported object (not declared separately).
+- Keep workflows modular and easy to scan top-down, just like n8n nodes.
+
+---
+- Output: Attaches `ctx.state.user` (if found) or sets `ctx.state.isNewUser = true` (if not found).
+- Logging:
+  - Entry: `🔄 [userLookup/entry] Checking user existence for ID: ${id}`
+  - Parse ID: `🔄 [userLookup/parseId] Parsed telegramId: ${id}`
+  - DB Lookup: `🔄 [userLookup/dbLookup] Result: <found/not found>`
+  - Attach/Mark: `✅ [userLookup/attachUser] Attached user...` or `⏭ [userLookup/dbLookup] User not found.`
+  - Exit: `✅ [userLookup/exit] User lookup complete. isNewUser=..., userExists=...`
+
+5. ## Dispatcher Node (in bot.js)
+- Implement `bot.use(async (ctx, next) => { ... })` **after** the User Lookup Middleware.
+- Purpose: Route updates (now with user context) to enabled workflows.
+- Logs:
+  - Entry: `🔄 [DISPATCHER] Dispatching update... (User context: <role/New User/No Data>)`.
+  - Skip disabled: `⏭ [DISPATCHER] Skipping disabled workflow: ${wf.name}`.
+  - Trigger: `🔄 [DISPATCHER] Triggering workflow: ${wf.name}`.
+  - Error:   `❌ [DISPATCHER] Error in workflow ${wf.name}:`, <error>.
+
+6. ## Workflow Node Logging
+- Within each workflow’s `trigger(ctx)`:
+  - **Entry Node**: `🔄 [${wf.name}/entry] Received update`.
+  - **Condition Node**: Check `ctx.state.user.role`, `ctx.state.isNewUser`, or `ctx.message.web_app_data`. If skipping, log `⏭ [${wf.name}/entry] Skipped (<reason>)`.
+  - **Process Node(s)**: `🔄 [${wf.name}/<nodeName>] Input:`, <data>. Access user via `ctx.state.user`.
+  - **Exit Node**: `✅ [${wf.name}/<nodeName>] Completed <action>`.
+  - **Error Handling**: `❌ [${wf.name}/<nodeName>] Error:`, <error>.
+
+7. ## Logging Conventions
+- Use emojis and scoped brackets for clarity:
+  - `🔄` for node entry.
+  - `✅` for successful node exit.
+  - `❌` for errors.
+  - `⏭` for skipped logic.
+- Always include `workflowName/nodeName` in log messages for traceability.
+
+8. ## File Structure & Modularity
+- Keep `bot.js` lean: only initialization, loader, dispatcher, and webhook handler.
+- Place shared utilities in a `utils/` folder.
+- Store configuration (e.g., `FORM_SERVER_URL`, `NGROK_URL`) in `.env`.
+
+9. ## Thinking & Reasoning
+- Consider multiple solutions; document reasoning in comments.
+- Refer to `big_picture.md` for high-level alignment.
+- Propose improvements when design diverges from overall goals.
+
+9. ## Code Style & Formatting
+- Functional, declarative patterns; avoid classes.
+- Descriptive naming: e.g., `processFormNode`, `validateInputNode`.
+- Use TypeScript interfaces (strict mode), avoid `any` and enums.
+- Use Prettier and consistent linting rules.
+
+10. # General Code Style & Formatting
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
+- Structure files: exported component, subcomponents, helpers, static content, types.
+- Follow Expo's official documentation for setting up and configuring projects.
+
+# Naming Conventions
+- Use lowercase with dashes for directories (e.g., components/auth-wizard).
+- Favor named exports for components.
+
+# TypeScript Best Practices
+- Use TypeScript for all code; prefer interfaces over types.
+- Avoid any and enums; use explicit types and maps instead.
+- Use functional components with TypeScript interfaces.
+- Enable strict mode in TypeScript for better type safety.
+
+# Syntax & Formatting
+- Use the function keyword for pure functions.
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
+- Use declarative JSX.
+- Use Prettier for consistent code formatting.
+
+# Styling & UI
+- Use Expo's built-in components for common UI patterns and layouts.
+- Implement responsive design with Flexbox and useWindowDimensions.
+- Use styled-components or Tailwind CSS for styling.
+- Implement dark mode support using Expo's useColorScheme.
+- Ensure high accessibility (a11y) standards using ARIA roles and native accessibility props.
+- Use react-native-reanimated and react-native-gesture-handler for performant animations and gestures.

@@ -1,3 +1,5 @@
-node_modules
-# Keep environment variables out of version control
-.env
+# Ignore node_modules directory within telegram-hello
+/telegram-hello/node_modules/
+
+# Ignore .env file within telegram-hello
+/telegram-hello/.env

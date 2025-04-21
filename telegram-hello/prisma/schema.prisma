@@ -270,18 +270,15 @@ model role {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model sessions {
-  session_id            Int
-  first_name            String?   @db.VarChar
-  last_name             String?   @db.VarChar
-  telegram_id           BigInt?
-  appointment_datetime  DateTime? @db.Timestamptz(6)
-  jotform_submission_id String?   @db.VarChar
-  liability_form_data   Json?
-  session_notes         String?
-  session_status        String?   @db.VarChar
-  created_at            DateTime? @db.Timestamptz(6)
-
-  @@ignore
+  first_name           String?   @db.VarChar
+  last_name            String?   @db.VarChar
+  telegram_id          BigInt?
+  appointment_datetime DateTime? @db.Timestamptz(6)
+  liability_form_data  Json?
+  session_notes        String?
+  session_status       String?   @db.VarChar
+  created_at           DateTime? @db.Timestamptz(6)
+  id                   Int       @id @default(autoincrement())
 }
 
 model settings {
@@ -430,19 +427,25 @@ model user_api_keys {
 }
 
 model users {
-  client_id          Int       @id(map: "client_users_pkey") @default(autoincrement())
-  telegram_id        BigInt    @unique(map: "client_users_telegram_id_key")
-  first_name         String?   @db.VarChar(255)
-  last_name          String?   @db.VarChar(255)
-  phone_number       String?   @db.VarChar(50)
-  email              String?   @db.VarChar(255)
-  date_of_birth      DateTime? @db.Date
-  reason_for_seeking String?
-  created_at         DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
-  state              String?   @default("NONE") @db.VarChar
-  role               String?   @default("client") @db.VarChar
-  session_type       String?   @db.VarChar
+  client_id            Int       @id(map: "client_users_pkey") @default(autoincrement())
+  telegram_id          BigInt    @unique(map: "client_users_telegram_id_key")
+  first_name           String?   @db.VarChar(255)
+  last_name            String?   @db.VarChar(255)
+  phone_number         String?   @db.VarChar(50)
+  email                String?   @db.VarChar(255)
+  date_of_birth        DateTime? @db.Date
+  reason_for_seeking   String?
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+  state                String?   @default("NONE") @db.VarChar
+  role                 String?   @default("client") @db.VarChar
+  session_type         String?   @db.VarChar
+  conversation_history String?
+  booking_slot         String?   @db.VarChar(255)
+  em_first_name        String?   @db.VarChar
+  em_last_name         String?   @db.VarChar
+  em_phone_number      String?   @db.VarChar
+  edit_msg_id          Int?
 
   @@index([telegram_id], map: "idx_client_users_telegram_id")
 }
@@ -531,7 +534,7 @@ model workflows_tags {
 }
 
 model test_user {
-  id         BigInt @id
-  firstName  String?
-  createdAt  DateTime @default(now())
+  id        BigInt    @id
+  firstName String?   @db.VarChar
+  createdAt DateTime? @default(now()) @db.Timestamptz(6)
 }
