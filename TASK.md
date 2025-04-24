@@ -18,8 +18,8 @@
 | [X]**PH1‑08** | Scaffold **commands/registry.js** with `help`, `book`, `cancel` (client) & `sessions` (admin). Stub handlers that `ctx.reply('stub')`. Unit‑test asserts registry shape. | Starts the command pattern early. |
 | [X]**PH1‑09** | Add **config/sessionTypes.json** with the three sessions in PLANNING.md and **core/sessionTypes.js** helper (getAll, getById). Unit‑test validates JSON schema. | Enables dynamic keyboards in later phases. |
 | [X]**PH1‑10** | **(2025-04-23)** Write initial tests: `tests/health.test.js`, `tests/env.test.js`, `tests/prisma.test.js`, `tests/registry.test.js`, `tests/sessionTypes.test.js`. | Achieve ≥ 90 % coverage on Phase‑1 code paths. |
-| [ ]**PH1‑11** | Setup **husky** pre‑commit hook to run `npm test && npm run lint && npm run format`. | Enforces green commits. |
-| [ ]**PH1‑12** | Update `docs/architecture.md` with new folder diagram and Phase‑1 status. | Docs evolve with code. |
+| [X]**PH1‑11** | Setup **husky** pre‑commit hook to run `npm test && npm run lint && npm run format`. | Enforces green commits. |
+| [X]**PH1‑12** | Update `docs/architecture.md` with new folder diagram and Phase‑1 status. | Docs evolve with code. |
 | [ ]**PH1‑13** | Tick each task box here when done and jot *Discoveries* below. | Keeps project heartbeat. |
 
 ### 🚧 Discovered During Work
@@ -48,6 +48,8 @@
 *   **PH1-D22 (PH1-10):** Refactored sessionTypes cache logic for lazy loading.
 *   **PH1-D23 (PH1-10):** Identified and removed redundant env checks in bot.js.
 *   **PH1-D24 (PH1-10):** Achieved >98% line coverage on core Phase 1 modules (app.js, core/*, commands/registry.js, bin/server.js), exceeding the 90% target. Minor uncovered branches in error handling deemed acceptable given cost/benefit.
+*   **PH1-D25 (PH1-11):** Encountered 'husky install deprecated' warning. Removed `prepare` script from `package.json`. Used `npx husky hook add .husky/pre-commit "npm test && npm run lint && npm run format"` command directly as per Husky v9+. Required manually setting `git config core.hooksPath .husky` as husky commands didn't set it. Initial attempt to remove deprecated header lines (`#!/usr/bin/env sh` etc.) from hook caused it to fail on commit attempt; reverted to keep them for now despite warning.
+*   **PH1-D26 (PH1-12):** Created/Updated docs/architecture.md with current folder structure and Phase 1 completion status.
 
 ### 💡 Insights & Decisions
 *Explain architectural choices or hurdles encountered.*
@@ -58,6 +60,8 @@
 *   **(PH1-06):** Using a SHA256 hash of the `BOT_TOKEN` for the webhook path provides a secure, unique endpoint without exposing the token directly.
 *   **(PH1-08):** Established the command registry pattern early. Stub handlers allow structural testing before implementing logic. Tests verify required `descr` and `handler` properties for each command.
 *   **(PH1-09):** Externalized session type data into JSON config (`src/config/sessionTypes.json`), improving maintainability. Helper module (`src/core/sessionTypes.js`) encapsulates file reading logic. Tests (`src/tests/core/sessionTypes.test.js`) validate both schema and helper functions.
+*   **PH1-11:** Automated pre-commit checks enforce quality standards (testing, linting, formatting) consistently, preventing bad commits. Modern Husky versions might require manual `core.hooksPath` configuration and header lines in hook script despite deprecation warnings.
+*   **(PH1-12):** Keeping architecture documentation aligned with code is crucial for project understanding.
 
 ### 🧪 Quick‑Run Commands
 
