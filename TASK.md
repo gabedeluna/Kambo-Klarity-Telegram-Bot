@@ -15,7 +15,7 @@
 | [X]**PH1‑05** | **core/bot.js** – export Telegraf instance initialised with `TG_TOKEN` only (no webhook yet). | Makes bot injectable across modules.  *Pass*: requiring twice returns same object. |
 | [X]**PH1‑06** | **app.js** – create Express app, mount `bot.webhookCallback('/webhook')`, add `/health` route, export `app`. | Single entry for runtime *and* tests.  *Pass*: Supertest GET `/health` → 200. |
 | [X]**PH1‑07** | **bin/server.js** – import `app`, listen on `env.PORT||3000`. | CLI launcher keeps app testable. |
-| [ ]**PH1‑08** | Scaffold **commands/registry.js** with `help`, `book`, `cancel` (client) & `sessions` (admin). Stub handlers that `ctx.reply('stub')`. Unit‑test asserts registry shape. | Starts the command pattern early. |
+| [X]**PH1‑08** | Scaffold **commands/registry.js** with `help`, `book`, `cancel` (client) & `sessions` (admin). Stub handlers that `ctx.reply('stub')`. Unit‑test asserts registry shape. | Starts the command pattern early. |
 | [ ]**PH1‑09** | Add **config/sessionTypes.json** with the three sessions in PLANNING.md and **core/sessionTypes.js** helper (getAll, getById). Unit‑test validates JSON schema. | Enables dynamic keyboards in later phases. |
 | [ ]**PH1‑10** | Write initial tests: `tests/health.test.js`, `tests/env.test.js`, `tests/prisma.test.js`, `tests/registry.test.js`, `tests/sessionTypes.test.js`. | Achieve ≥ 90 % coverage on Phase‑1 code paths. |
 | [ ]**PH1‑11** | Setup **husky** pre‑commit hook to run `npm test && npm run lint && npm run format`. | Enforces green commits. |
@@ -41,6 +41,7 @@
 *   **PH1-D15 (PH1-07):** Needed to ensure `BOT_TOKEN` is available in `env.js` *before* `app.js` requires it to derive the webhook path.
 *   **PH1-D16 (PH1-07):** Implemented port logic using `config.PORT || 3000` in `bin/server.js`.
 *   **PH1-D17 (PH1-07):** Added basic error handling for `EADDRINUSE` and `EACCES` in `bin/server.js`.
+*   **PH1-D18 (PH1-08):** Included all commands from PLANNING.md (help, book, cancel, sessions, clients, session_add, session_del) using stub handlers for PH1-08.
 
 ### 💡 Insights & Decisions
 *Explain architectural choices or hurdles encountered.*
@@ -49,6 +50,7 @@
 *   **(PH1-06):** Exporting the configured Express `app` instance from `app.js` allows it to be easily imported for both server startup (`bin/server.js`) and integration testing (`tests/app.test.js`), promoting separation of concerns.
 *   **(PH1-02/07):** Separated Express app definition (`src/app.js`) from server execution (`bin/server.js`) to allow easier testing of the app instance without actually starting a listening server.
 *   **(PH1-06):** Using a SHA256 hash of the `BOT_TOKEN` for the webhook path provides a secure, unique endpoint without exposing the token directly.
+*   **(PH1-08):** Established the command registry pattern early. Stub handlers allow structural testing before implementing logic. Tests verify required `descr` and `handler` properties for each command.
 
 ### 🧪 Quick‑Run Commands
 
