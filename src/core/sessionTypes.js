@@ -71,7 +71,7 @@ function getById(id) {
   }
 
   if (typeof id !== "string") {
-    logger.warn({id}, "getById called with non-string id");
+    logger.warn({ id }, "getById called with non-string id");
     return undefined;
   }
   return sessionTypesCache.find((session) => session.id === id);

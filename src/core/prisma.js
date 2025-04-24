@@ -20,10 +20,7 @@ if (!prismaInstance) {
       await prismaInstance.$disconnect();
       logger.info("[core/prisma] Prisma Client disconnected successfully.");
     } catch (error) {
-      logger.error(
-        error,
-        "[core/prisma] Error disconnecting Prisma Client",
-      );
+      logger.error(error, "[core/prisma] Error disconnecting Prisma Client");
     }
   });
 }
@@ -39,7 +36,7 @@ const prismaExport = prismaInstance;
  * @param {Object} customLogger - A logger object with standard methods
  * @returns {import('@prisma/client').PrismaClient} - The prisma instance
  */
-prismaExport.setLogger = function(customLogger) {
+prismaExport.setLogger = function (customLogger) {
   logger = customLogger;
   return prismaExport;
 };

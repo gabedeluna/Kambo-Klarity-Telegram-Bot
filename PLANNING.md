@@ -192,9 +192,10 @@ AI Testing: LangSmith evaluations (manual/automated) for agent/graph quality. Sc
 CommonJS, no TypeScript
 JSDoc for every exported symbol
 No file > 500 lines – split into helpers when near 450
-Commit messages follow Conventional Commits (feat:, fix:, docs:…)
-Use structured logger (core/logger.js) instead of console.log.
+Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`…)
+Use structured logger (`core/logger.js`) instead of `console.log`.
 Handle errors gracefully (custom errors, centralized handler).
+Testing Dependency Injection:** Use **`proxyquire`** to inject mocked dependencies (like logger, prisma client) into modules during unit/integration testing to ensure isolation and verify interactions. *(Alternatively, or where appropriate, setter injection may be used, especially for testing singleton behavior itself).
 Prioritize user privacy and data security in all features.
 
 # 11 Feature Details & Explanations

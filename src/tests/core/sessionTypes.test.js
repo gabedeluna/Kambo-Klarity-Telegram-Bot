@@ -9,12 +9,12 @@ const loggerMock = {
   warn: sinon.stub(),
   debug: sinon.stub(),
   fatal: sinon.stub(),
-  trace: sinon.stub()
+  trace: sinon.stub(),
 };
 
 // Use this to avoid circular dependencies when testing
 require.cache[require.resolve("../../core/logger")] = {
-  exports: loggerMock
+  exports: loggerMock,
 };
 
 // Import specific functions including the loader
@@ -91,8 +91,8 @@ describe("Session Types Helper", () => {
 
     beforeEach(() => {
       // Reset logger mock stubs
-      Object.values(loggerMock).forEach(stub => stub.reset());
-      
+      Object.values(loggerMock).forEach((stub) => stub.reset());
+
       // Stub fs functions used by _loadSessionTypes
       existsSyncStub = sinon.stub(fs, "existsSync");
       readFileSyncStub = sinon.stub(fs, "readFileSync");
@@ -120,7 +120,9 @@ describe("Session Types Helper", () => {
       expect(existsSyncStub.calledOnce).to.be.true;
       expect(readFileSyncStub.calledOnce).to.be.true;
       expect(loggerMock.error.calledOnce).to.be.true;
-      expect(loggerMock.error.firstCall.args[0]).to.include("Expected an array");
+      expect(loggerMock.error.firstCall.args[0]).to.include(
+        "Expected an array",
+      );
     });
 
     it("should return empty array and log error if reading file fails", () => {

@@ -41,7 +41,7 @@ server.on("error", (error) => {
 });
 
 // Add a method to set a custom logger (for testing)
-server.setLogger = function(customLogger) {
+server.setLogger = function (customLogger) {
   logger = customLogger;
   return server;
 };

@@ -69,6 +69,82 @@ async function resetUserState(telegramId) {
 }
 
 /**
+ * Updates specific fields of a user's record in the database.
+ *
+ * @param {string|number} telegramId - The Telegram ID of the user to update.
+ * @param {object} dataToUpdate - An object containing the fields and values to update. Must not be empty.
+ * @returns {Promise<{success: boolean, error?: string, user?: object}>} - An object indicating success/failure and potentially the updated user data.
+ */
+async function updateUserState(telegramId, dataToUpdate) {
+  // Input Validation: telegramId
+  if (!telegramId) {
+    logger.error("updateUserState called without a telegramId.");
+    return { success: false, error: "Invalid telegramId" };
+  }
+
+  // Input Validation: dataToUpdate
+  if (
+    typeof dataToUpdate !== "object" ||
+    dataToUpdate === null ||
+    Object.keys(dataToUpdate).length === 0
+  ) {
+    logger.error(
+      { telegramId: String(telegramId), data: dataToUpdate },
+      "updateUserState called with invalid dataToUpdate object.",
+    );
+    return { success: false, error: "Invalid dataToUpdate object" };
+  }
+
+  let bigIntTelegramId;
+  try {
+    bigIntTelegramId = BigInt(telegramId);
+  } catch (error) {
+    logger.error(
+      { telegramId: String(telegramId), err: error },
+      "Invalid telegramId format for updateUserState. Cannot convert to BigInt.",
+    );
+    return {
+      success: false,
+      error: "Invalid input: telegramId format is invalid.",
+    };
+  }
+
+  logger.info(
+    { telegramId: String(bigIntTelegramId), updateData: dataToUpdate },
+    "Attempting to update user state",
+  );
+
+  try {
+    const updatedUser = await prisma.users.update({
+      where: { telegram_id: bigIntTelegramId },
+      data: dataToUpdate,
+    });
+    logger.info(
+      { telegramId: String(bigIntTelegramId) },
+      "Successfully updated user state.",
+    );
+    return { success: true, user: updatedUser };
+  } catch (error) {
+    logger.error(
+      {
+        telegramId: String(bigIntTelegramId),
+        updateData: dataToUpdate,
+        err: error,
+      },
+      "Error updating user state in database.",
+    );
+
+    // Check for Prisma's specific 'RecordNotFound' error code (P2025)
+    if (error.code === "P2025") {
+      return { success: false, error: "User not found for update." };
+    }
+
+    // Generic database error
+    return { success: false, error: "Database error during state update." };
+  }
+}
+
+/**
  * Sets the logger instance used by this module.
  * Useful for dependency injection in tests.
  *
@@ -80,5 +156,6 @@ function setLogger(newLogger) {
 
 module.exports = {
   resetUserState,
+  updateUserState,
   setLogger,
 };
