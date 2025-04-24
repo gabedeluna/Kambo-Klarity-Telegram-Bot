@@ -281,8 +281,10 @@ app.post('/api/submit-waiver', async (req, res) => {
 // Input: Port number
 // Output: Running server
 
-const PORT = process.env.FORM_SERVER_PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 [server/startup] Form server is running on port ${PORT}`);
-  console.log(`📋 [server/startup] Form URL: ${process.env.FORM_SERVER_URL || `http://localhost:${PORT}`}`);
-});
+// const PORT = process.env.FORM_SERVER_PORT || 3001;
+// app.listen(PORT, () => {
+//   console.log(`🚀 [server/startup] Form server is running on port ${PORT}`);
+//   console.log(`📋 [server/startup] Form URL: ${process.env.FORM_SERVER_URL || `http://localhost:${PORT}`}`);
+// });
+
+module.exports = app;
