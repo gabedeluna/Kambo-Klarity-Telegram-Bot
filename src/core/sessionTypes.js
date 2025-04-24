@@ -6,9 +6,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const SESSION_TYPES_PATH = path.join(__dirname, "../config/sessionTypes.json");
+// Define the path to the session types configuration file
+const SESSION_TYPES_PATH = path.join(__dirname, '../config/sessionTypes.json'); // Corrected path
 
-let sessionTypesCache = [];
+// Internal cache for session types - Initialize to null for lazy loading
+let sessionTypesCache = null;
 
 /**
  * Loads session types from the JSON configuration file.
@@ -18,6 +20,11 @@ let sessionTypesCache = [];
  */
 function _loadSessionTypes() {
   try {
+    if (!fs.existsSync(SESSION_TYPES_PATH)) {
+      console.error(`Error: Session types file not found at ${SESSION_TYPES_PATH}`);
+      return [];
+    }
+
     const fileContent = fs.readFileSync(SESSION_TYPES_PATH, "utf-8");
     const data = JSON.parse(fileContent);
     // Basic validation to ensure it's an array
@@ -37,15 +44,15 @@ function _loadSessionTypes() {
   }
 }
 
-// Load data on module initialization
-sessionTypesCache = _loadSessionTypes();
-
 /**
  * Retrieves all loaded session types.
  *
  * @returns {Array<object>} An array containing all session type objects.
  */
 function getAll() {
+  if (sessionTypesCache === null) {
+    sessionTypesCache = _loadSessionTypes();
+  }
   return sessionTypesCache;
 }
 
@@ -56,6 +63,10 @@ function getAll() {
  * @returns {object | undefined} The session type object if found, otherwise undefined.
  */
 function getById(id) {
+  if (sessionTypesCache === null) {
+    sessionTypesCache = _loadSessionTypes();
+  }
+
   if (typeof id !== "string") {
     console.warn("getById called with non-string id:", id);
     return undefined;
@@ -66,4 +77,5 @@ function getById(id) {
 module.exports = {
   getAll,
   getById,
+  _loadSessionTypes,
 };

@@ -1,7 +1,7 @@
 // src/tests/app.test.js
 const request = require("supertest");
 const { expect } = require("chai");
-const app = require("../app"); // The Express app instance
+const server = require("../../bin/server"); // Import the server instance
 const botInstance = require("../core/bot"); // To get the secret path
 
 describe("Express App", () => {
@@ -13,8 +13,13 @@ describe("Express App", () => {
     secretPath = `/telegraf/${secretPathComponent}`;
   });
 
+  // Close the server after all tests in this describe block are done
+  after((done) => {
+    server.close(done); // Pass done callback to handle async close
+  });
+
   it("GET /health should return 200 OK", async () => {
-    const res = await request(app)
+    const res = await request(server) // Use server instance
       .get("/health")
       .expect("Content-Type", /text\/plain/)
       .expect(200);
@@ -25,7 +30,7 @@ describe("Express App", () => {
   it("POST /<secretPath> should return 200 OK for basic requests", async () => {
     // Telegraf's webhookCallback handles basic POSTs gracefully even without
     // a valid Telegram update payload, responding 200 OK to prevent retries.
-    await request(app)
+    await request(server) // Use server instance
       .post(secretPath)
       .send({}) // Send an empty JSON body
       // .expect('Content-Type', /text\/plain/) // REMOVED: Don't assert content-type here
@@ -35,7 +40,7 @@ describe("Express App", () => {
   });
 
   it("GET /invalid-route should return 404 Not Found", async () => {
-    await request(app)
+    await request(server) // Use server instance
       .get("/non-existent-path-12345")
       .expect("Content-Type", /text\/html/) // Express default 404 is HTML
       .expect(404);
@@ -43,7 +48,7 @@ describe("Express App", () => {
 
   // Optional: Test webhook with invalid JSON (might depend on Express version)
   // it('POST /<secretPath> with invalid JSON should return 400 Bad Request', async () => {
-  //   await request(app)
+  //   await request(server)
   //     .post(secretPath)
   //     .set('Content-Type', 'application/json')
   //     .send('this is not json')

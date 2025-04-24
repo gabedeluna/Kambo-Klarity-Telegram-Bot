@@ -4,7 +4,7 @@
   "description": "",
   "main": "bot.js",
   "scripts": {
-    "test": "nyc mocha \"src/tests/**/*.test.js\" --allow-empty",
+    "test": "nyc mocha \"src/tests/**/*.test.js\" --allow-empty --exit",
     "lint": "eslint . --ext .js",
     "format": "prettier --write \"**/*.js\"",
     "prepare": "husky install",

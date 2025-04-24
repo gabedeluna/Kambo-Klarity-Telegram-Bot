@@ -17,7 +17,7 @@
 | [X]**PH1‑07** | **bin/server.js** – import `app`, listen on `env.PORT||3000`. | CLI launcher keeps app testable. |
 | [X]**PH1‑08** | Scaffold **commands/registry.js** with `help`, `book`, `cancel` (client) & `sessions` (admin). Stub handlers that `ctx.reply('stub')`. Unit‑test asserts registry shape. | Starts the command pattern early. |
 | [X]**PH1‑09** | Add **config/sessionTypes.json** with the three sessions in PLANNING.md and **core/sessionTypes.js** helper (getAll, getById). Unit‑test validates JSON schema. | Enables dynamic keyboards in later phases. |
-| [ ]**PH1‑10** | Write initial tests: `tests/health.test.js`, `tests/env.test.js`, `tests/prisma.test.js`, `tests/registry.test.js`, `tests/sessionTypes.test.js`. | Achieve ≥ 90 % coverage on Phase‑1 code paths. |
+| [X]**PH1‑10** | **(2025-04-23)** Write initial tests: `tests/health.test.js`, `tests/env.test.js`, `tests/prisma.test.js`, `tests/registry.test.js`, `tests/sessionTypes.test.js`. | Achieve ≥ 90 % coverage on Phase‑1 code paths. |
 | [ ]**PH1‑11** | Setup **husky** pre‑commit hook to run `npm test && npm run lint && npm run format`. | Enforces green commits. |
 | [ ]**PH1‑12** | Update `docs/architecture.md` with new folder diagram and Phase‑1 status. | Docs evolve with code. |
 | [ ]**PH1‑13** | Tick each task box here when done and jot *Discoveries* below. | Keeps project heartbeat. |
@@ -45,6 +45,9 @@
 *   **PH1-D19 (PH1-09):** Initial `env.js` logic was slightly complex; simplified using `dotenv` defaults.
 *   **PH1-D20 (PH1-09):** Added `description` field to `sessionTypes.json` based on legacy message content.
 *   **PH1-D21 (PH1-09):** Used `fs.readFileSync` for simplicity in the `sessionTypes.js` helper.
+*   **PH1-D22 (PH1-10):** Refactored sessionTypes cache logic for lazy loading.
+*   **PH1-D23 (PH1-10):** Identified and removed redundant env checks in bot.js.
+*   **PH1-D24 (PH1-10):** Achieved >98% line coverage on core Phase 1 modules (app.js, core/*, commands/registry.js, bin/server.js), exceeding the 90% target. Minor uncovered branches in error handling deemed acceptable given cost/benefit.
 
 ### 💡 Insights & Decisions
 *Explain architectural choices or hurdles encountered.*

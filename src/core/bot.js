@@ -3,10 +3,11 @@ const config = require("./env");
 
 const BOT_TOKEN = config.tgToken;
 
-if (!BOT_TOKEN) {
-  console.error("FATAL ERROR: TG_TOKEN environment variable is not set.");
-  process.exit(1); // Exit if the token is missing
-}
+// Redundant check removed - env.js handles missing required vars
+// if (!BOT_TOKEN) {                          
+//   console.error("FATAL ERROR: TG_TOKEN environment variable is not set.");
+//   process.exit(1); // Exit if the token is missing
+// }
 
 const botInstance = new Telegraf(BOT_TOKEN);
 

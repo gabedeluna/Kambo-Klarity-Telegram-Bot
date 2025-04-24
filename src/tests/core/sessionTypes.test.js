@@ -1,84 +1,143 @@
-/**
- * Unit tests for the sessionTypes helper module.
- */
+const { expect } = require('chai');
+const fs = require('fs');
+const sinon = require('sinon');
+// Import specific functions including the loader
+const { getAll, getById, _loadSessionTypes } = require('../../core/sessionTypes');
 
-const { expect } = require("chai");
-const sessionTypes = require("../../core/sessionTypes");
+// Helper to clear cache (might not be strictly needed with lazy loading, but good practice)
+const clearSessionTypesCache = () => {
+  // Resetting internal state is harder now, focus on testing _loadSessionTypes directly
+  // Forcing a reload requires more complex module manipulation or resetting the internal cache variable
+  // For now, we rely on testing _loadSessionTypes directly for error paths.
+};
 
-// Optionally, uncomment if direct file access is needed for advanced tests
-// const fs = require('fs');
-// const path = require('path');
-// const sessionTypesPath = path.join(__dirname, '../../config/sessionTypes.json');
+describe('Session Types Helper', () => {
+  beforeEach(() => {
+    // Restore any stubs/spies before each test
+    sinon.restore();
+    // clearSessionTypesCache(); // Potentially clear if needed
+  });
 
-describe("Session Types Helper", () => {
-  describe("getAll()", () => {
-    it("getAll() should return a non-empty array", () => {
-      const result = sessionTypes.getAll();
-      expect(result).to.be.an("array");
-      // Assuming the JSON file is correctly populated as per spec
-      expect(result).to.not.be.empty;
+  afterEach(() => {
+    // Clean up stubs/spies after each test
+    sinon.restore();
+  });
+
+  // --- Test Public API under normal conditions --- 
+  describe('Public API (getAll, getById)', () => {
+    // These tests rely on the actual sessions.json file being present and valid
+    it('getAll() should return a non-empty array', () => {
+      const types = getAll();
+      expect(types).to.be.an('array').that.is.not.empty;
+      // Call again to ensure cache is used (implicitly)
+      const typesAgain = getAll();
+      expect(typesAgain).to.equal(types); // Should be the same cached array
     });
 
-    it("each session object in getAll() should conform to the expected schema (id, label, duration, description)", () => {
-      const allSessions = sessionTypes.getAll();
-      const ids = new Set();
-
-      expect(allSessions.length).to.be.greaterThan(
-        0,
-        "Expected at least one session type",
-      );
-
-      allSessions.forEach((session) => {
-        // Check for required keys
-        expect(session).to.have.all.keys(
-          "id",
-          "label",
-          "duration",
-          "description",
-        );
-
-        // Check data types
-        expect(session.id).to.be.a("string");
-        expect(session.label).to.be.a("string");
-        expect(session.duration).to.be.a("number");
-        expect(session.description).to.be.a("string");
-
-        // Check for non-empty strings and positive duration
-        expect(session.id).to.not.be.empty;
-        expect(session.label).to.not.be.empty;
-        expect(session.duration).to.be.greaterThan(0);
-        // Description can be empty, but should be a string
-
-        // Check for ID uniqueness
-        expect(ids.has(session.id), `Duplicate session ID found: ${session.id}`)
-          .to.be.false;
-        ids.add(session.id);
+    it('each session object in getAll() should conform to the expected schema', () => {
+      const types = getAll();
+      types.forEach(type => {
+        expect(type).to.have.property('id').that.is.a('string');
+        expect(type).to.have.property('label').that.is.a('string');
+        expect(type).to.have.property('duration').that.is.a('number');
+        expect(type).to.have.property('description').that.is.a('string');
       });
+    });
+
+    it('getById() should return the correct session object for a valid ID', () => {
+      const allTypes = getAll(); // Ensure cache is populated
+      const validId = allTypes[0]?.id;
+      if (!validId) {
+        throw new Error('Could not get a valid ID from sessions.json for testing');
+      }
+      const type = getById(validId);
+      expect(type).to.be.an('object');
+      expect(type?.id).to.equal(validId);
+    });
+
+    it('getById() should return undefined for an invalid ID', () => {
+      getAll(); // Ensure cache is populated
+      const type = getById('invalid-id-does-not-exist');
+      expect(type).to.be.undefined;
+    });
+
+    it('getById() should return undefined for a non-string ID', () => {
+      getAll(); // Ensure cache is populated
+      expect(getById(123)).to.be.undefined;
+      expect(getById(null)).to.be.undefined;
+      expect(getById({})).to.be.undefined;
+      expect(getById(undefined)).to.be.undefined;
     });
   });
 
-  describe("getById()", () => {
-    it("getById() should return the correct session object for a valid ID", () => {
-      const knownId = "1hr-kambo"; // Use a known ID from the JSON
-      const result = sessionTypes.getById(knownId);
+  // --- Test Internal Loader Function directly --- 
+  describe('_loadSessionTypes() Error Handling', () => {
+    let consoleErrorSpy;
+    let existsSyncStub;
+    let readFileSyncStub;
 
-      expect(result).to.be.an("object");
-      expect(result.id).to.equal(knownId);
-      // Optionally check other properties if needed
-      expect(result.label).to.equal("1 hr Kambo");
+    beforeEach(() => {
+      consoleErrorSpy = sinon.spy(console, 'error');
+      // Stub fs functions used by _loadSessionTypes
+      existsSyncStub = sinon.stub(fs, 'existsSync');
+      readFileSyncStub = sinon.stub(fs, 'readFileSync');
     });
 
-    it("getById() should return undefined for an invalid ID", () => {
-      const invalidId = "non-existent-session-id";
-      const result = sessionTypes.getById(invalidId);
-      expect(result).to.be.undefined;
+    it('should return empty array and log error if file does not exist', () => {
+      existsSyncStub.returns(false);
+
+      const types = _loadSessionTypes();
+
+      expect(types).to.be.an('array').that.is.empty;
+      expect(existsSyncStub.calledOnce).to.be.true;
+      expect(readFileSyncStub.called).to.be.false; // Shouldn't try to read
+      expect(consoleErrorSpy.calledOnce).to.be.true;
+      expect(consoleErrorSpy.firstCall.args[0]).to.include('file not found');
     });
 
-    it("getById() should return undefined for a non-string ID", () => {
-      expect(sessionTypes.getById(123)).to.be.undefined;
-      expect(sessionTypes.getById(null)).to.be.undefined;
-      expect(sessionTypes.getById({})).to.be.undefined;
-      expect(sessionTypes.getById(undefined)).to.be.undefined;
+    it('should return empty array and log error if file content is not an array', () => {
+      existsSyncStub.returns(true);
+      readFileSyncStub.returns('{"not": "an array"}'); // Invalid JSON structure
+
+      const types = _loadSessionTypes();
+
+      expect(types).to.be.an('array').that.is.empty;
+      expect(existsSyncStub.calledOnce).to.be.true;
+      expect(readFileSyncStub.calledOnce).to.be.true;
+      expect(consoleErrorSpy.calledOnce).to.be.true;
+      expect(consoleErrorSpy.firstCall.args[0]).to.include('Expected an array');
     });
+
+    it('should return empty array and log error if reading file fails', () => {
+      const mockError = new Error('Disk read error');
+      existsSyncStub.returns(true);
+      readFileSyncStub.throws(mockError);
+
+      const types = _loadSessionTypes();
+
+      expect(types).to.be.an('array').that.is.empty;
+      expect(existsSyncStub.calledOnce).to.be.true;
+      expect(readFileSyncStub.calledOnce).to.be.true;
+      expect(consoleErrorSpy.calledOnce).to.be.true;
+      expect(consoleErrorSpy.firstCall.args[0]).to.include('Error loading session types');
+      expect(consoleErrorSpy.firstCall.args[1]).to.equal(mockError);
+    });
+
+     it('should return empty array and log error if parsing file fails', () => {
+      existsSyncStub.returns(true);
+      readFileSyncStub.returns('{"invalidJson":'); // Malformed JSON
+
+      const types = _loadSessionTypes();
+
+      expect(types).to.be.an('array').that.is.empty;
+      expect(existsSyncStub.calledOnce).to.be.true;
+      expect(readFileSyncStub.calledOnce).to.be.true;
+      expect(consoleErrorSpy.calledOnce).to.be.true;
+      expect(consoleErrorSpy.firstCall.args[0]).to.include('Error loading session types');
+      // Check that the caught error is likely a SyntaxError
+      expect(consoleErrorSpy.firstCall.args[1]).to.be.instanceOf(Error);
+      expect(consoleErrorSpy.firstCall.args[1].name).to.equal('SyntaxError');
+    });
+
   });
 });

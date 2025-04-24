@@ -38,3 +38,6 @@ server.on("error", (error) => {
       throw error;
   }
 });
+
+// Export the server instance for testing or programmatic control
+module.exports = server;
