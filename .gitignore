@@ -1,5 +1,10 @@
-# Ignore node_modules directory within telegram-hello
-/telegram-hello/node_modules/
-
 # Ignore .env file within telegram-hello
-/telegram-hello/.env
+.env
+
+# Ignore credential files
+legacy/config/*.json
+node_modules
+
+# Coverage reports
+coverage/
+.nyc_output/

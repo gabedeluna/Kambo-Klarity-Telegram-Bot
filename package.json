@@ -4,7 +4,10 @@
   "description": "",
   "main": "bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "nyc mocha \"src/tests/**/*.test.js\" --allow-empty",
+    "lint": "eslint . --ext .js",
+    "format": "prettier --write \"**/*.js\"",
+    "prepare": "husky install",
     "start": "node bot.js",
     "start:server": "node server.js",
     "dev": "concurrently \"npm run start\" \"npm run start:server\"",
@@ -29,5 +32,20 @@
     "langchain": "^0.3.23",
     "telegraf": "^4.16.3",
     "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "chai": "^5.2.0",
+    "eslint": "^9.25.1",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-plugin-import": "^2.31.0",
+    "husky": "^9.1.7",
+    "mocha": "^11.1.0",
+    "nyc": "^17.1.0",
+    "prettier": "^3.5.3",
+    "sinon": "^20.0.0",
+    "supertest": "^7.1.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
