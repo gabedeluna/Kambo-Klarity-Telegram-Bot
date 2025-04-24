@@ -19,7 +19,7 @@
 | [X]**PH1‑09** | Add **config/sessionTypes.json** with the three sessions in PLANNING.md and **core/sessionTypes.js** helper (getAll, getById). Unit‑test validates JSON schema. | Enables dynamic keyboards in later phases. |
 | [X]**PH1‑10** | **(2025-04-23)** Write initial tests: `tests/health.test.js`, `tests/env.test.js`, `tests/prisma.test.js`, `tests/registry.test.js`, `tests/sessionTypes.test.js`. | Achieve ≥ 90 % coverage on Phase‑1 code paths. |
 | [X]**PH1‑11** | Setup **husky** pre‑commit hook to run `npm test && npm run lint && npm run format`. | Enforces green commits. |
-| [X]**PH1‑12** | Update `docs/architecture.md` with new folder diagram and Phase‑1 status. | Docs evolve with code. |
+| [X]**PH1‑12** | Update `docs/architecture.md` with new folder diagram and Phase 1 completion status. | Docs evolve with code. |
 | [X]**PH1‑13** | Tick each task box here when done and jot *Discoveries* below. | Keeps project heartbeat. |
 
 ### 🚧 Discovered During Work
@@ -75,8 +75,8 @@
 | [X]**PH2‑02** | **Setup Centralized Error Handling**                                  | Create `src/errors/AppError.js`, `src/errors/NotFoundError.js`, and `src/middleware/errorHandler.js`. Register in app.js. *Pass*: Test suite confirms errors are caught, logged, and return appropriate JSON responses. |Unit/Integration tests pass. |
 | [X]**PH2‑03** | **Create `src/tools/` directory**                                      | Establish the dedicated home for LangChain-callable tools. *Pass*: Directory exists. (If not already created in previous explorations). |
 | [X]**PH2‑04** | **Tool: `src/tools/stateManager.js` - `resetUserState` function**        | Create tool to reset user state (`state`, `session_type`, etc.) in Prisma. *Pass*: Unit tests confirm DB update call with correct parameters using mock Prisma. |
-| [ ]**PH2‑05** | **Tool: `src/tools/stateManager.js` - `updateUserState` function**       | Create generic tool to update specific user state fields in Prisma. *Pass*: Unit tests confirm targeted DB update calls using mock Prisma. |
-| [ ]**PH2‑06** | **Tool: `src/tools/stateManager.js` - `storeBookingData` function**      | Create tool to specifically store AI-confirmed booking data (`booking_slot`, `session_type`) in Prisma. *Pass*: Unit tests confirm DB update calls using mock Prisma. |
+| [X]**PH2‑05** | **Tool: `src/tools/stateManager.js` - `updateUserState` function**       | Add tool to update specific user fields (e.g., set `state` to 'BOOKING'). *Pass*: Unit tests confirm DB update call with correct parameters and data. |
+| [X]**PH2‑06** | **Tool: `src/tools/stateManager.js` - `storeBookingData` function**      | Create tool to specifically store AI-confirmed booking data (`booking_slot`, `session_type`) in Prisma. *Pass*: Unit tests confirm DB update calls using mock Prisma. |
 | [ ]**PH2‑07** | **Tool: `src/tools/telegramNotifier.js` - `sendWaiverLink` function**    | Create tool that sends the waiver form WebApp button via Telegraf, storing `message_id`. *Pass*: Unit tests confirm mock bot API call and mock Prisma update (`edit_msg_id`). |
 | [ ]**PH2‑08** | **Tool: `src/tools/telegramNotifier.js` - `sendTextMessage` function**   | Create generic tool to send a simple text message via Telegraf. *Pass*: Unit tests confirm mock bot API call with correct parameters. |
 | [ ]**PH2‑09** | **Tool: `src/tools/googleCalendar.js` - Stub `findFreeSlots`**         | Create **stub** function mimicking finding calendar slots (returns fake data). No API call. *Pass*: Unit tests confirm function returns expected fake data structure. |
@@ -101,6 +101,8 @@
 *   **PH2-D10 (PH2-02):** Used dependency injection via proxyquire for testing the error handler middleware, allowing tests to verify logger interactions without tight coupling.
 *   **PH2-D11 (PH2-03):** Ensured `src/tools/` directory exists. Used `--allow-empty` commit to mark task completion as the directory was likely created in a previous phase.
 *   **PH2-D12 (PH2-04):** Created `stateManager.js` tool. Implemented `resetUserState` using Prisma. Used Sinon stubs via proxyquire for Prisma in unit tests. Added logger DI setter.
+*   **PH2-D13 (PH2-05):** Added generic `updateUserState` function to `stateManager.js`. Included handling for Prisma P2025 (RecordNotFound) error.
+*   **PH2-D14 (PH2-06):** Added dedicated `storeBookingData` function to `stateManager.js` for saving confirmed session/slot.
 
 ### 💡 Insights & Decisions
 *(Explain logger choice, error handling strategy, tool design choices, mocking strategies, tool definition standard, etc.)*
@@ -111,6 +113,8 @@
 *   **PH2-02:** Centralized handler provides consistent error response and logging. Custom errors allow differentiating operational vs. unexpected errors and setting specific status codes.
 *   **PH2-03:** Formally acknowledged creation of dedicated directory for LangChain tools as per planning.
 *   **PH2-04:** Encapsulating DB state resets into a tool function simplifies calling logic for AI/Graph. Unit tests verify DB interaction logic without hitting the actual DB.
+*   **PH2-05:** Generic update function provides flexibility for AI/Graph to modify user state. Testing with `proxyquire` ensures correct Prisma calls for various inputs and error conditions.
+*   **PH2-06:** Specific tool function for storing booking data improves clarity of intent compared to generic update. Followed established testing pattern using proxyquire.
 
 ### 🧪 Quick‑Run Commands
 
@@ -120,4 +124,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-25
+**Last updated:** 2025-04-24
