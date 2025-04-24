@@ -5,8 +5,8 @@
 // Input: None
 // Output: Tool modules
 
-const bookingTools = require('./bookingTools');
+const bookingTools = require("./bookingTools");
 
 module.exports = {
-  bookingTools
+  bookingTools,
 };

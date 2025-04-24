@@ -1,1 +1,1 @@
-module.exports = require('../telegram-hello/legacy/server'); // temporary re-export
+module.exports = require("../legacy/server"); // temporary re-export

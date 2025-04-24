@@ -8,7 +8,11 @@
 const { ChatOpenAI } = require("@langchain/openai");
 const { ChatAnthropic } = require("@langchain/anthropic");
 const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
-const { HumanMessage, SystemMessage, AIMessage } = require("@langchain/core/messages");
+const {
+  HumanMessage,
+  SystemMessage,
+  AIMessage,
+} = require("@langchain/core/messages");
 const { z } = require("zod");
 
 // ======================================================================
@@ -18,23 +22,23 @@ const { z } = require("zod");
 // Input: Provider name, API keys
 // Output: Configured LLM instance
 
-const getAIModel = (provider = 'openai') => {
+const getAIModel = (provider = "openai") => {
   console.log(`🔄 [bookingAgent/getAIModel] Initializing ${provider} model`);
-  
+
   switch (provider.toLowerCase()) {
-    case 'openai':
+    case "openai":
       return new ChatOpenAI({
         modelName: "gpt-4.1",
         temperature: 0.2,
         openAIApiKey: process.env.OPENAI_API_KEY,
       });
-    case 'anthropic':
+    case "anthropic":
       return new ChatAnthropic({
         modelName: "claude-3-opus-20240229",
         temperature: 0.2,
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       });
-    case 'gemini':
+    case "gemini":
       // Using a standard model name that should be available in the API
       return new ChatGoogleGenerativeAI({
         model: "gemini-1.5-pro",
@@ -43,7 +47,9 @@ const getAIModel = (provider = 'openai') => {
         maxOutputTokens: 1024,
       });
     default:
-      console.warn(`⚠️ [bookingAgent/getAIModel] Unknown provider: ${provider}, falling back to OpenAI`);
+      console.warn(
+        `⚠️ [bookingAgent/getAIModel] Unknown provider: ${provider}, falling back to OpenAI`,
+      );
       return new ChatOpenAI({
         modelName: "gpt-4-turbo",
         temperature: 0.2,
@@ -127,22 +133,31 @@ YOU MUST ALWAYS RESPOND IN THE FOLLOWING JSON FORMAT:
 
 const responseSchema = z.object({
   responseType: z.enum([
-    "suggestion",   // Suggesting available times
+    "suggestion", // Suggesting available times
     "confirmation", // Confirming a specific slot
-    "booking",      // Final booking confirmation
+    "booking", // Final booking confirmation
     "clarification", // Asking for more details
-    "cancel",       // User wants to cancel
-    "error"         // Something went wrong
+    "cancel", // User wants to cancel
+    "error", // Something went wrong
   ]),
   message: z.string().describe("The message to send to the user"),
-  suggestedSlots: z.array(z.string()).optional().describe("List of suggested date/time slots"),
-  confirmedSlot: z.string().optional().describe("The specific date/time slot confirmed for booking"),
-  toolCalls: z.array(
-    z.object({
-      tool: z.string().describe("Tool name to call"),
-      parameters: z.record(z.any()).describe("Parameters for the tool")
-    })
-  ).optional().describe("Tools to call")
+  suggestedSlots: z
+    .array(z.string())
+    .optional()
+    .describe("List of suggested date/time slots"),
+  confirmedSlot: z
+    .string()
+    .optional()
+    .describe("The specific date/time slot confirmed for booking"),
+  toolCalls: z
+    .array(
+      z.object({
+        tool: z.string().describe("Tool name to call"),
+        parameters: z.record(z.any()).describe("Parameters for the tool"),
+      }),
+    )
+    .optional()
+    .describe("Tools to call"),
 });
 
 // ======================================================================
@@ -152,73 +167,93 @@ const responseSchema = z.object({
 // Input: User message, conversation history, user context
 // Output: Structured response with next actions
 
-const processUserMessage = async (userMessage, conversationHistory, userContext, provider = 'openai') => {
+const processUserMessage = async (
+  userMessage,
+  conversationHistory,
+  userContext,
+  provider = "openai",
+) => {
   try {
-    console.log(`🔄 [bookingAgent/processUserMessage] Processing message: "${userMessage}"`);
-    
+    console.log(
+      `🔄 [bookingAgent/processUserMessage] Processing message: "${userMessage}"`,
+    );
+
     const model = getAIModel(provider);
-    const currentDateTime = new Date().toLocaleString('en-US', { 
-      timeZone: 'America/Chicago',
-      dateStyle: 'full', 
-      timeStyle: 'long' 
+    const currentDateTime = new Date().toLocaleString("en-US", {
+      timeZone: "America/Chicago",
+      dateStyle: "full",
+      timeStyle: "long",
     });
-    
+
     // Create the system prompt with current context
     const systemPrompt = getBookingSystemPrompt(
-      currentDateTime, 
-      userContext.sessionType || "Unknown Session Type"
+      currentDateTime,
+      userContext.sessionType || "Unknown Session Type",
     );
-    
+
     // Build message history
     const messages = [
       new SystemMessage(systemPrompt),
-      ...conversationHistory.map(msg => 
-        msg.role === 'user' 
-          ? new HumanMessage(msg.content) 
-          : new AIMessage(msg.content)
+      ...conversationHistory.map((msg) =>
+        msg.role === "user"
+          ? new HumanMessage(msg.content)
+          : new AIMessage(msg.content),
       ),
-      new HumanMessage(userMessage)
+      new HumanMessage(userMessage),
     ];
-    
-    console.log(`🔄 [bookingAgent/processUserMessage] Sending ${messages.length} messages to AI`);
-    
+
+    console.log(
+      `🔄 [bookingAgent/processUserMessage] Sending ${messages.length} messages to AI`,
+    );
+
     // Get response from AI
     const response = await model.call(messages);
-    
+
     // Parse the response
     try {
       // Extract JSON from the response
       const responseText = response.content;
-      const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, responseText];
+      const jsonMatch = responseText.match(
+        /```(?:json)?\s*([\s\S]*?)\s*```/,
+      ) || [null, responseText];
       const jsonString = jsonMatch[1].trim();
-      
+
       // Parse JSON
       const parsedResponse = JSON.parse(jsonString);
-      
+
       // Validate against schema
       const validatedResponse = responseSchema.parse(parsedResponse);
-      
-      console.log(`✅ [bookingAgent/processUserMessage] Successfully processed AI response:`, validatedResponse);
+
+      console.log(
+        `✅ [bookingAgent/processUserMessage] Successfully processed AI response:`,
+        validatedResponse,
+      );
       return validatedResponse;
     } catch (parseError) {
-      console.warn(`❗ [bookingAgent/processUserMessage] AI returned non-JSON, wrapping as clarification.`);
+      console.warn(
+        `❗ [bookingAgent/processUserMessage] AI returned non-JSON, wrapping as clarification.`,
+      );
       console.log(`Raw response:`, response.content);
-      
+
       const fallbackResponse = {
         responseType: "clarification",
         message: response.content,
-        toolCalls: []
+        toolCalls: [],
       };
 
       // Validate and return fallback response
       return responseSchema.parse(fallbackResponse);
     }
   } catch (error) {
-    console.error(`❌ [bookingAgent/processUserMessage] Error calling AI model:`, error);
+    console.error(
+      `❌ [bookingAgent/processUserMessage] Error calling AI model:`,
+      error,
+    );
     return {
       responseType: "error",
-      message: "I'm sorry, I'm experiencing technical difficulties. Please try again later.",
-      toolCalls: []
+      message:
+        "I'm sorry, I'm experiencing technical difficulties. Please try again later.",
+      toolCalls: [],
     };
   }
 };
@@ -226,5 +261,5 @@ const processUserMessage = async (userMessage, conversationHistory, userContext,
 module.exports = {
   processUserMessage,
   getAIModel,
-  responseSchema
+  responseSchema,
 };

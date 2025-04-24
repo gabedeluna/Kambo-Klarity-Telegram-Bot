@@ -5,8 +5,8 @@
 // Input: None
 // Output: Agent modules
 
-const bookingAgent = require('./bookingAgent');
+const bookingAgent = require("./bookingAgent");
 
 module.exports = {
-  bookingAgent
+  bookingAgent,
 };
