@@ -72,7 +72,7 @@
 | ID        | Task                                                                   | Why / Acceptance Criteria                                                                                                                        |
 | :-------- | :--------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
 | [X]**PH2‑01** | **Setup Structured Logging (`core/logger.js`)**                        | Implement Pino/Winston for filterable JSON logs. Replace key `console.log`s in existing core files. *Pass*: Logger singleton created, basic logs appear, unit tests pass. |
-| [ ]**PH2‑02** | **Setup Centralized Error Handling (`middleware/errorHandler.js`)**      | Implement global Express error handler middleware. Define basic custom error classes (optional). *Pass*: Middleware catches errors, logs via logger, sends generic response. Unit/Integration tests pass. |
+| [X]**PH2‑02** | **Setup Centralized Error Handling**                                  | Create `src/errors/AppError.js`, `src/errors/NotFoundError.js`, and `src/middleware/errorHandler.js`. Register in app.js. *Pass*: Test suite confirms errors are caught, logged, and return appropriate JSON responses. |Unit/Integration tests pass. |
 | [ ]**PH2‑03** | **Create `src/tools/` directory**                                      | Establish the dedicated home for LangChain-callable tools. *Pass*: Directory exists. (If not already created in previous explorations). |
 | [ ]**PH2‑04** | **Tool: `src/tools/stateManager.js` - `resetUserState` function**        | Create tool to reset user state (`state`, `session_type`, etc.) in Prisma. *Pass*: Unit tests confirm DB update call with correct parameters using mock Prisma. |
 | [ ]**PH2‑05** | **Tool: `src/tools/stateManager.js` - `updateUserState` function**       | Create generic tool to update specific user state fields in Prisma. *Pass*: Unit tests confirm targeted DB update calls using mock Prisma. |
@@ -90,6 +90,8 @@
 ### 🚧 Discovered During Work
 *(Add new subtasks here, e.g., `PH2‑D1`)*
 *   **PH2-D1 (PH2-01):** Pino and pino-pretty were already installed in the project (pino v9.6.0, pino-pretty v13.0.0).
+*   **PH2-D9 (PH2-02):** Implemented global Express error handler in middleware/errorHandler.js. Added basic AppError/NotFoundError classes. Registered middleware last in app.js.
+*   **PH2-D10 (PH2-02):** Used dependency injection via proxyquire for testing the error handler middleware, allowing tests to verify logger interactions without tight coupling.
 *   **PH2-D2 (PH2-01):** Updated tests to mock the logger module to avoid breaking existing tests that relied on console.log spies.
 *   **PH2-D3 (PH2-01):** Needed to be careful with circular dependencies - env.js can't use logger since logger might depend on env vars.
 *   **PH2-D4 (PH2-01):** Updated error logging format to follow Pino's convention (error object as first parameter, message as second).
@@ -104,6 +106,7 @@
 *   **PH2-01:** Implemented a test detection mechanism in the logger to automatically silence logs during test runs, preventing test output pollution while maintaining the ability to test logging behavior through mocks.
 *   **PH2-01:** Adopted Pino's error logging convention (error object as first parameter, message as second) which enables better error tracking and aggregation in production environments.
 *   **PH2-01:** Used dependency injection pattern for logger in key modules (server.js, prisma.js) to improve testability. This approach allows tests to inject mock loggers without relying on require cache manipulation, making tests more reliable and less brittle.
+*   **PH2-02:** Centralized handler provides consistent error response and logging. Custom errors allow differentiating operational vs. unexpected errors and setting specific status codes.
 
 ### 🧪 Quick‑Run Commands
 

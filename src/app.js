@@ -1,6 +1,7 @@
 const express = require("express");
 const botInstance = require("./core/bot");
 const logger = require("./core/logger");
+const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
@@ -22,6 +23,9 @@ app.get("/health", (req, res) => {
   res.set("Content-Type", "text/plain"); // Explicitly set Content-Type
   res.status(200).send("OK");
 });
+
+// Register error handling middleware as the last middleware
+app.use(errorHandler);
 
 /**
  * The main Express application instance.
