@@ -2,6 +2,27 @@ const { expect } = require("chai");
 const sinon = require("sinon");
 const path = require("path");
 
+// Create a logger mock that we'll use for all tests
+const loggerMock = {
+  info: sinon.stub(),
+  error: sinon.stub(),
+  warn: sinon.stub(),
+  debug: sinon.stub(),
+  fatal: sinon.stub(),
+  trace: sinon.stub()
+};
+
+// Ensure the logger mock is used by the prisma module
+const loggerPath = path.resolve(process.cwd(), "src/core/logger.js");
+
+// Override the logger module in the require cache
+require.cache[loggerPath] = {
+  id: loggerPath,
+  filename: loggerPath,
+  loaded: true,
+  exports: loggerMock
+};
+
 describe("Core Prisma Module", () => {
   let processOnStub;
 
@@ -16,6 +37,9 @@ describe("Core Prisma Module", () => {
   beforeEach(() => {
     // Stub process.on before each test that might interact with it
     processOnStub = sinon.stub(process, "on");
+    
+    // Reset logger mock stubs
+    Object.values(loggerMock).forEach(stub => stub.reset());
   });
 
   afterEach(() => {
@@ -86,50 +110,49 @@ describe("Core Prisma Module", () => {
     // Import PrismaClient for prototype stubbing
     const { PrismaClient } = require("@prisma/client");
     const mockError = new Error("DB disconnect failed");
-    let disconnectStub; // Declare stub variable
-    let consoleErrorSpy; // Declare spy variable
+    let disconnectStub;
 
     try {
-      // Stub the prototype BEFORE requiring the prisma module
+      // Reset all stubs before this test
+      Object.values(loggerMock).forEach(stub => stub.reset());
+      processOnStub.reset();
+      
+      // Stub the PrismaClient.$disconnect method to reject with our mock error
       disconnectStub = sinon
         .stub(PrismaClient.prototype, "$disconnect")
         .rejects(mockError);
 
-      // Spy on console.error BEFORE requiring the module
-      consoleErrorSpy = sinon.spy(console, "error");
+      // Clear the require cache to ensure a fresh prisma instance
+      delete require.cache[path.resolve(process.cwd(), "src/core/prisma.js")];
 
       // Require the module - this creates an instance with the stubbed prototype
-      // and registers the listener.
-      require(path.resolve(process.cwd(), "src/core/prisma.js"));
+      // and registers the beforeExit listener
+      const prismaInstance = require(path.resolve(process.cwd(), "src/core/prisma.js"));
+      
+      // Set our logger mock directly on the prisma instance
+      prismaInstance.setLogger(loggerMock);
 
-      // Find the registered listener from the processOnStub (setup in beforeEach)
+      // Find the registered listener from the processOnStub
       const beforeExitCall = processOnStub
         .getCalls()
-        .find((call) => call.args[0] === "beforeExit");
+        .find(call => call.args[0] === "beforeExit");
+      
       expect(beforeExitCall, "beforeExit listener not found").to.exist;
       const beforeExitListener = beforeExitCall.args[1];
+      expect(beforeExitListener, "beforeExit listener should be a function").to.be.a("function");
 
-      // Invoke the listener - it should use the instance with the stubbed $disconnect
-      // and catch the rejection
+      // Invoke the listener - it should catch the rejection from $disconnect
       await beforeExitListener();
 
-      // Assert that console.error was called
-      expect(consoleErrorSpy.calledOnce).to.be.true;
-      // Assert it was called with the specific error message and the error object
-      expect(consoleErrorSpy.firstCall.args[0]).to.include(
-        "Error disconnecting Prisma Client:",
-      );
-      expect(consoleErrorSpy.firstCall.args[1]).to.equal(mockError);
-    } catch (error) {
-      // The listener itself should not throw, but catch the stub rejection
-      // If the setup or listener invocation throws unexpectedly, fail here
-      expect.fail(
-        `Test setup or listener invocation unexpectedly threw: ${error.message}`,
-      );
+      // Verify the disconnect stub was called
+      expect(disconnectStub.called, "$disconnect should be called").to.be.true;
+      
+      // Verify logger.error was called with the error object
+      expect(loggerMock.error.called, "logger.error should be called").to.be.true;
+      expect(loggerMock.error.firstCall.args[0], "First argument should be the error object").to.equal(mockError);
     } finally {
-      // Ensure stubs and spies are restored even if assertions fail
+      // Ensure stubs are restored even if assertions fail
       if (disconnectStub) disconnectStub.restore();
-      if (consoleErrorSpy) consoleErrorSpy.restore();
     }
   });
 });

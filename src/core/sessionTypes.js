@@ -5,6 +5,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const logger = require("./logger");
 
 // Define the path to the session types configuration file
 const SESSION_TYPES_PATH = path.join(__dirname, "../config/sessionTypes.json"); // Corrected path
@@ -21,7 +22,7 @@ let sessionTypesCache = null;
 function _loadSessionTypes() {
   try {
     if (!fs.existsSync(SESSION_TYPES_PATH)) {
-      console.error(
+      logger.error(
         `Error: Session types file not found at ${SESSION_TYPES_PATH}`,
       );
       return [];
@@ -31,16 +32,16 @@ function _loadSessionTypes() {
     const data = JSON.parse(fileContent);
     // Basic validation to ensure it's an array
     if (!Array.isArray(data)) {
-      console.error(
+      logger.error(
         `Error: Expected an array in ${SESSION_TYPES_PATH}, but got ${typeof data}`,
       );
       return [];
     }
     return data;
   } catch (error) {
-    console.error(
-      `Error loading session types from ${SESSION_TYPES_PATH}:`,
+    logger.error(
       error,
+      `Error loading session types from ${SESSION_TYPES_PATH}`,
     );
     return [];
   }
@@ -70,7 +71,7 @@ function getById(id) {
   }
 
   if (typeof id !== "string") {
-    console.warn("getById called with non-string id:", id);
+    logger.warn({id}, "getById called with non-string id");
     return undefined;
   }
   return sessionTypesCache.find((session) => session.id === id);

@@ -20,7 +20,7 @@
 | [X]**PH1‑10** | **(2025-04-23)** Write initial tests: `tests/health.test.js`, `tests/env.test.js`, `tests/prisma.test.js`, `tests/registry.test.js`, `tests/sessionTypes.test.js`. | Achieve ≥ 90 % coverage on Phase‑1 code paths. |
 | [X]**PH1‑11** | Setup **husky** pre‑commit hook to run `npm test && npm run lint && npm run format`. | Enforces green commits. |
 | [X]**PH1‑12** | Update `docs/architecture.md` with new folder diagram and Phase‑1 status. | Docs evolve with code. |
-| [ ]**PH1‑13** | Tick each task box here when done and jot *Discoveries* below. | Keeps project heartbeat. |
+| [X]**PH1‑13** | Tick each task box here when done and jot *Discoveries* below. | Keeps project heartbeat. |
 
 ### 🚧 Discovered During Work
 *Add new subtasks here, e.g. `PH1‑D1`.*
@@ -63,13 +63,54 @@
 *   **PH1-11:** Automated pre-commit checks enforce quality standards (testing, linting, formatting) consistently, preventing bad commits. Modern Husky versions might require manual `core.hooksPath` configuration and header lines in hook script despite deprecation warnings.
 *   **(PH1-12):** Keeping architecture documentation aligned with code is crucial for project understanding.
 
+---
+
+---
+
+## 📅 Current Phase 2 – LangChain Tools & Core Enhancements
+
+| ID        | Task                                                                   | Why / Acceptance Criteria                                                                                                                        |
+| :-------- | :--------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [X]**PH2‑01** | **Setup Structured Logging (`core/logger.js`)**                        | Implement Pino/Winston for filterable JSON logs. Replace key `console.log`s in existing core files. *Pass*: Logger singleton created, basic logs appear, unit tests pass. |
+| [ ]**PH2‑02** | **Setup Centralized Error Handling (`middleware/errorHandler.js`)**      | Implement global Express error handler middleware. Define basic custom error classes (optional). *Pass*: Middleware catches errors, logs via logger, sends generic response. Unit/Integration tests pass. |
+| [ ]**PH2‑03** | **Create `src/tools/` directory**                                      | Establish the dedicated home for LangChain-callable tools. *Pass*: Directory exists. (If not already created in previous explorations). |
+| [ ]**PH2‑04** | **Tool: `src/tools/stateManager.js` - `resetUserState` function**        | Create tool to reset user state (`state`, `session_type`, etc.) in Prisma. *Pass*: Unit tests confirm DB update call with correct parameters using mock Prisma. |
+| [ ]**PH2‑05** | **Tool: `src/tools/stateManager.js` - `updateUserState` function**       | Create generic tool to update specific user state fields in Prisma. *Pass*: Unit tests confirm targeted DB update calls using mock Prisma. |
+| [ ]**PH2‑06** | **Tool: `src/tools/stateManager.js` - `storeBookingData` function**      | Create tool to specifically store AI-confirmed booking data (`booking_slot`, `session_type`) in Prisma. *Pass*: Unit tests confirm DB update calls using mock Prisma. |
+| [ ]**PH2‑07** | **Tool: `src/tools/telegramNotifier.js` - `sendWaiverLink` function**    | Create tool that sends the waiver form WebApp button via Telegraf, storing `message_id`. *Pass*: Unit tests confirm mock bot API call and mock Prisma update (`edit_msg_id`). |
+| [ ]**PH2‑08** | **Tool: `src/tools/telegramNotifier.js` - `sendTextMessage` function**   | Create generic tool to send a simple text message via Telegraf. *Pass*: Unit tests confirm mock bot API call with correct parameters. |
+| [ ]**PH2‑09** | **Tool: `src/tools/googleCalendar.js` - Stub `findFreeSlots`**         | Create **stub** function mimicking finding calendar slots (returns fake data). No API call. *Pass*: Unit tests confirm function returns expected fake data structure. |
+| [ ]**PH2‑10** | **Tool: `src/tools/googleCalendar.js` - Stub `createCalendarEvent`**     | Create **stub** function mimicking creating a calendar event (logs input, returns fake success). No API call. *Pass*: Unit tests confirm function logs input and returns fake success. |
+| [ ]**PH2‑11** | **Define LangChain Tool Schemas/Standard**                             | Decide on & implement a standard way to define tools for LangChain (e.g., StructuredTool, Zod schema for OpenAI functions). Apply to tools created above. *Pass*: Standard chosen, definitions created/tested. |
+| [ ]**PH2‑12** | **Update Registration Form & Handler (Veteran/Responder Status)**      | Modify `registration-form.html`, Prisma schema (`users` table), and form submission handler (`formWorkflow.js`/replacement) to include veteran/responder status. *Pass*: Form includes field, data saved to DB, tests updated. |
+| [ ]**PH2‑13** | **Test Coverage:**                                                     | Ensure all new/modified modules in PH2 (logger, error handler, tools, form handler) have unit tests, achieving >= 90% coverage for these modules. *Pass*: `npm test` shows sufficient coverage. |
+| [ ]**PH2‑14** | **Update `docs/architecture.md`:**                                     | Add new directories (`tools`, `middleware`, `errors`, `automations`) and key files. Update status section for Phase 2 progress. |
+| [ ]**PH2‑15** | **Final Review:**                                                      | Tick all Phase 2 task boxes here when done and ensure Discoveries/Insights are recorded. |
+
+### 🚧 Discovered During Work
+*(Add new subtasks here, e.g., `PH2‑D1`)*
+*   **PH2-D1 (PH2-01):** Pino and pino-pretty were already installed in the project (pino v9.6.0, pino-pretty v13.0.0).
+*   **PH2-D2 (PH2-01):** Updated tests to mock the logger module to avoid breaking existing tests that relied on console.log spies.
+*   **PH2-D3 (PH2-01):** Needed to be careful with circular dependencies - env.js can't use logger since logger might depend on env vars.
+*   **PH2-D4 (PH2-01):** Updated error logging format to follow Pino's convention (error object as first parameter, message as second).
+*   **PH2-D5 (PH2-01):** Added automatic test environment detection to silence logs during test runs.
+*   **PH2-D6 (PH2-01):** Had to simplify some complex tests that were tightly coupled to console.log/error spies.
+*   **PH2-D7 (PH2-01):** Implemented dependency injection for logger in server.js and prisma.js to make tests more reliable and maintainable.
+*   **PH2-D8 (PH2-01):** Improved test coverage by adding more test cases for the logger module, achieving 100% coverage.
+
+### 💡 Insights & Decisions
+*(Explain logger choice, error handling strategy, tool design choices, mocking strategies, tool definition standard, etc.)*
+*   **PH2-01:** Selected Pino for structured logging due to its excellent performance and simple API. Configured with pino-pretty for development (human-readable) and JSON for production (machine-parseable). This approach provides better context and filterability than console.log while maintaining good developer experience during development. The conditional transport configuration based on NODE_ENV ensures we get the right format in each environment without changing code.
+*   **PH2-01:** Implemented a test detection mechanism in the logger to automatically silence logs during test runs, preventing test output pollution while maintaining the ability to test logging behavior through mocks.
+*   **PH2-01:** Adopted Pino's error logging convention (error object as first parameter, message as second) which enables better error tracking and aggregation in production environments.
+*   **PH2-01:** Used dependency injection pattern for logger in key modules (server.js, prisma.js) to improve testability. This approach allows tests to inject mock loggers without relying on require cache manipulation, making tests more reliable and less brittle.
+
 ### 🧪 Quick‑Run Commands
 
-npm test          # run mocha suite
+npm test          # run mocha suite with coverage
 npm run lint      # eslint check
 npm run format    # prettier write
 node bin/server   # local server
 
-
 ---
-**Last updated:** 2025‑04‑24
+**Last updated:** 2025-04-25

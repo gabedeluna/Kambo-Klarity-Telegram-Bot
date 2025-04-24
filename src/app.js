@@ -1,5 +1,6 @@
 const express = require("express");
 const botInstance = require("./core/bot");
+const logger = require("./core/logger");
 
 const app = express();
 
@@ -14,7 +15,7 @@ const secretPath = `/telegraf/${secretPathComponent}`;
 // Mount the webhook handler
 app.use(botInstance.webhookCallback(secretPath));
 
-console.log(`ℹ️ [app] Bot webhook configured at path: ${secretPath}`);
+logger.info(`[app] Bot webhook configured at path: ${secretPath}`);
 
 // Add Health Check Route
 app.get("/health", (req, res) => {

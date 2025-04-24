@@ -1,5 +1,6 @@
 const { Telegraf } = require("telegraf");
 const config = require("./env");
+const logger = require("./logger");
 
 const BOT_TOKEN = config.tgToken;
 
@@ -11,7 +12,7 @@ const BOT_TOKEN = config.tgToken;
 
 const botInstance = new Telegraf(BOT_TOKEN);
 
-console.log("✅ [core/bot] Telegraf bot instance initialized.");
+logger.info("[core/bot] Telegraf bot instance initialized.");
 
 /**
  * The singleton Telegraf bot instance for the application.

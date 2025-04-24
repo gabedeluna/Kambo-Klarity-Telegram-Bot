@@ -4,6 +4,9 @@
  * Throws if any required env var is missing.
  */
 const dotenv = require("dotenv");
+
+// Note: We can't use our logger here since it might depend on env vars
+// that we're validating in this module (to avoid circular dependencies)
 dotenv.config();
 
 const REQUIRED = ["TG_TOKEN", "DATABASE_URL", "FORM_URL"];

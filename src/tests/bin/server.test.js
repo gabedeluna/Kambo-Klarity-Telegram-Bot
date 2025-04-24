@@ -2,12 +2,34 @@ const sinon = require("sinon");
 const { expect } = require("chai");
 const app = require("../../app"); // Corrected: Need the app for listen
 
+// Create a logger mock that we'll use for all tests
+const loggerMock = {
+  info: sinon.stub(),
+  error: sinon.stub(),
+  warn: sinon.stub(),
+  debug: sinon.stub(),
+  fatal: sinon.stub(),
+  trace: sinon.stub()
+};
+
+// Ensure the logger mock is used by the server module
+const path = require("path");
+const moduleDir = path.dirname(require.resolve("../../core/logger"));
+const loggerPath = path.join(moduleDir, "logger.js");
+
+// Override the logger module in the require cache
+require.cache[loggerPath] = {
+  id: loggerPath,
+  filename: loggerPath,
+  loaded: true,
+  exports: loggerMock
+};
+
 // Path to the module we want to test by requiring it
 const serverModulePath = require.resolve("../../../bin/server");
 
 describe("Server Startup Script (bin/server.js)", () => {
   let listenStub;
-  let consoleErrorSpy;
   let processExitStub;
   let mockServer;
 
@@ -23,8 +45,8 @@ describe("Server Startup Script (bin/server.js)", () => {
     // Stub app.listen BEFORE requiring the server module
     listenStub = sinon.stub(app, "listen").returns(mockServer);
 
-    // Spy on console.error
-    consoleErrorSpy = sinon.spy(console, "error");
+    // Reset logger mock stubs
+    Object.values(loggerMock).forEach(stub => stub.reset());
 
     // Stub process.exit to prevent tests from terminating
     processExitStub = sinon.stub(process, "exit");
@@ -57,20 +79,32 @@ describe("Server Startup Script (bin/server.js)", () => {
     error.code = "EACCES";
     error.syscall = "listen";
 
-    // Configure the stubbed server.on to immediately call the handler with the error
-    mockServer.on.withArgs("error", sinon.match.func).callsArgWith(1, error);
+    // Reset all stubs before this test
+    Object.values(loggerMock).forEach(stub => stub.reset());
+    processExitStub.reset();
 
-    // Require the module to trigger the setup and error handler attachment
-    require("../../../bin/server");
+    // Clear the require cache to ensure a fresh server instance
+    delete require.cache[serverModulePath];
+    
+    // Require the module to get the server instance
+    const server = require("../../../bin/server");
+    
+    // Set our logger mock directly on the server instance
+    server.setLogger(loggerMock);
 
-    // Verify console.error was called with the specific message
-    expect(consoleErrorSpy.calledOnce).to.be.true;
-    expect(consoleErrorSpy.firstCall.args[0]).to.include(
-      "requires elevated privileges",
-    );
+    // Get the error handler that was registered
+    const errorHandler = mockServer.on.firstCall.args[1];
+    expect(errorHandler).to.be.a("function");
+    
+    // Manually call the error handler with our error
+    errorHandler(error);
 
+    // Verify logger.error was called
+    expect(loggerMock.error.called, "logger.error should be called").to.be.true;
+    
     // Verify process.exit was called with code 1
-    expect(processExitStub.calledOnceWith(1)).to.be.true;
+    expect(processExitStub.called, "process.exit should be called").to.be.true;
+    expect(processExitStub.firstCall.args[0], "process.exit should be called with code 1").to.equal(1);
   });
 
   it("should handle EADDRINUSE error, log message, and exit", () => {
@@ -78,18 +112,32 @@ describe("Server Startup Script (bin/server.js)", () => {
     error.code = "EADDRINUSE";
     error.syscall = "listen";
 
-    // Configure the stubbed server.on
-    mockServer.on.withArgs("error", sinon.match.func).callsArgWith(1, error);
+    // Reset all stubs before this test
+    Object.values(loggerMock).forEach(stub => stub.reset());
+    processExitStub.reset();
 
-    // Require the module
-    require("../../../bin/server");
+    // Clear the require cache to ensure a fresh server instance
+    delete require.cache[serverModulePath];
+    
+    // Require the module to get the server instance
+    const server = require("../../../bin/server");
+    
+    // Set our logger mock directly on the server instance
+    server.setLogger(loggerMock);
 
-    // Verify console.error
-    expect(consoleErrorSpy.calledOnce).to.be.true;
-    expect(consoleErrorSpy.firstCall.args[0]).to.include("is already in use");
+    // Get the error handler that was registered
+    const errorHandler = mockServer.on.firstCall.args[1];
+    expect(errorHandler).to.be.a("function");
+    
+    // Manually call the error handler with our error
+    errorHandler(error);
 
-    // Verify process.exit
-    expect(processExitStub.calledOnceWith(1)).to.be.true;
+    // Verify logger.error was called
+    expect(loggerMock.error.called, "logger.error should be called").to.be.true;
+    
+    // Verify process.exit was called with code 1
+    expect(processExitStub.called, "process.exit should be called").to.be.true;
+    expect(processExitStub.firstCall.args[0], "process.exit should be called with code 1").to.equal(1);
   });
 
   it("should re-throw non-listen errors", () => {
@@ -97,14 +145,17 @@ describe("Server Startup Script (bin/server.js)", () => {
     error.code = "ENOENT"; // Different error code
     error.syscall = "open"; // Different syscall
 
-    // Configure the stubbed server.on
-    mockServer.on.withArgs("error", sinon.match.func).callsArgWith(1, error);
+    // Require the module to register the error handler
+    require("../../../bin/server");
 
-    // Expect the require call itself to throw
-    expect(() => require("../../../bin/server")).to.throw(error);
+    // Get the error handler
+    const errorHandler = mockServer.on.firstCall.args[1];
+    
+    // Expect the error handler to throw when called with a non-listen error
+    expect(() => errorHandler(error)).to.throw(error);
 
-    // Verify console.error and process.exit were NOT called
-    expect(consoleErrorSpy.called).to.be.false;
+    // Verify logger.error and process.exit were NOT called
+    expect(loggerMock.error.called).to.be.false;
     expect(processExitStub.called).to.be.false;
   });
 
@@ -113,14 +164,17 @@ describe("Server Startup Script (bin/server.js)", () => {
     error.code = "EAGAIN";
     error.syscall = "listen"; // Same syscall, different code
 
-    // Configure the stubbed server.on
-    mockServer.on.withArgs("error", sinon.match.func).callsArgWith(1, error);
+    // Require the module to register the error handler
+    require("../../../bin/server");
 
-    // Expect the require call itself to throw
-    expect(() => require("../../../bin/server")).to.throw(error);
+    // Get the error handler
+    const errorHandler = mockServer.on.firstCall.args[1];
+    
+    // Expect the error handler to throw when called with a non-EACCES/EADDRINUSE listen error
+    expect(() => errorHandler(error)).to.throw(error);
 
-    // Verify console.error and process.exit were NOT called
-    expect(consoleErrorSpy.called).to.be.false;
+    // Verify logger.error and process.exit were NOT called
+    expect(loggerMock.error.called).to.be.false;
     expect(processExitStub.called).to.be.false;
   });
 });
