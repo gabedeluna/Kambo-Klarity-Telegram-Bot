@@ -16,7 +16,7 @@
 | [X]**PH1‑06** | **app.js** – create Express app, mount `bot.webhookCallback('/webhook')`, add `/health` route, export `app`. | Single entry for runtime *and* tests.  *Pass*: Supertest GET `/health` → 200. |
 | [X]**PH1‑07** | **bin/server.js** – import `app`, listen on `env.PORT||3000`. | CLI launcher keeps app testable. |
 | [X]**PH1‑08** | Scaffold **commands/registry.js** with `help`, `book`, `cancel` (client) & `sessions` (admin). Stub handlers that `ctx.reply('stub')`. Unit‑test asserts registry shape. | Starts the command pattern early. |
-| [ ]**PH1‑09** | Add **config/sessionTypes.json** with the three sessions in PLANNING.md and **core/sessionTypes.js** helper (getAll, getById). Unit‑test validates JSON schema. | Enables dynamic keyboards in later phases. |
+| [X]**PH1‑09** | Add **config/sessionTypes.json** with the three sessions in PLANNING.md and **core/sessionTypes.js** helper (getAll, getById). Unit‑test validates JSON schema. | Enables dynamic keyboards in later phases. |
 | [ ]**PH1‑10** | Write initial tests: `tests/health.test.js`, `tests/env.test.js`, `tests/prisma.test.js`, `tests/registry.test.js`, `tests/sessionTypes.test.js`. | Achieve ≥ 90 % coverage on Phase‑1 code paths. |
 | [ ]**PH1‑11** | Setup **husky** pre‑commit hook to run `npm test && npm run lint && npm run format`. | Enforces green commits. |
 | [ ]**PH1‑12** | Update `docs/architecture.md` with new folder diagram and Phase‑1 status. | Docs evolve with code. |
@@ -42,6 +42,9 @@
 *   **PH1-D16 (PH1-07):** Implemented port logic using `config.PORT || 3000` in `bin/server.js`.
 *   **PH1-D17 (PH1-07):** Added basic error handling for `EADDRINUSE` and `EACCES` in `bin/server.js`.
 *   **PH1-D18 (PH1-08):** Included all commands from PLANNING.md (help, book, cancel, sessions, clients, session_add, session_del) using stub handlers for PH1-08.
+*   **PH1-D19 (PH1-09):** Initial `env.js` logic was slightly complex; simplified using `dotenv` defaults.
+*   **PH1-D20 (PH1-09):** Added `description` field to `sessionTypes.json` based on legacy message content.
+*   **PH1-D21 (PH1-09):** Used `fs.readFileSync` for simplicity in the `sessionTypes.js` helper.
 
 ### 💡 Insights & Decisions
 *Explain architectural choices or hurdles encountered.*
@@ -51,6 +54,7 @@
 *   **(PH1-02/07):** Separated Express app definition (`src/app.js`) from server execution (`bin/server.js`) to allow easier testing of the app instance without actually starting a listening server.
 *   **(PH1-06):** Using a SHA256 hash of the `BOT_TOKEN` for the webhook path provides a secure, unique endpoint without exposing the token directly.
 *   **(PH1-08):** Established the command registry pattern early. Stub handlers allow structural testing before implementing logic. Tests verify required `descr` and `handler` properties for each command.
+*   **(PH1-09):** Externalized session type data into JSON config (`src/config/sessionTypes.json`), improving maintainability. Helper module (`src/core/sessionTypes.js`) encapsulates file reading logic. Tests (`src/tests/core/sessionTypes.test.js`) validate both schema and helper functions.
 
 ### 🧪 Quick‑Run Commands
 
