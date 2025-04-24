@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 // Define the path to the session types configuration file
-const SESSION_TYPES_PATH = path.join(__dirname, '../config/sessionTypes.json'); // Corrected path
+const SESSION_TYPES_PATH = path.join(__dirname, "../config/sessionTypes.json"); // Corrected path
 
 // Internal cache for session types - Initialize to null for lazy loading
 let sessionTypesCache = null;
@@ -21,7 +21,9 @@ let sessionTypesCache = null;
 function _loadSessionTypes() {
   try {
     if (!fs.existsSync(SESSION_TYPES_PATH)) {
-      console.error(`Error: Session types file not found at ${SESSION_TYPES_PATH}`);
+      console.error(
+        `Error: Session types file not found at ${SESSION_TYPES_PATH}`,
+      );
       return [];
     }
 

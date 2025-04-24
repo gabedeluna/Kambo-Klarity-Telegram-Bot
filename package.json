@@ -7,7 +7,6 @@
     "test": "nyc mocha \"src/tests/**/*.test.js\" --allow-empty --exit",
     "lint": "eslint . --ext .js",
     "format": "prettier --write \"**/*.js\"",
-    "prepare": "husky install",
     "start": "node bot.js",
     "start:server": "node server.js",
     "dev": "concurrently \"npm run start\" \"npm run start:server\"",

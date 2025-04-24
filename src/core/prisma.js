@@ -10,12 +10,17 @@ if (!prismaInstance) {
   console.log("✅ [core/prisma] Prisma Client instantiated.");
 
   process.on("beforeExit", async () => {
-    console.log("🔄 [core/prisma] Disconnecting Prisma Client due to application exit...");
+    console.log(
+      "🔄 [core/prisma] Disconnecting Prisma Client due to application exit...",
+    );
     try {
       await prismaInstance.$disconnect();
       console.log("✅ [core/prisma] Prisma Client disconnected successfully.");
     } catch (error) {
-      console.error("❌ [core/prisma] Error disconnecting Prisma Client:", error);
+      console.error(
+        "❌ [core/prisma] Error disconnecting Prisma Client:",
+        error,
+      );
     }
   });
 }

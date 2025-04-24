@@ -1,5 +1,5 @@
 const { expect } = require("chai");
-const sinon = require('sinon');
+const sinon = require("sinon");
 const registry = require("../../commands/registry");
 
 describe("Command Registry (src/commands/registry.js)", () => {
@@ -36,14 +36,14 @@ describe("Command Registry (src/commands/registry.js)", () => {
       expect(clientCommands).to.have.property("cancel");
     });
 
-    // --- Test Client Handlers --- 
+    // --- Test Client Handlers ---
     Object.entries(clientCommands).forEach(([commandName, commandDetails]) => {
       it(`/${commandName} handler should call ctx.reply with stub message`, () => {
-        const mockCtx = { reply: sinon.spy() }; 
+        const mockCtx = { reply: sinon.spy() };
         commandDetails.handler(mockCtx);
         expect(mockCtx.reply.calledOnce).to.be.true;
         // Construct expected message based on convention in registry.js
-        const expectedMessage = `stub: /${commandName} command`; 
+        const expectedMessage = `stub: /${commandName} command`;
         expect(mockCtx.reply.calledWith(expectedMessage)).to.be.true;
       });
     });
@@ -77,14 +77,14 @@ describe("Command Registry (src/commands/registry.js)", () => {
       expect(adminCommands).to.have.property("session_del");
     });
 
-    // --- Test Admin Handlers --- 
+    // --- Test Admin Handlers ---
     Object.entries(adminCommands).forEach(([commandName, commandDetails]) => {
       it(`/${commandName} handler should call ctx.reply with stub message`, () => {
-        const mockCtx = { reply: sinon.spy() }; 
+        const mockCtx = { reply: sinon.spy() };
         commandDetails.handler(mockCtx);
         expect(mockCtx.reply.calledOnce).to.be.true;
         // Construct expected message based on convention in registry.js
-        const expectedMessage = `stub: /${commandName} command`; 
+        const expectedMessage = `stub: /${commandName} command`;
         expect(mockCtx.reply.calledWith(expectedMessage)).to.be.true;
       });
     });

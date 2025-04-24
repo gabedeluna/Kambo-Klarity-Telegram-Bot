@@ -94,5 +94,3 @@ npm run set-commands
 ## License
 
 ISC
-
-<!-- Test husky pre-commit hook -->

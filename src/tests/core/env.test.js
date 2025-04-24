@@ -87,10 +87,7 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars: TG_TOKEN"
-    );
+    }).to.throw(Error, "Missing required env vars: TG_TOKEN");
   });
 
   it("should throw error if DATABASE_URL is missing", () => {
@@ -100,10 +97,7 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars: DATABASE_URL"
-    );
+    }).to.throw(Error, "Missing required env vars: DATABASE_URL");
   });
 
   it("should throw error if FORM_URL is missing", () => {
@@ -113,10 +107,7 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars: FORM_URL"
-    );
+    }).to.throw(Error, "Missing required env vars: FORM_URL");
   });
 
   it("should throw error if multiple required vars are missing", () => {
@@ -126,10 +117,7 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars: TG_TOKEN, FORM_URL"
-    );
+    }).to.throw(Error, "Missing required env vars: TG_TOKEN, FORM_URL");
   });
 
   it("should use default PORT 3000 if not set in environment", () => {

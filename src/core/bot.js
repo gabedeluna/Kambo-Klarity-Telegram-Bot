@@ -4,7 +4,7 @@ const config = require("./env");
 const BOT_TOKEN = config.tgToken;
 
 // Redundant check removed - env.js handles missing required vars
-// if (!BOT_TOKEN) {                          
+// if (!BOT_TOKEN) {
 //   console.error("FATAL ERROR: TG_TOKEN environment variable is not set.");
 //   process.exit(1); // Exit if the token is missing
 // }
