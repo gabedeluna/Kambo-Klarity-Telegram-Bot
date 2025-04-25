@@ -76,8 +76,8 @@
 | [X]**PH2‑03** | **Create `src/tools/` directory**                                      | Establish the dedicated home for LangChain-callable tools. *Pass*: Directory exists. (If not already created in previous explorations). |
 | [X]**PH2‑04** | **Tool: `src/tools/stateManager.js` - `resetUserState` function**        | Create tool to reset user state (`state`, `session_type`, etc.) in Prisma. *Pass*: Unit tests confirm DB update call with correct parameters using mock Prisma. |
 | [X]**PH2‑05** | **Tool: `src/tools/stateManager.js` - `updateUserState` function**       | Add tool to update specific user fields (e.g., set `state` to 'BOOKING'). *Pass*: Unit tests confirm DB update call with correct parameters and data. |
-| [X]**PH2‑06** | **Tool: `src/tools/stateManager.js` - `storeBookingData` function**      | Create tool to specifically store AI-confirmed booking data (`booking_slot`, `session_type`) in Prisma. *Pass*: Unit tests confirm DB update calls using mock Prisma. |
-| [ ]**PH2‑07** | **Tool: `src/tools/telegramNotifier.js` - `sendWaiverLink` function**    | Create tool that sends the waiver form WebApp button via Telegraf, storing `message_id` in `edit_msg_id` for later use. *Pass*: Unit tests confirm mock bot API call and mock Prisma update (`edit_msg_id`). |
+| [X]**PH2‑06** | **Tool: `src/tools/stateManager.js` - `storeBookingData` function**      | Create specific tool to store confirmed session details. *Pass*: Unit tests confirm DB update call with correct parameters using mock Prisma. |
+| [X]**PH2‑07** | **Tool: `src/tools/telegramNotifier.js` - `sendWaiverLink` function**   | Create tool to send waiver link message and store msg_id. *Pass*: Unit tests confirm mock bot API and Prisma calls with correct parameters. |
 | [X]**PH2‑08** | **Tool: `src/tools/telegramNotifier.js` - `sendTextMessage` function**   | Create generic tool to send a simple text message via Telegraf. *Pass*: Unit tests confirm mock bot API call with correct parameters. |
 | [ ]**PH2‑09** | **Tool: `src/tools/googleCalendar.js` - Stub `findFreeSlots`**         | Create **stub** function mimicking finding calendar slots (returns fake data structure matching expected GCal format). No API call. *Pass*: Unit tests confirm function returns expected fake data structure. |
 | [ ]**PH2‑10** | **Tool: `src/tools/googleCalendar.js` - Stub `createCalendarEvent`**     | Create **stub** function mimicking creating a calendar event (logs input, returns fake success/event ID). No API call. *Pass*: Unit tests confirm function logs input and returns fake success. |
@@ -127,4 +127,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-24 19:01
+**Last updated:** 2025-04-24 19:27
