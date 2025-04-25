@@ -24,7 +24,8 @@
 | [X]**PH2‑13** | **Tool: `src/tools/telegramNotifier.js` - `setRoleSpecificCommands` function** | Create tool to set role-specific commands using `bot.telegram.setMyCommands` with scope. *Pass*: Unit tests confirm mock bot API call with correct scope and command list. *(Note: Tool usage deferred to Phase 6)*. |
 > *Completion Note (PH2-13): Added JSDoc comment for the setRoleSpecificCommands function.* 
 | [X]**PH2‑14** | **Test Coverage:**                                                     | Ensure all new/modified modules in PH2 (logger, error handler, tools, schemas) have unit tests, achieving >= 90% coverage for these modules. *Pass*: `npm test` shows sufficient coverage. |
-| [ ]**PH2‑15** | **Update `docs/architecture.md`:**                                     | Add new directories (`tools`, `middleware`, `errors`, `automations`) and key files created in Phase 2. Update status section for Phase 2 progress. |
+| [X]**PH2‑15** | **Update `docs/architecture.md`:**                                     | Add new directories (`tools`, `middleware`, `errors`, `automations`) and key files created in Phase 2. Update status section for Phase 2 progress. |
+> *Completion Note (PH2-15): Updated docs/architecture.md with Phase 2 structure (tools/, middleware/, errors/) and completion status.*
 | [ ]**PH2‑16** | **Final Review:**                                                      | Tick all Phase 2 task boxes here when done and ensure Discoveries/Insights are recorded. |
 
 ### 🚧 Discovered During Work
@@ -67,6 +68,34 @@
 *   **PH2-10:** Stubbing creation functions allows testing workflows that involve booking confirmation before live API is ready. Defined expected input/output contract for event creation.
 *   **PH2-12:** Implemented data storage and frontend collection for Veteran/Responder status. Backend processing deferred to Phase 5 server merge to avoid premature integration with legacy handlers.
 *   **PH2-14:** Confirmed all Phase 2 modules meet quality standards with >90% test coverage. Adhered to 'keep tests simple' principle when adding coverage-increasing tests, focusing on specific uncovered code paths rather than complex test setups.
+
+### 💭 Reflections on Phase 2
+
+#### 💯 What Went Well?
+
+*   Logging and error handling are now robust.
+*   Core tool modules (`stateManager`, `telegramNotifier`) provide a good foundation.
+*   Zod schemas enforce clear tool inputs.
+*   Test coverage remained high.
+
+#### 🤔 What Could Be Improved?
+
+*   Initial setup of LangChain tools and dependencies required careful version management (mix of `langchain` and `@langchain/*`). See Memory `dbca1deb`.
+*   Google Calendar tool stubs are basic; full implementation will need more work.
+
+#### 🛠️ Discovered During Work
+
+*   Need to ensure consistent async/await usage with LangChain.
+*   Dependency mismatch between older `langchain` and newer `@langchain/` packages requires careful import management.
+*   Updated docs/architecture.md with Phase 2 structure (tools/, middleware/, errors/) and completion status.
+
+#### 💡 Insights & Decisions
+
+*   Decided on Pino for structured logging for performance and JSON output.
+*   Centralized error handling middleware simplifies command/route logic.
+*   Using Zod for tool schemas improves reliability and DX.
+*   Dependency injection pattern for tools makes testing easier.
+*   Documentation updated to reflect addition of tools and core enhancements from Phase 2.
 
 ### 🧪 Quick‑Run Commands
 
