@@ -5,6 +5,12 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
 const proxyquire = require("proxyquire");
+const { z } = require("zod"); // Import Zod
+const {
+  // Import schemas
+  sendWaiverLinkSchema,
+  sendTextMessageSchema,
+} = require("../../../src/tools/toolSchemas");
 
 describe("Telegram Notifier Tool", () => {
   describe("sendWaiverLink", () => {
@@ -66,6 +72,55 @@ describe("Telegram Notifier Tool", () => {
       // Clean up sinon stubs
       sinon.restore();
     });
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = {
+          telegramId: testTelegramId,
+          sessionType: testSessionType,
+        };
+        expect(() => sendWaiverLinkSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should accept valid input with optional messageText", () => {
+        const validInput = {
+          telegramId: testTelegramId,
+          sessionType: testSessionType,
+          messageText: "Optional message",
+        };
+        expect(() => sendWaiverLinkSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = { sessionType: testSessionType };
+        expect(() => sendWaiverLinkSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing sessionType)", () => {
+        const invalidInput = { telegramId: testTelegramId };
+        expect(() => sendWaiverLinkSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type for telegramId)", () => {
+        const invalidInput = { telegramId: 123, sessionType: testSessionType };
+        expect(() => sendWaiverLinkSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty string for sessionType)", () => {
+        const invalidInput = { telegramId: testTelegramId, sessionType: "" };
+        expect(() => sendWaiverLinkSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
 
     it("should send a waiver link message and store the message ID", async () => {
       // Act
@@ -242,4 +297,152 @@ describe("Telegram Notifier Tool", () => {
       expect(sendMessageArgs[1]).to.equal(customMessage);
     });
   });
+
+  // --- Tests for sendTextMessage ---
+  describe("sendTextMessage", () => {
+    const testTelegramId = "987654321";
+    const testText = "This is a test message.";
+    const testMessageId = 1111;
+
+    // Mocks
+    let mockBot;
+    let mockLogger;
+    let telegramNotifier;
+
+    beforeEach(() => {
+      mockBot = {
+        telegram: {
+          sendMessage: sinon.stub().resolves({ message_id: testMessageId }),
+        },
+      };
+      mockLogger = {
+        info: sinon.stub(),
+        warn: sinon.stub(),
+        error: sinon.stub(),
+        debug: sinon.stub(),
+      };
+
+      telegramNotifier = proxyquire("../../../src/tools/telegramNotifier", {});
+      // Provide a dummy FORM_URL to satisfy initialization check
+      telegramNotifier.initialize({
+        bot: mockBot,
+        logger: mockLogger,
+        prisma: {},
+        config: { FORM_URL: "dummy-url" },
+      });
+    });
+
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = { telegramId: testTelegramId, text: testText };
+        expect(() => sendTextMessageSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = { text: testText };
+        expect(() => sendTextMessageSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing text)", () => {
+        const invalidInput = { telegramId: testTelegramId };
+        expect(() => sendTextMessageSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty string text)", () => {
+        const invalidInput = { telegramId: testTelegramId, text: "" };
+        expect(() => sendTextMessageSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type for text)", () => {
+        const invalidInput = { telegramId: testTelegramId, text: 123 };
+        expect(() => sendTextMessageSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
+
+    it("should send a text message and return success with message ID", async () => {
+      const result = await telegramNotifier.sendTextMessage({
+        telegramId: testTelegramId,
+        text: testText,
+      });
+
+      expect(result).to.deep.equal({ success: true, messageId: testMessageId });
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
+      const sendMessageArgs = mockBot.telegram.sendMessage.firstCall.args;
+      expect(sendMessageArgs[0]).to.equal(testTelegramId);
+      expect(sendMessageArgs[1]).to.equal(testText);
+      expect(mockLogger.info.called).to.be.true;
+      expect(mockLogger.error.called).to.be.false;
+    });
+
+    it("should return failure if telegramId is missing", async () => {
+      const result = await telegramNotifier.sendTextMessage({ text: testText });
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Missing required parameters (telegramId or text).",
+      });
+      expect(mockBot.telegram.sendMessage.called).to.be.false;
+      expect(mockLogger.error.called).to.be.true;
+    });
+
+    it("should return failure if text is missing", async () => {
+      const result = await telegramNotifier.sendTextMessage({
+        telegramId: testTelegramId,
+      });
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Missing required parameters (telegramId or text).",
+      });
+      expect(mockBot.telegram.sendMessage.called).to.be.false;
+      expect(mockLogger.error.called).to.be.true;
+    });
+
+    it("should handle Telegram API errors", async () => {
+      const apiError = new Error("Telegram API Error");
+      mockBot.telegram.sendMessage.rejects(apiError);
+
+      const result = await telegramNotifier.sendTextMessage({
+        telegramId: testTelegramId,
+        text: testText,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Telegram API error",
+      });
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
+      expect(mockLogger.error.called).to.be.true;
+    });
+
+    it("should return success with warning if message_id is missing from response", async () => {
+      mockBot.telegram.sendMessage.resolves({}); // Simulate missing message_id
+
+      const result = await telegramNotifier.sendTextMessage({
+        telegramId: testTelegramId,
+        text: testText,
+      });
+
+      expect(result).to.deep.equal({
+        success: true,
+        messageId: null,
+        warning: "Message sent but message_id missing from response",
+      });
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
+      expect(mockLogger.warn.called).to.be.true;
+    });
+  });
+  // --- End Tests for sendTextMessage ---
 });

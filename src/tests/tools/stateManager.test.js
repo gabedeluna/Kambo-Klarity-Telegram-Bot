@@ -1,6 +1,13 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
 const proxyquire = require("proxyquire").noCallThru(); // Prevent calling real dependencies
+const { z } = require("zod"); // Add zod import
+const {
+  // Add schema imports
+  resetUserStateSchema,
+  updateUserStateSchema,
+  storeBookingDataSchema,
+} = require("../../tools/toolSchemas");
 
 // Mock dependencies
 const mockLogger = {
@@ -46,6 +53,36 @@ describe("Tool: stateManager", () => {
   describe("resetUserState", () => {
     const testTelegramId = "123456789";
     const bigIntTestTelegramId = BigInt(testTelegramId);
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = { telegramId: testTelegramId };
+        expect(() => resetUserStateSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = {};
+        expect(() => resetUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type for telegramId)", () => {
+        const invalidInput = { telegramId: 123 };
+        expect(() => resetUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty string telegramId)", () => {
+        const invalidInput = { telegramId: "" };
+        expect(() => resetUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
 
     it("should call prisma.users.update with correct ID and reset data on successful reset", async () => {
       const expectedResetData = {
@@ -170,7 +207,93 @@ describe("Tool: stateManager", () => {
       state: "BOOKING",
       session_type: "1hr-kambo",
       booking_slot: new Date().toISOString(), // Example update data
+      edit_msg_id: 12345,
     };
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = {
+          telegramId: testTelegramId,
+          updates: testUpdateData,
+        };
+        expect(() => updateUserStateSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should accept valid input with only some fields", () => {
+        const validInput = {
+          telegramId: testTelegramId,
+          updates: { state: "CONFIRMING" },
+        };
+        expect(() => updateUserStateSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = { updates: testUpdateData };
+        expect(() => updateUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing updates)", () => {
+        const invalidInput = { telegramId: testTelegramId };
+        expect(() => updateUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty updates object)", () => {
+        const invalidInput = { telegramId: testTelegramId, updates: {} };
+        expect(() => updateUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type in updates - state)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          updates: { state: 123 },
+        };
+        expect(() => updateUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type in updates - edit_msg_id)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          updates: { edit_msg_id: "abc" },
+        };
+        expect(() => updateUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (invalid datetime string for booking_slot)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          updates: { booking_slot: "not-a-date" },
+        };
+        expect(() => updateUserStateSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should accept null for nullable fields", () => {
+        const validInput = {
+          telegramId: testTelegramId,
+          updates: {
+            session_type: null,
+            conversation_history: null,
+            booking_slot: null,
+            edit_msg_id: null,
+            state: "SOME_STATE", // Need at least one field
+          },
+        };
+        expect(() => updateUserStateSchema.parse(validInput)).to.not.throw();
+      });
+    });
+    // --- End Schema Validation Tests ---
 
     it("should call prisma.users.update with correct ID and data, log success", async () => {
       const mockUpdatedUser = {
@@ -378,7 +501,94 @@ describe("Tool: stateManager", () => {
       testBookingSlotISO = testBookingSlotDate.toISOString();
     });
 
-    it("storeBookingData should call prisma.users.update with correct ID and booking data", async () => {
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = {
+          telegramId: testTelegramId,
+          sessionType: testSessionType,
+          bookingSlot: testBookingSlotISO,
+        };
+        expect(() => storeBookingDataSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = {
+          sessionType: testSessionType,
+          bookingSlot: testBookingSlotISO,
+        };
+        expect(() => storeBookingDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing sessionType)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          bookingSlot: testBookingSlotISO,
+        };
+        expect(() => storeBookingDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty sessionType)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          sessionType: "",
+          bookingSlot: testBookingSlotISO,
+        };
+        expect(() => storeBookingDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing bookingSlot)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          sessionType: testSessionType,
+        };
+        expect(() => storeBookingDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (invalid date string for bookingSlot)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          sessionType: testSessionType,
+          bookingSlot: "not-a-real-date",
+        };
+        expect(() => storeBookingDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type for telegramId)", () => {
+        const invalidInput = {
+          telegramId: 12345,
+          sessionType: testSessionType,
+          bookingSlot: testBookingSlotISO,
+        };
+        expect(() => storeBookingDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type for sessionType)", () => {
+        const invalidInput = {
+          telegramId: testTelegramId,
+          sessionType: true,
+          bookingSlot: testBookingSlotISO,
+        };
+        expect(() => storeBookingDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
+
+    it("should call prisma.users.update with correct ID and booking data, log success", async () => {
       const expectedBookingData = {
         session_type: testSessionType,
         booking_slot: testBookingSlotDate, // Function converts ISO string to Date
@@ -425,7 +635,7 @@ describe("Tool: stateManager", () => {
       expect(mockLogger.error.notCalled).to.be.true;
     });
 
-    it("storeBookingData should log error and return failure on generic prisma update error", async () => {
+    it("should log error and return failure on generic prisma update error", async () => {
       const dbError = new Error("DB Store Error");
       prismaUpdateStub.rejects(dbError);
 
@@ -453,7 +663,7 @@ describe("Tool: stateManager", () => {
       expect(mockLogger.info.calledOnce).to.be.true; // Only 'Attempting' log
     });
 
-    it("storeBookingData should return specific error if user not found (P2025)", async () => {
+    it("should return specific error if user not found (P2025)", async () => {
       const notFoundError = new Error("User not found");
       notFoundError.code = "P2025";
       prismaUpdateStub.rejects(notFoundError);
@@ -483,7 +693,6 @@ describe("Tool: stateManager", () => {
     });
 
     // --- Input Validation Tests ---
-
     it("storeBookingData should return failure if telegramId is null", async () => {
       const result = await stateManager.storeBookingData(
         null,

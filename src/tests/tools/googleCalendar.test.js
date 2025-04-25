@@ -1,6 +1,12 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
 const proxyquire = require("proxyquire"); // Keep for potential future use
+const { z } = require("zod"); // Import Zod
+const {
+  // Import schemas
+  findFreeSlotsSchema,
+  createCalendarEventSchema,
+} = require("../../../src/tools/toolSchemas");
 
 // Import the class
 const GoogleCalendarTool = require("../../../src/tools/googleCalendar");
@@ -58,6 +64,68 @@ describe("Google Calendar Tool Class (Stubs)", () => {
   });
 
   describe("findFreeSlots Method (stub)", () => {
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      const validDate = new Date().toISOString();
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const validEndDate = tomorrow.toISOString();
+
+      it("should accept valid input (empty object - all optional)", () => {
+        const validInput = {};
+        expect(() => findFreeSlotsSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should accept valid input with all fields", () => {
+        const validInput = {
+          startDate: validDate,
+          endDate: validEndDate,
+          durationMinutes: 60,
+        };
+        expect(() => findFreeSlotsSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should accept valid input with only some fields", () => {
+        const validInput = { durationMinutes: 90 };
+        expect(() => findFreeSlotsSchema.parse(validInput)).to.not.throw();
+        const validInput2 = { startDate: validDate };
+        expect(() => findFreeSlotsSchema.parse(validInput2)).to.not.throw();
+      });
+
+      it("should reject invalid input (wrong type for startDate)", () => {
+        const invalidInput = { startDate: 12345 };
+        expect(() => findFreeSlotsSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (invalid date string for endDate)", () => {
+        const invalidInput = { endDate: "not-a-date" };
+        expect(() => findFreeSlotsSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type for durationMinutes)", () => {
+        const invalidInput = { durationMinutes: "60" };
+        expect(() => findFreeSlotsSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (non-positive durationMinutes)", () => {
+        const invalidInput = { durationMinutes: 0 };
+        expect(() => findFreeSlotsSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+        const invalidInput2 = { durationMinutes: -30 };
+        expect(() => findFreeSlotsSchema.parse(invalidInput2)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
+
     // Test structure validity (remains the same)
     it("should return an array of objects with start and end string properties", async () => {
       // ... same assertions ...
@@ -175,6 +243,99 @@ describe("Google Calendar Tool Class (Stubs)", () => {
       description: "A test event for the stub function.",
       attendeeEmail: "test@example.com",
     };
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input with required fields", () => {
+        const validInput = {
+          start: new Date().toISOString(),
+          end: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour later
+          summary: "Valid Event",
+        };
+        expect(() =>
+          createCalendarEventSchema.parse(validInput),
+        ).to.not.throw();
+      });
+
+      it("should accept valid input with all fields", () => {
+        const validInput = {
+          start: new Date().toISOString(),
+          end: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          summary: "Valid Event Full",
+          description: "Optional description here.",
+          attendeeEmail: "attendee@example.org",
+        };
+        expect(() =>
+          createCalendarEventSchema.parse(validInput),
+        ).to.not.throw();
+      });
+
+      it("should reject invalid input (missing start)", () => {
+        const invalidInput = {
+          end: eventDetails.end,
+          summary: eventDetails.summary,
+        };
+        expect(() => createCalendarEventSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing end)", () => {
+        const invalidInput = {
+          start: eventDetails.start,
+          summary: eventDetails.summary,
+        };
+        expect(() => createCalendarEventSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing summary)", () => {
+        const invalidInput = {
+          start: eventDetails.start,
+          end: eventDetails.end,
+        };
+        expect(() => createCalendarEventSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty string summary)", () => {
+        const invalidInput = {
+          start: eventDetails.start,
+          end: eventDetails.end,
+          summary: "",
+        };
+        expect(() => createCalendarEventSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (invalid date string for start)", () => {
+        const invalidInput = { ...eventDetails, start: "not-a-date" };
+        expect(() => createCalendarEventSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (invalid email for attendeeEmail)", () => {
+        const invalidInput = {
+          ...eventDetails,
+          attendeeEmail: "invalid-email",
+        };
+        expect(() => createCalendarEventSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (wrong type for summary)", () => {
+        const invalidInput = { ...eventDetails, summary: 123 };
+        expect(() => createCalendarEventSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
 
     it("should return a success object with a fake eventId", async () => {
       const result = await calendarInstance.createCalendarEvent(eventDetails);
