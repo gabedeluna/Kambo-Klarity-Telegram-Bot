@@ -533,32 +533,35 @@ describe("Telegram Notifier Tool", () => {
     it("should return error when dependencies are missing", async function () {
       // Reset any previous calls
       mockLogger.error.resetHistory();
-      
+
       // Create a special version of the module where we can control the module-level variables
       // This simulates a partially initialized module
       const partialNotifier = {
         // Export the function we want to test
-        setRoleSpecificCommands: async function({ telegramId, role }) {
+        setRoleSpecificCommands: async function ({ telegramId, role }) {
           // This simulates the function running with missing dependencies
           // but with a valid logger for error reporting
           if (!mockLogger) {
             return { success: false, error: "Logger missing" };
           }
-          
-          mockLogger.error("setRoleSpecificCommands: Missing or invalid dependencies", {
-            telegramId,
-            role,
-          });
+
+          mockLogger.error(
+            "setRoleSpecificCommands: Missing or invalid dependencies",
+            {
+              telegramId,
+              role,
+            },
+          );
           return { success: false, error: "Missing or invalid dependencies" };
-        }
+        },
       };
-      
+
       // Act
       const result = await partialNotifier.setRoleSpecificCommands({
         telegramId: TEST_CLIENT_ID,
         role: "client",
       });
-      
+
       // Assert
       expect(result.success).to.be.false;
       expect(result.error).to.equal("Missing or invalid dependencies");
@@ -568,7 +571,7 @@ describe("Telegram Notifier Tool", () => {
     it("should handle falsy result from Telegram API", async function () {
       // Reset any previous calls
       mockLogger.error.resetHistory();
-      
+
       // Arrange - simulate API returning false
       this.setMyCommandsSpy.resolves(false);
 

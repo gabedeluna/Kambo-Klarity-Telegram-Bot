@@ -439,3 +439,63 @@ z.object({...}): Zod function to define an object schema.
 z.string(), z.number(), z.boolean(), z.object(), etc.: Zod types.
 .optional(): Zod modifier to make a field optional.
 schema.parse(data): Zod method to validate data against a schema. Throws an error if validation fails.
+
+Task Expansion: PH2-12 - Implement Veteran/Responder Status Feature
+Goal: Update the user data model and the registration form to capture whether a user identifies as a veteran or first responder.
+Why are we doing this?
+PLANNING.md (Section 1, Purpose & Vision) mentions collecting this status. This allows Kambo Klarity to potentially offer specialized programs, track referrals (Phase 10 Vet Focus), or gain insights into their client base. Implementing the data storage and collection now prepares for these future uses.
+What to expect:
+Windsurf will:
+Modify Prisma Schema: Edit prisma/schema.prisma to add a new boolean field (e.g., is_veteran_or_responder) to the User model. Make it optional or provide a default value (e.g., false).
+Run Prisma Migration: Execute npx prisma migrate dev --name add_veteran_status_to_user (or similar) to apply the schema change to the database and generate a new migration file.
+Update Registration Form: Modify public/registration-form.html (or wherever the form HTML lives) to add a new form element (e.g., a checkbox or a dropdown) allowing users to indicate this status. Ensure the element has the correct name attribute corresponding to the new database field.
+Update Form Tests (if any): If there are frontend tests specifically for the registration form's submission logic/validation (less common without a frontend framework), they would need updating. For now, we'll assume manual verification or backend tests in Phase 5 are sufficient.
+Definitions:
+Prisma Schema (prisma/schema.prisma): The file defining database models, fields, types, and relations.
+Prisma Migrate (npx prisma migrate dev): The Prisma command to compare the schema file to the database state, generate SQL migration files, and apply changes to the development database.
+Boolean Field: A database field type that stores true/false values.
+
+Task Expansion: PH2-13 - Tool: Set Role-Specific Commands
+Goal: Add a function setRoleSpecificCommands to the telegramNotifier tool that uses the Telegraf API to set the list of commands displayed to a specific user in Telegram, based on their role.
+Why are we doing this?
+Telegram allows bots to suggest commands to users via the '/' menu. We can customize this list per user or per chat type. By creating a tool function that does this, we can:
+Enhance User Experience: Show clients only client commands, and admins only admin commands (plus potentially client commands too), reducing clutter and confusion.
+Centralize Logic: Keep the logic for fetching commands from our registry (commands/registry.js) and interacting with the bot.telegram.setMyCommands API in one place.
+Prepare for Phase 6: This tool will be called in Phase 6 (Role-Based Command Routing) immediately after a user's role is determined or updated (e.g., upon registration completion or admin designation) to update their command menu in Telegram.
+What to expect:
+Windsurf will modify src/tools/telegramNotifier.js, adding the setRoleSpecificCommands async function. This function will:
+Accept telegramId and role as input.
+Import the commandRegistry from src/commands/registry.js.
+Determine the appropriate command list based on the role (e.g., if role is 'admin', combine registry.admin and registry.client; if 'client', just use registry.client).
+Format the commands into the structure required by the setMyCommands API ([{ command: 'cmd_name', description: '...' }, ...]).
+Call bot.telegram.setMyCommands(commands, { scope: { type: 'chat', chat_id: telegramId } }) using the injected bot instance.
+Include error handling and logging.
+Windsurf will add unit tests for this function to src/tests/tools/telegramNotifier.test.js, using proxyquire to mock dependencies (bot, logger, and potentially the commandRegistry itself) to verify the correct API call is made with the right commands and scope for different roles.
+Definitions:
+bot.telegram.setMyCommands(commands, scope?): The Telegraf/Telegram Bot API method to set the command list.
+commands (for API): An array of objects, each { command: string, description: string }.
+scope (for API): An object specifying where the command list applies. { type: 'chat', chat_id: userId } applies it only to the private chat with that specific user. { type: 'all_private_chats' } applies to all private chats (less useful for role-based). { type: 'default' } is the fallback.
+Command Registry: Our object defined in src/commands/registry.js holding command definitions.
+
+Task Expansion: PH2-14 - Phase 2 Test Coverage Check & Enhancement
+Goal: Verify that the unit tests written for the modules created or modified in Phase 2 provide at least 90% code coverage, and add simple tests if needed to reach the target.
+Why are we doing this?
+Just like in Phase 1, this confirms our core principle P-3 (Test Early, Test Often). It ensures the new logging, error handling, tool functions, and schemas are not only implemented but also well-tested before we start integrating them with the AI agent in Phase 3. High coverage gives us confidence that these building blocks are reliable. We apply the "keep tests simple" principle – we add tests only for meaningful uncovered logic, not for trivial lines.
+What to expect:
+This task primarily involves running the existing test suite with coverage enabled and analyzing the output.
+Windsurf will execute npm test.
+It will analyze the nyc coverage report (either from the console summary or the HTML report).
+It will specifically check the coverage percentages for the Phase 2 files:
+src/core/logger.js
+src/middleware/errorHandler.js
+src/errors/*.js (if they exist)
+src/tools/stateManager.js
+src/tools/telegramNotifier.js
+src/tools/googleCalendar.js
+src/tools/toolSchemas.js
+If any of these files are below 90%: Windsurf will identify the uncovered lines/branches in the report and attempt to add simple, focused unit tests to the corresponding test files (src/tests/...) to cover the missing logic.
+It will re-run npm test to confirm the coverage target is met for the Phase 2 modules.
+Definitions:
+Test Coverage: Percentage of code lines/branches/functions executed by the test suite.
+nyc: Code coverage tool integrated into our npm test script.
+Coverage Report: Output showing coverage statistics per file (console summary and/or detailed HTML report in coverage/lcov-report/index.html).

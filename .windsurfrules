@@ -21,6 +21,9 @@ Use CommonJS (require / module.exports) imports for consistency with existing co
 Favour single-purpose functions and keep side-effects isolated (e.g. DB or Telegram actions live in tools/).
 
 # 🧪 Testing & Reliability #
+Key Principle**
+*Prioritize simplicity in tests. While maintaining good coverage and verifying essential functionality, we will actively avoid overly complex test setups, excessive mocking, or testing intricate implementation details where simpler assertions suffice.
+
 Always create Mocha unit tests (mocha, chai, sinon, supertest) for every new function, class, or route.
 
 After changing logic, update or extend existing tests.
