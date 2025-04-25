@@ -44,6 +44,7 @@ module.exports = [
     rules: {
       // Relax rules often needed in tests, e.g., console logs
       // 'no-console': 'off',
+      'no-unused-vars': ['error', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^_' }], // Allow unused vars/args prefixed with _
     },
   },
 

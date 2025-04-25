@@ -378,3 +378,23 @@ edit_msg_id: The field in our users Prisma schema intended to temporarily store 
 bot.telegram.sendMessage(chatId, text, extra): The core Telegraf function for sending messages. extra is an object where we specify things like reply_markup for buttons.
 Markup.button.webApp(text, url): Telegraf helper to create a button that opens a web app.
 
+Task Expansion: PH2-08 - Tool: Send Text Message
+Goal: Add a generic function sendTextMessage to the telegramNotifier tool for sending simple text messages to users via Telegram.
+Why are we doing this?
+While sendWaiverLink handles a specific message type (with a web app button), we'll frequently need the AI agent or other parts of the system to send basic text replies, confirmations, or notifications. Creating a dedicated, reusable tool function for this keeps the logic clean and centralizes interaction with the Telegraf API for sending messages. It also ensures consistent error handling and logging for this common action.
+What to expect:
+Windsurf will modify the existing src/tools/telegramNotifier.js file, adding the sendTextMessage async function. This function will take parameters like telegramId and text, use the injected bot instance to send the message, handle errors, and log appropriately using the injected logger. Windsurf will also add new unit tests for this function to src/tests/tools/telegramNotifier.test.js, using the existing proxyquire setup to mock dependencies and verify the function's behavior.
+
+Task Expansion: PH2-09 - Stub Google Calendar findFreeSlots Tool
+Goal: Create the googleCalendar.js tool module and implement a stub version of the findFreeSlots function that returns predefined fake availability data, mimicking the structure expected from the real Google Calendar API.
+Why are we doing this?
+Integrating with external APIs like Google Calendar can be complex (authentication, API quotas, error handling). By creating a stub first, we can:
+Define the Interface: Decide exactly what inputs findFreeSlots needs (e.g., date range, duration) and what structure its output should have (e.g., an array of available { start: ISOString, end: ISOString } objects).
+Enable Parallel Development: Other parts of the system (like the booking agent) can be built and tested using this predictable fake data before the real Google Calendar logic is ready.
+Simplify Early Testing: Unit tests for the booking agent can rely on the consistent output of the stub, making them easier to write and faster to run.
+What to expect:
+Windsurf will create src/tools/googleCalendar.js. It will implement an async function findFreeSlots(options). This function will not make any external calls. Instead, it will simply return a hardcoded array of fake available time slots, matching the expected structure. Windsurf will also create src/tests/tools/googleCalendar.test.js with basic unit tests verifying that findFreeSlots returns the expected fake data structure. Dependency Injection setup (using initialize) will be included for consistency, even if the stub doesn't use dependencies yet.
+Definitions:
+Stub: A placeholder function that simulates the behavior of a real function, typically returning hardcoded data.
+API Interface/Contract: The defined inputs, outputs, and behavior of a function or service. The stub helps us define this contract early.
+ISO 8601 String: A standard format for representing dates and times (e.g., 2025-05-15T10:00:00Z). We'll use this for the fake slot times.

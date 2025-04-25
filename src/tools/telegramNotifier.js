@@ -2,7 +2,7 @@
  * @fileoverview Tool for sending notifications via Telegram.
  */
 
-const { Markup } = require('telegraf');
+const { Markup } = require("telegraf");
 
 // Module-level variables for dependencies
 let bot;
@@ -21,18 +21,26 @@ let config;
  */
 function initialize(dependencies) {
   // Check for all required dependencies, including config.FORM_URL
-  if (!dependencies || !dependencies.bot || !dependencies.prisma || !dependencies.logger || !dependencies.config || !dependencies.config.FORM_URL) {
+  if (
+    !dependencies ||
+    !dependencies.bot ||
+    !dependencies.prisma ||
+    !dependencies.logger ||
+    !dependencies.config ||
+    !dependencies.config.FORM_URL
+  ) {
     const missing = [];
-    if (!dependencies) missing.push('dependencies object');
+    if (!dependencies) missing.push("dependencies object");
     else {
-      if (!dependencies.bot) missing.push('bot');
-      if (!dependencies.prisma) missing.push('prisma');
-      if (!dependencies.logger) missing.push('logger');
-      if (!dependencies.config) missing.push('config');
+      if (!dependencies.bot) missing.push("bot");
+      if (!dependencies.prisma) missing.push("prisma");
+      if (!dependencies.logger) missing.push("logger");
+      if (!dependencies.config) missing.push("config");
       // Only check for FORM_URL if config itself exists
-      if (dependencies.config && !dependencies.config.FORM_URL) missing.push('config.FORM_URL');
+      if (dependencies.config && !dependencies.config.FORM_URL)
+        missing.push("config.FORM_URL");
     }
-    const errorMsg = `FATAL: telegramNotifier initialization failed. Missing: ${missing.join(', ')}.`;
+    const errorMsg = `FATAL: telegramNotifier initialization failed. Missing: ${missing.join(", ")}.`;
     // Use console.error as logger might not be initialized
     console.error(errorMsg);
     throw new Error(errorMsg);
@@ -43,7 +51,7 @@ function initialize(dependencies) {
   prisma = dependencies.prisma;
   logger = dependencies.logger;
   config = dependencies.config;
-  logger.info('[telegramNotifier] Initialized successfully.');
+  logger.info("[telegramNotifier] Initialized successfully.");
 }
 
 /**
@@ -63,25 +71,38 @@ function initialize(dependencies) {
 async function sendWaiverLink({ telegramId, sessionType, messageText }) {
   // Input Validation: Check dependencies are initialized
   if (!bot || !prisma || !logger || !config) {
-     // Use console.error as logger might not be available
-     console.error('[sendWaiverLink] FATAL: Notifier not initialized. Call initialize() first.');
-     return { success: false, error: 'Internal server error: Notifier not initialized' };
+    // Use console.error as logger might not be available
+    console.error(
+      "[sendWaiverLink] FATAL: Notifier not initialized. Call initialize() first.",
+    );
+    return {
+      success: false,
+      error: "Internal server error: Notifier not initialized",
+    };
   }
 
   // Input Validation: Check specific parameters for this function
   if (!telegramId || !sessionType) {
-    logger.error({ telegramId, sessionType }, '[sendWaiverLink] Failed: Missing required parameters.');
-    return { success: false, error: 'Missing parameters' };
+    logger.error(
+      { telegramId, sessionType },
+      "[sendWaiverLink] Failed: Missing required parameters.",
+    );
+    return { success: false, error: "Missing parameters" };
   }
 
   // Construct Message
-  const message = messageText || `Great! Let's get you scheduled for your ${sessionType} session 🐸`;
+  const message =
+    messageText ||
+    `Great! Let's get you scheduled for your ${sessionType} session 🐸`;
 
   // Construct URL
   // Ensure telegramId is a string for the URL and API calls
   const telegramIdStr = String(telegramId);
   const formUrl = `${config.FORM_URL}/booking-form.html?telegramId=${telegramIdStr}&sessionType=${encodeURIComponent(sessionType)}`;
-  logger.debug({ telegramId: telegramIdStr, formUrl }, '[sendWaiverLink] Constructed form URL.');
+  logger.debug(
+    { telegramId: telegramIdStr, formUrl },
+    "[sendWaiverLink] Constructed form URL.",
+  );
 
   let sentMessage;
   try {
@@ -90,23 +111,30 @@ async function sendWaiverLink({ telegramId, sessionType, messageText }) {
       telegramIdStr, // Use string ID for Telegram API
       message,
       Markup.inlineKeyboard([
-        Markup.button.webApp('📝 Complete Waiver & Book', formUrl)
-      ])
+        Markup.button.webApp("📝 Complete Waiver & Book", formUrl),
+      ]),
     );
-    logger.info({ telegramId: telegramIdStr, messageId: sentMessage?.message_id }, '[sendWaiverLink] Waiver link message sent successfully.');
-
+    logger.info(
+      { telegramId: telegramIdStr, messageId: sentMessage?.message_id },
+      "[sendWaiverLink] Waiver link message sent successfully.",
+    );
   } catch (err) {
     // Log the error appropriately
     const logDetails = { telegramId: telegramIdStr };
-    if (err.response && err.description) { // Telegraf API error structure
-        logDetails.errorCode = err.code;
-        logDetails.errorDescription = err.description;
-    } else { // General error
-        logDetails.error = err.message;
-        logDetails.stack = err.stack; // Include stack for debugging
+    if (err.response && err.description) {
+      // Telegraf API error structure
+      logDetails.errorCode = err.code;
+      logDetails.errorDescription = err.description;
+    } else {
+      // General error
+      logDetails.error = err.message;
+      logDetails.stack = err.stack; // Include stack for debugging
     }
-    logger.error(logDetails, '[sendWaiverLink] Failed to send waiver link message via Telegram API.');
-    return { success: false, error: 'Telegram API error' };
+    logger.error(
+      logDetails,
+      "[sendWaiverLink] Failed to send waiver link message via Telegram API.",
+    );
+    return { success: false, error: "Telegram API error" };
   }
 
   // Store Message ID using Prisma
@@ -118,17 +146,38 @@ async function sendWaiverLink({ telegramId, sessionType, messageText }) {
         where: { telegram_id: telegramIdBigInt },
         data: { edit_msg_id: sentMessage.message_id },
       });
-      logger.info({ telegramId: telegramIdStr, messageId: sentMessage.message_id }, '[sendWaiverLink] Stored edit_msg_id successfully.');
+      logger.info(
+        { telegramId: telegramIdStr, messageId: sentMessage.message_id },
+        "[sendWaiverLink] Stored edit_msg_id successfully.",
+      );
       return { success: true, messageId: sentMessage.message_id };
     } catch (dbErr) {
-      logger.error({ err: dbErr, telegramId: telegramIdStr, messageId: sentMessage.message_id }, '[sendWaiverLink] Failed to store edit_msg_id in database.');
+      logger.error(
+        {
+          err: dbErr,
+          telegramId: telegramIdStr,
+          messageId: sentMessage.message_id,
+        },
+        "[sendWaiverLink] Failed to store edit_msg_id in database.",
+      );
       // Return success:true because message was sent, but include a warning.
-      return { success: true, messageId: sentMessage.message_id, warning: 'Message sent but failed to store message_id in DB' };
+      return {
+        success: true,
+        messageId: sentMessage.message_id,
+        warning: "Message sent but failed to store message_id in DB",
+      };
     }
   } else {
     // Message sent but no message_id received from Telegram
-    logger.warn({ telegramId: telegramIdStr, sentMessageDetails: !!sentMessage }, '[sendWaiverLink] Message sent, but message_id was missing in the Telegram response.');
-    return { success: true, messageId: null, warning: 'Message sent but message_id missing' };
+    logger.warn(
+      { telegramId: telegramIdStr, sentMessageDetails: !!sentMessage },
+      "[sendWaiverLink] Message sent, but message_id was missing in the Telegram response.",
+    );
+    return {
+      success: true,
+      messageId: null,
+      warning: "Message sent but message_id missing",
+    };
   }
 }
 
