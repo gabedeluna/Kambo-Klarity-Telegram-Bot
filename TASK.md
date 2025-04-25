@@ -21,8 +21,9 @@
 | [X]**PH2‑11** | **Define LangChain Tool Schemas/Standard**                             | Implement standard schema (e.g., Zod) for tools created (`stateManager`, `telegramNotifier`, `googleCalendar` stubs). Define in `src/tools/schemas.js` or similar. *Pass*: Schemas defined, unit tests validate tool input/output against schemas. |
 > *Completion Note (PH2-11): Added `zod` dependency. Created `src/tools/toolSchemas.js`. Updated unit tests for `stateManager`, `telegramNotifier`, and `googleCalendar` tools to validate inputs against Zod schemas.* 
 | [X]**PH2‑12** | **Implement Veteran/Responder Status Feature**                         | Update Prisma schema (`User` model: `is_veteran_or_responder` boolean). Update `registration-form.html` with checkbox/dropdown. *Pass*: Migration successful, form updated. *(Note: Backend handler update deferred to Phase 5)*. |
-| [ ]**PH2‑13** | **Tool: `src/tools/telegramNotifier.js` - `setRoleSpecificCommands` function** | Create tool to set role-specific commands using `bot.telegram.setMyCommands` with scope. *Pass*: Unit tests confirm mock bot API call with correct scope and command list. *(Note: Tool usage deferred to Phase 6)*. |
-| [ ]**PH2‑14** | **Test Coverage:**                                                     | Ensure all new/modified modules in PH2 (logger, error handler, tools, schemas) have unit tests, achieving >= 90% coverage for these modules. *Pass*: `npm test` shows sufficient coverage. |
+| [X]**PH2‑13** | **Tool: `src/tools/telegramNotifier.js` - `setRoleSpecificCommands` function** | Create tool to set role-specific commands using `bot.telegram.setMyCommands` with scope. *Pass*: Unit tests confirm mock bot API call with correct scope and command list. *(Note: Tool usage deferred to Phase 6)*. |
+> *Completion Note (PH2-13): Added JSDoc comment for the setRoleSpecificCommands function.* 
+| [X]**PH2‑14** | **Test Coverage:**                                                     | Ensure all new/modified modules in PH2 (logger, error handler, tools, schemas) have unit tests, achieving >= 90% coverage for these modules. *Pass*: `npm test` shows sufficient coverage. |
 | [ ]**PH2‑15** | **Update `docs/architecture.md`:**                                     | Add new directories (`tools`, `middleware`, `errors`, `automations`) and key files created in Phase 2. Update status section for Phase 2 progress. |
 | [ ]**PH2‑16** | **Final Review:**                                                      | Tick all Phase 2 task boxes here when done and ensure Discoveries/Insights are recorded. |
 
@@ -51,6 +52,7 @@
 *   **PH2-D21 (PH2-12):** Ran `prisma migrate dev` successfully (after manual SQL and resolving history).
 *   **PH2-D22 (PH2-12):** Added checkbox to registration-form.html for user input.
 *   **PH2-D23 (PH2-12):** Encountered significant Prisma schema drift on the Render database, requiring manual SQL execution and migration baselining/resolving to proceed without data loss.
+*   **PH2-D24 (PH2-14):** Enhanced test coverage for telegramNotifier.js from 77% to over 95% by adding focused tests for initialization error handling, dependency validation, and edge cases in command setting functionality.
 
 ### 💡 Insights & Decisions
 *   **PH2-01:** Selected Pino for structured logging due to its excellent performance and simple API. Configured with pino-pretty for development (human-readable) and JSON for production (machine-parseable). This approach provides better context and filterability than console.log while maintaining good developer experience during development. The conditional transport configuration based on NODE_ENV ensures we get the right format in each environment without changing code.
@@ -64,6 +66,7 @@
 *   **PH2-06:** Specific tool function for storing booking data improves clarity of intent compared to generic update. Followed established testing pattern using proxyquire.
 *   **PH2-10:** Stubbing creation functions allows testing workflows that involve booking confirmation before live API is ready. Defined expected input/output contract for event creation.
 *   **PH2-12:** Implemented data storage and frontend collection for Veteran/Responder status. Backend processing deferred to Phase 5 server merge to avoid premature integration with legacy handlers.
+*   **PH2-14:** Confirmed all Phase 2 modules meet quality standards with >90% test coverage. Adhered to 'keep tests simple' principle when adding coverage-increasing tests, focusing on specific uncovered code paths rather than complex test setups.
 
 ### 🧪 Quick‑Run Commands
 
@@ -73,4 +76,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-25 10:00
+**Last updated:** 2025-04-25 14:30

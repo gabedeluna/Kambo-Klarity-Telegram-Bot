@@ -3,6 +3,7 @@
  */
 
 const { Markup } = require("telegraf");
+const commandRegistry = require('../commands/registry'); // Added registry require
 
 // Module-level variables for dependencies
 let bot;
@@ -225,9 +226,73 @@ async function sendTextMessage({ telegramId, text }) {
   }
 }
 
+/**
+ * Sets the appropriate command list for a specific user in Telegram based on their role.
+ * Uses the command registry to fetch commands for 'client' and 'admin' roles.
+ *
+ * @param {object} params - The function parameters.
+ * @param {string|number} params.telegramId - The user's Telegram ID.
+ * @param {'client'|'admin'|string} params.role - The user's role.
+ * @returns {Promise<{success: boolean, error?: string}>} - Object indicating success or failure.
+ */
+async function setRoleSpecificCommands({ telegramId, role }) {
+  if (!bot || !logger || !commandRegistry) {
+    logger.error('setRoleSpecificCommands: Missing or invalid dependencies', { telegramId, role });
+    return { success: false, error: 'Missing or invalid dependencies' };
+  }
+
+  if (!telegramId || !role) {
+    logger.error('setRoleSpecificCommands: Missing or invalid parameters', { telegramId, role });
+    return { success: false, error: 'Missing or invalid parameters' };
+  }
+
+  let commandsApiList = [];
+  let roleCommands = {};
+
+  switch (role) {
+    case 'admin':
+      roleCommands = { ...commandRegistry.client, ...commandRegistry.admin };
+      break;
+    case 'client':
+      roleCommands = commandRegistry.client;
+      break;
+    default:
+      logger.warn(`setRoleSpecificCommands: Unknown role '${role}' provided for telegramId ${telegramId}. Setting empty command list.`);
+      roleCommands = {}; // Set empty list for unknown roles
+      break;
+  }
+
+  try {
+    // Format for the Telegram Bot API
+    commandsApiList = Object.entries(roleCommands).map(([command, details]) => ({
+      command: command,
+      description: details.descr || 'No description available',
+    }));
+
+    // Scope commands to the specific user's chat
+    const scope = { type: 'chat', chat_id: Number(telegramId) };
+
+    logger.info(`Setting ${commandsApiList.length} commands for role '${role}' for telegramId ${telegramId}...`);
+    const result = await bot.telegram.setMyCommands(commandsApiList, { scope });
+
+    if (result) {
+      logger.info(`Successfully set commands for role '${role}' for telegramId ${telegramId}.`);
+      return { success: true };
+    } else {
+      // This case might not be reachable if the API throws an error on failure, but included for robustness.
+      logger.error(`Telegram API returned falsy result for setMyCommands for telegramId ${telegramId}.`, { result });
+      return { success: false, error: 'Telegram API returned non-true result' };
+    }
+  } catch (error) {
+    logger.error(`Error setting Telegram commands for telegramId ${telegramId}: ${error.message}`, { error });
+    return { success: false, error: 'Telegram API error setting commands' };
+  }
+}
+
 // Ensure only the intended functions are exported
 module.exports = {
   initialize,
   sendWaiverLink,
   sendTextMessage,
+  setRoleSpecificCommands,
 };
