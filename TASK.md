@@ -20,7 +20,7 @@
 | [X]**PH2‑10** | **Tool: `src/tools/googleCalendar.js` - Stub `createCalendarEvent`**     | Create **stub** function mimicking creating a calendar event (logs input, returns fake success/event ID). No API call. *Pass*: Unit tests confirm function logs input and returns fake success. |
 | [X]**PH2‑11** | **Define LangChain Tool Schemas/Standard**                             | Implement standard schema (e.g., Zod) for tools created (`stateManager`, `telegramNotifier`, `googleCalendar` stubs). Define in `src/tools/schemas.js` or similar. *Pass*: Schemas defined, unit tests validate tool input/output against schemas. |
 > *Completion Note (PH2-11): Added `zod` dependency. Created `src/tools/toolSchemas.js`. Updated unit tests for `stateManager`, `telegramNotifier`, and `googleCalendar` tools to validate inputs against Zod schemas.* 
-| [ ]**PH2‑12** | **Implement Veteran/Responder Status Feature**                         | Update Prisma schema (`User` model: `is_veteran_or_responder` boolean). Update `registration-form.html` with checkbox/dropdown. *Pass*: Migration successful, form updated. *(Note: Backend handler update deferred to Phase 5)*. |
+| [X]**PH2‑12** | **Implement Veteran/Responder Status Feature**                         | Update Prisma schema (`User` model: `is_veteran_or_responder` boolean). Update `registration-form.html` with checkbox/dropdown. *Pass*: Migration successful, form updated. *(Note: Backend handler update deferred to Phase 5)*. |
 | [ ]**PH2‑13** | **Tool: `src/tools/telegramNotifier.js` - `setRoleSpecificCommands` function** | Create tool to set role-specific commands using `bot.telegram.setMyCommands` with scope. *Pass*: Unit tests confirm mock bot API call with correct scope and command list. *(Note: Tool usage deferred to Phase 6)*. |
 | [ ]**PH2‑14** | **Test Coverage:**                                                     | Ensure all new/modified modules in PH2 (logger, error handler, tools, schemas) have unit tests, achieving >= 90% coverage for these modules. *Pass*: `npm test` shows sufficient coverage. |
 | [ ]**PH2‑15** | **Update `docs/architecture.md`:**                                     | Add new directories (`tools`, `middleware`, `errors`, `automations`) and key files created in Phase 2. Update status section for Phase 2 progress. |
@@ -33,7 +33,7 @@
 *   **PH2-D3 (PH2-01):** Needed to be careful with circular dependencies - env.js can't use logger since logger might depend on env vars.
 *   **PH2-D4 (PH2-01):** Updated error logging format to follow Pino's convention (error object as first parameter, message as second).
 *   **PH2-D5 (PH2-01):** Added automatic test environment detection to silence logs during test runs.
-*   **PH2-D6 (PH2-01):** Had to simplify some complex tests that were tightly coupled to console.log/error spies.
+*   **PH2-D6 (PH2-01):** Had to simplify some complex tests that were tightly coupled to console.log spies.
 *   **PH2-D7 (PH2-01):** Implemented dependency injection for logger in server.js and prisma.js to make tests more reliable and maintainable.
 *   **PH2-D8 (PH2-01):** Improved test coverage by adding more test cases for the logger module, achieving 100% coverage.
 *   **PH2-D9 (PH2-02):** Implemented global Express error handler in middleware/errorHandler.js. Added basic AppError/NotFoundError classes. Registered middleware last in app.js.
@@ -47,9 +47,12 @@
 *   **PH2-D17 (PH2-09):** Refactored `googleCalendar.js` from simple functions to a `GoogleCalendarTool` class to better manage state (like the injected logger). Debugged failing logger tests by switching from `sinon.stub()` mocks to `sinon.spy()` on a plain object and resetting spy history correctly within the test case.
 *   **PH2-D18 (PH2-10):** Added createCalendarEvent stub to googleCalendar.js tool. Logs input and returns fake success object.
 *   **PH2-D19 (PH2-11):** Added `zod` (v3.24.3) to dependencies. Defined input schemas for existing tools in `src/tools/toolSchemas.js` using `z.object()` and `.describe()` for documentation. Updated corresponding unit tests (`*.test.js`) to import schemas and add positive/negative validation cases using `expect(...).to.not.throw()` and `expect(...).to.throw(z.ZodError)`.
+*   **PH2-D20 (PH2-12):** Added `is_veteran_or_responder` boolean field (default false) to User model in Prisma schema.
+*   **PH2-D21 (PH2-12):** Ran `prisma migrate dev` successfully (after manual SQL and resolving history).
+*   **PH2-D22 (PH2-12):** Added checkbox to registration-form.html for user input.
+*   **PH2-D23 (PH2-12):** Encountered significant Prisma schema drift on the Render database, requiring manual SQL execution and migration baselining/resolving to proceed without data loss.
 
 ### 💡 Insights & Decisions
-*(Explain logger choice, error handling strategy, tool design choices, mocking strategies, tool definition standard, etc.)*
 *   **PH2-01:** Selected Pino for structured logging due to its excellent performance and simple API. Configured with pino-pretty for development (human-readable) and JSON for production (machine-parseable). This approach provides better context and filterability than console.log while maintaining good developer experience during development. The conditional transport configuration based on NODE_ENV ensures we get the right format in each environment without changing code.
 *   **PH2-01:** Implemented a test detection mechanism in the logger to automatically silence logs during test runs, preventing test output pollution while maintaining the ability to test logging behavior through mocks.
 *   **PH2-01:** Adopted Pino's error logging convention (error object as first parameter, message as second) which enables better error tracking and aggregation in production environments.
@@ -60,6 +63,7 @@
 *   **PH2-05:** Generic update function provides flexibility for AI/Graph to modify user state. Testing with `proxyquire` ensures correct Prisma calls for various inputs and error conditions.
 *   **PH2-06:** Specific tool function for storing booking data improves clarity of intent compared to generic update. Followed established testing pattern using proxyquire.
 *   **PH2-10:** Stubbing creation functions allows testing workflows that involve booking confirmation before live API is ready. Defined expected input/output contract for event creation.
+*   **PH2-12:** Implemented data storage and frontend collection for Veteran/Responder status. Backend processing deferred to Phase 5 server merge to avoid premature integration with legacy handlers.
 
 ### 🧪 Quick‑Run Commands
 

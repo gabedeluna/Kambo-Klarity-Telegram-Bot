@@ -265,16 +265,17 @@ CREATE TABLE "role" (
 
 -- CreateTable
 CREATE TABLE "sessions" (
-    "session_id" INTEGER NOT NULL,
     "first_name" VARCHAR,
     "last_name" VARCHAR,
     "telegram_id" BIGINT,
     "appointment_datetime" TIMESTAMPTZ(6),
-    "jotform_submission_id" VARCHAR,
     "liability_form_data" JSONB,
     "session_notes" TEXT,
     "session_status" VARCHAR,
-    "created_at" TIMESTAMPTZ(6)
+    "created_at" TIMESTAMPTZ(6),
+    "id" SERIAL NOT NULL,
+
+    CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -420,7 +421,7 @@ CREATE TABLE "users" (
     "telegram_id" BIGINT NOT NULL,
     "first_name" VARCHAR(255),
     "last_name" VARCHAR(255),
-    "phone_number" VARCHAR(50) NOT NULL,
+    "phone_number" VARCHAR(50),
     "email" VARCHAR(255),
     "date_of_birth" DATE,
     "reason_for_seeking" TEXT,
@@ -429,6 +430,12 @@ CREATE TABLE "users" (
     "state" VARCHAR DEFAULT 'NONE',
     "role" VARCHAR DEFAULT 'client',
     "session_type" VARCHAR,
+    "conversation_history" TEXT,
+    "booking_slot" VARCHAR(255),
+    "em_first_name" VARCHAR,
+    "em_last_name" VARCHAR,
+    "em_phone_number" VARCHAR,
+    "edit_msg_id" INTEGER,
 
     CONSTRAINT "client_users_pkey" PRIMARY KEY ("client_id")
 );
@@ -504,6 +511,15 @@ CREATE TABLE "workflows_tags" (
     "tagId" VARCHAR(36) NOT NULL,
 
     CONSTRAINT "pk_workflows_tags" PRIMARY KEY ("workflowId","tagId")
+);
+
+-- CreateTable
+CREATE TABLE "test_user" (
+    "id" BIGINT NOT NULL,
+    "firstName" VARCHAR,
+    "createdAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "test_user_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -609,7 +625,7 @@ CREATE INDEX "IDX_1e31657f5fe46816c34be7c1b4" ON "workflow_history"("workflowId"
 CREATE INDEX "idx_workflows_tags_workflow_id" ON "workflows_tags"("workflowId");
 
 -- AddForeignKey
-ALTER TABLE "auth_identity" ADD CONSTRAINT "auth_identity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "auth_identity" ADD CONSTRAINT "FK_5f0643f6717905a05164090dde7" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
 ALTER TABLE "execution_annotation_tags" ADD CONSTRAINT "FK_a3697779b366e131b2bbdae2976" FOREIGN KEY ("tagId") REFERENCES "annotation_tag_entity"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
