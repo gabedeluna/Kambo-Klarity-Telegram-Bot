@@ -1,4 +1,4 @@
-const pino = require('pino'); // Keep for fallback possibility if needed
+const pino = require("pino"); // Keep for fallback possibility if needed
 
 class GoogleCalendarTool {
   /**
@@ -8,15 +8,19 @@ class GoogleCalendarTool {
    */
   constructor(dependencies) {
     if (!dependencies || !dependencies.logger) {
-      console.error('FATAL: GoogleCalendarTool construction failed. Missing logger dependency. Using console.');
+      console.error(
+        "FATAL: GoogleCalendarTool construction failed. Missing logger dependency. Using console.",
+      );
       // Create a basic fallback logger for the instance if absolutely necessary,
       // but ideally, the caller ensures a logger is provided.
-      this.logger = pino({ level: 'info' }, pino.destination(process.stdout));
+      this.logger = pino({ level: "info" }, pino.destination(process.stdout));
       // Or throw an error: throw new Error('Logger dependency is required for GoogleCalendarTool.');
     } else {
       this.logger = dependencies.logger;
     }
-    this.logger.info('[GoogleCalendarTool] Instance created successfully (with stubs).');
+    this.logger.info(
+      "[GoogleCalendarTool] Instance created successfully (with stubs).",
+    );
   }
 
   /**
@@ -31,11 +35,13 @@ class GoogleCalendarTool {
    */
   async findFreeSlots(options = {}) {
     // Logger is now guaranteed to exist if constructor succeeded without throwing
-    this.logger.info({ options }, 'STUB: findFreeSlots called on instance');
+    this.logger.info({ options }, "STUB: findFreeSlots called on instance");
 
     const today = new Date();
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-    const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const dayAfter = new Date(today);
+    dayAfter.setDate(today.getDate() + 2);
     const formatDate = (date, hour) => {
       const d = new Date(date);
       d.setUTCHours(hour, 0, 0, 0);
@@ -47,6 +53,27 @@ class GoogleCalendarTool {
       { start: formatDate(dayAfter, 11), end: formatDate(dayAfter, 12) },
     ];
     return Promise.resolve(fakeSlots);
+  }
+
+  /**
+   * STUB FUNCTION: Creates a calendar event.
+   * Logs the input and returns a hardcoded success response.
+   *
+   * @param {object} eventDetails - Details of the event to create.
+   * @param {string} eventDetails.start - Start time (ISO 8601 format).
+   * @param {string} eventDetails.end - End time (ISO 8601 format).
+   * @param {string} eventDetails.summary - Event title/summary.
+   * @param {string} [eventDetails.description] - Optional event description.
+   * @param {string} [eventDetails.attendeeEmail] - Optional attendee email.
+   * @returns {Promise<{success: boolean, eventId: string}>} A promise resolving to a fake success object.
+   */
+  async createCalendarEvent(eventDetails = {}) {
+    this.logger.info({ eventDetails }, "STUB: createCalendarEvent called");
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const fakeResponse = { success: true, eventId: `fake-event-${Date.now()}` };
+    return Promise.resolve(fakeResponse);
   }
 }
 
