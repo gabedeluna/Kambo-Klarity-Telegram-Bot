@@ -333,3 +333,48 @@ Update src/tests/tools/stateManager.test.js to add unit tests for updateUserStat
 The tests will use proxyquire (as per our updated convention) to inject mock logger and mock prisma (with a stubbed users.update method). Tests will verify that prisma.users.update is called with the correct telegramId and the exact dataToUpdate object provided to the function. Error handling will also be tested.
 Definitions:
 Generic Update: Modifying arbitrary fields in a record based on provided input, as opposed to a fixed reset operation. 
+
+Task Expansion: PH2-06 - State Manager Tool: storeBookingData
+Goal: Add a dedicated function storeBookingData to stateManager.js specifically for saving the session type and the confirmed booking slot (timestamp) identified during the AI conversation to the user's record in Prisma.
+Why are we doing this?
+While updateUserState could be used for this, having a dedicated function storeBookingData makes the AI agent's/graph's intent clearer when it needs to persist the final results of a successful scheduling conversation. It provides a specific interface for this common and critical step in the booking flow, potentially allowing for extra validation or logic specific to booking data in the future. It encapsulates the action of storing the session_type and booking_slot.
+What to expect:
+Windsurf will:
+Modify src/tools/stateManager.js.
+Add a new exported async function storeBookingData(telegramId, sessionType, bookingSlot).
+Inside the function:
+Log the attempt (logger.info).
+Perform input validation (check telegramId, sessionType is a non-empty string, bookingSlot is provided - potentially validating its format as an ISO string or Date object later if needed). Convert telegramId to BigInt.
+Use prisma.users.update() with where for telegramId and data: { session_type: sessionType, booking_slot: bookingSlot }.
+Include try...catch error handling, logging errors (logger.error) and handling Prisma's 'RecordNotFound' (P2025) specifically.
+Return a success/failure indicator.
+Update src/tests/tools/stateManager.test.js to add unit tests for storeBookingData.
+The tests will use proxyquire to inject mock logger and mock prisma (with a stubbed users.update method). Tests will verify the correct telegramId, session_type, and booking_slot are passed to prisma.users.update. Input validation and error handling will also be tested.
+Definitions:
+Booking Slot: The specific date and time confirmed for the session (likely stored as an ISO 8601 timestamp string or a Date object in the database).
+Session Type: The identifier for the type of session being booked (e.g., '1hr-kambo').
+
+Task Expansion: PH2-07 - Tool: Send Waiver Link
+Goal: Create the first function within our telegramNotifier tool. This specific function, sendWaiverLink, will be responsible for sending the message containing the "Book Now" button (which opens the waiver form web app) to the user and, crucially, storing the ID of that sent message in the database for potential future updates.
+Why are we doing this?
+This functionality existed in the legacy bookingTools.js (sendForm function). We are recreating it here as a dedicated, testable tool function following our new structure. The reason for storing the message_id is critical for the waiver completion flow:
+The user clicks the "Book Now" button and fills out the waiver form in the web app.
+The web app submits the form to our server (/api/submit-waiver, which we'll rebuild in Phase 5).
+The server processes the waiver and needs to update the original "Book Now" message in Telegram to say "Booking Confirmed!".
+To edit that specific message, the server needs its chat_id (which is the user's Telegram ID) and the message_id.
+Storing the message_id (in the edit_msg_id field of the users table) right after sending the message makes it available for the server to retrieve later when the waiver is completed.
+What to expect:
+Windsurf will create src/tools/telegramNotifier.js if it doesn't exist. It will implement the sendWaiverLink async function inside it. This function will:
+Accept parameters like telegramId, sessionType, and potentially a messageText override.
+Construct the web app URL for the waiver form, including query parameters.
+Use the injected Telegraf bot instance (bot.telegram.sendMessage) to send the message with the webApp button.
+Use the injected Prisma prisma instance to update the user's record, storing the message_id from the sent message into the edit_msg_id field.
+Include error handling.
+Windsurf will also create src/tests/tools/telegramNotifier.test.js with unit tests for sendWaiverLink. These tests will use proxyquire and sinon to mock the bot and prisma dependencies, ensuring we can verify that the correct API calls (sendMessage, users.update) are made with the expected parameters without actually hitting Telegram or the database.
+Definitions:
+Tool: In our context, a module containing functions designed to be potentially called by LangChain agents/graphs or other application logic to perform specific actions (interacting with Telegram, DB, APIs, etc.).
+Dependency Injection (DI): Instead of telegramNotifier.js directly require-ing core/bot and core/prisma, we'll design it to accept these instances as arguments (or via a setter function). This makes testing much easier, as we can pass in mocks during tests. proxyquire is a library that helps achieve this by intercepting require calls during testing.
+edit_msg_id: The field in our users Prisma schema intended to temporarily store the message_id of a message that might need to be edited later (like the waiver link message). It should probably be nullable.
+bot.telegram.sendMessage(chatId, text, extra): The core Telegraf function for sending messages. extra is an object where we specify things like reply_markup for buttons.
+Markup.button.webApp(text, url): Telegraf helper to create a button that opens a web app.
+

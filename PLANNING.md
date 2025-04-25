@@ -1,4 +1,4 @@
-# PLANNING.md (Revised 2025-04-24 v2)
+# PLANNING.md (Revised 2025-04-24 v5)
 
 > **Prompt to AI (internal):** _“Use the structure and decisions outlined in `PLANNING.md`.”_ Every new conversation must load this file before proposing code.
 
@@ -12,7 +12,7 @@ Build a **scalable, test-first, observable, feature-rich Telegram assistant** fo
 2.  Finds free slots & books events in Google Calendar (**with flexible admin availability controls**).
 3.  Collects registration (**including veteran/responder status**) / waiver forms via Telegram web-app.
 4.  Notifies admins and lets them manage sessions, clients, offerings, **availability, packages, vouchers, referrals, and broadcasts** – all inside Telegram (commands + **mini-app**).
-5.  Provides AI analysis (**contra-indication/anomaly checks**, FAQ, **trends**, **prep guidance**, **post-session support**).
+5.  Provides AI analysis (**contra-indication/anomaly checks**, FAQ, **trends**, **prep guidance**).
 6.  Includes robust logging, error handling, and observability.
 7.  **Offers clients profile management and referral capabilities.**
 
@@ -55,71 +55,73 @@ Markdown
 src/
 ├─ core/ # env, prisma, bot, logger singletons, sessionTypes (DB helper)
 ├─ tools/ # LangChain tools (stateManager, telegramNotifier, googleCalendar, analysis, etc.)
-├─ graph/ # LangGraph node/edge definitions (booking, analysis, support flows)
+├─ graph/ # LangGraph node/edge definitions (booking, analysis flows)
 ├─ commands/ # registry + individual Telegraf command handlers (client & admin)
 ├─ routes/ # Express routers (forms, admin mini-app, APIs)
 ├─ config/ # Static config (e.g., initial roles, prompt templates)
 ├─ errors/ # Custom error class definitions
-├─ middleware/ # Custom Express middleware (auth, error handling)
+├─ middleware/ # Custom Express middleware (auth, error handling, update routing)
 ├─ memory/ # LangChain memory management components
 ├─ automations/ # Scheduled jobs (reminders, analysis triggers, session end detection)
 ├─ views/ # (Optional) Templates for web-apps if not using static HTML/JS entirely
 ├─ app.js # Express + Telegraf wiring + global middleware
 └─ tests/ # mirrors structure
-bin/server.js
+bin/
+├─ server.js # Starts the Express server
+└─ set_admin.js # (Optional) Script to designate an admin user
 ---
 
-## 5 Phased Roadmap (**Revised & Expanded**)
+## 5 Phased Roadmap (**Revised & Reordered**)
 
-| Phase                      | Deliverable                                                                                       | Key Milestones                                                                                                      |
-| :------------------------- | :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------ |
-| **1 Skeleton & Tests**     | singletons, Express+Telegraf bootstrap, base CI                                                   | ✔ health + DB tests, base coverage, core structure                                                                  |
-| **2 LangChain Tools**      | logging, error handling, state/telegram tools, GCal stubs, tool defs, **ask veteran/responder status** | ✔ logger/error middleware, tool unit tests, schema standard, **registration form updated**                              |
-| **3 Agent & Memory**       | OpenAI Functions agent calling tools, LangSmith setup, memory impl., **basic intelligent suggestions** | ✔ booking via agent, traces visible, memory strategy tested, **agent suggests slots based on history/preference** |
-| **4 LangGraph Flow**       | Model booking conversation as nodes/edges                                                         | ✔ node tests, graph execution tests for booking                                                                     |
-| **5 Server Merge**         | Move form server routes into main app                                                             | ✔ integration tests for forms/APIs in main app                                                                    |
-| **6 Admin Foundational**   | DB-based session types, `/admin` menu, **client/session list commands**, role middleware          | ✔ admin commands mutate `SessionTypes` DB, `/sessions`, `/clients` work                                             |
-| **7 Google Calendar Live** | Replace GCal tool stubs with real API, **add Admin Availability Management (commands)**           | ✔ booking creates GCal event, **`/block_time`, `/unblock_time` commands modify GCal/availability**                |
-| **8 Admin Mini-App v1**    | TG web-app: view clients, sessions, calendar view (**basic**), add session notes, **client lookup**     | ✔ role-based auth, basic dashboard loads data, **notes saved to session record**, search works                    |
-| **9 AI Analysis & Prep**   | FAQ/Doc-QA, Contra-indication/Anomaly check, **Admin Trend Analysis**, **Pre-Session Prep Guidance** | ✔ RAG test, waiver analysis flags, `/analyze` command works, **reminders include personalized prep**                |
-| **10 Client Features v1**  | **/profile command**, **/contact_admin command**, **Basic Referral Program (Vet Focus)**            | ✔ clients can view/update profile, get admin contact, referral codes generated/tracked, **vet referral noted**      |
-| **11 Admin Features v2**   | **Broadcast command**, **Package/Bundle Management**, **Gift Voucher Management**                 | ✔ `/broadcast` sends to clients, admin commands for packages/vouchers, booking reflects discounts/redemption        |
-| **12 Post-Session Support**| **AI Integration Support Program (Opt-in)**, journal prompts, resource links                      | ✔ `/integration_start` command, automated prompts, AI interaction flow via graph                                    |
-| **13 Journey Visualization**| **Client Web-App "Kambo Journey" Dashboard**                                                      | ✔ Client web-app displays session timeline, AI-summarized themes (optional)                                         |
-| **14+ AI Dynamic Scheduling** | **NL Admin Availability Control**, advanced scheduling logic                                      | ✔ Admin can set complex schedules via chat, AI optimizes slot suggestions                                           |
+| Phase                      | Deliverable                                                                                             | Key Milestones                                                                                                           |
+| :------------------------- | :------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------- |
+| **1 Skeleton & Tests**     | singletons, Express+Telegraf bootstrap, base CI                                                         | ✔ health + DB tests, base coverage, core structure                                                                       |
+| **2 LangChain Tools**      | logging, error handling, state/telegram tools, GCal stubs, tool defs, **ask veteran/responder status**   | ✔ logger/error middleware, tool unit tests, schema standard, **registration form updated**                               |
+| **3 Agent & Memory**       | OpenAI Functions agent calling tools, LangSmith setup, memory impl., **basic intelligent suggestions**   | ✔ booking via agent, traces visible, memory strategy tested, **agent suggests slots based on history/preference**      |
+| **4 LangGraph Flow**       | Model booking conversation as nodes/edges                                                               | ✔ node tests, graph execution tests for booking                                                                          |
+| **5 Core Routing & Server Merge** | **Implement Core Update Router (New User/Existing logic)**, Move form server routes into main app | ✔ **New User flow working**, integration tests for forms/APIs, **basic message routing structure in place**          |
+| **6 Admin Foundational**   | **Designate Admin**, **Implement Role-Based Command Routing**, DB-based session types, `/admin` menu, client/session list commands | ✔ **Admin user identified**, **Admin commands restricted via middleware & set via API**, admin commands mutate `SessionTypes` DB, `/sessions`, `/clients` work |
+| **7 Google Calendar Live** | Replace GCal tool stubs with real API, **add Admin Availability Management (commands)**                 | ✔ booking creates GCal event, **`/block_time`, `/unblock_time` commands modify GCal/availability**                     |
+| **8 Admin Mini-App v1**    | TG web-app: view clients, sessions, calendar view (**basic**), add session notes, **client lookup**       | ✔ role-based auth, basic dashboard loads data, **notes saved to session record**, search works                         |
+| **9 AI Analysis & Prep**   | FAQ/Doc-QA, Contra-indication/Anomaly check, **Admin Trend Analysis**, **Pre-Session Prep Guidance**   | ✔ RAG test, waiver analysis flags, `/analyze` command works, **reminders include personalized prep**                     |
+| **10 Client Features v1**  | **/profile command**, **/contact_admin command**, **Basic Referral Program (Vet Focus)**              | ✔ clients can view/update profile, get admin contact, referral codes generated/tracked, **vet referral noted**           |
+| **11 Admin Features v2**   | **Broadcast command**, **Package/Bundle Management**, **Gift Voucher Management**                   | ✔ `/broadcast` sends to clients, admin commands for packages/vouchers, booking reflects discounts/redemption             |
+| **12+ AI Dynamic Scheduling** | **NL Admin Availability Control**, advanced scheduling logic                                        | ✔ Admin can set complex schedules via chat, AI optimizes slot suggestions                                                |
 
 ---
 
 ## 6 Key Modules & Responsibilities (**Revised**)
 
-| Module                         | Responsibility                                                                                      |
-| :----------------------------- | :-------------------------------------------------------------------------------------------------- |
-| **core/env.js**                | load + validate `.env` vars                                                                         |
-| **core/prisma.js**             | singleton Prisma client                                                                             |
-| **core/bot.js**                | Telegraf instance                                                                                   |
-| **core/logger.js**             | **singleton structured logger instance (e.g., Pino)**                                               |
-| **core/sessionTypes.js**       | helper for session types CRUD from DB (Phase 6+)                                                    |
-| **tools/stateManager.js**      | LangChain tools for managing persistent user state/profile in DB                                      |
-| **tools/telegramNotifier.js**  | LangChain tools for sending messages/forms/broadcasts via Telegraf                                    |
-| **tools/googleCalendar.js**    | LangChain tools for GCal interaction (stubs Phase 2, live Phase 7), **incl. availability blocking** |
-| **tools/analysisReporter.js**  | **LangChain tools for querying DB/generating reports for admin (Phase 9+)**                         |
-| **tools/waiverAnalyzer.js**    | **LangChain tools for contra-indication/anomaly checks (Phase 9+)**                                 |
-| **tools/prepAdvisor.js**       | **LangChain tools for generating personalized prep guidance (Phase 9+)**                              |
-| **tools/integrationHelper.js** | **LangChain tools for post-session support flow (Phase 12+)**                                       |
-| **tools/availabilityManager.js** | **(Future Phase 14+) Tools for parsing NL schedule commands & managing complex availability rules** |
-| **tools/packageVoucherMgr.js** | **Tools for managing packages/vouchers in DB (Phase 11+)**                                           |
-| **tools/referralManager.js**   | **Tools for managing referral codes/tracking (Phase 10+)**                                          |
-| **commands/registry.js**       | maps command → handler by role (**incl. new client/admin commands**)                                |
-| **graph/\***                   | LangGraph definitions (**booking, analysis, integration flows**)                                     |
-| **routes/adminDashboard.js**   | **Express router/handlers for the Admin Mini-App API (Phase 8+)**                                   |
-| **routes/clientApi.js**        | **Express router/handlers for client profile/journey APIs (Phase 10/13+)**                            |
-| **automations/\***             | **Scheduled jobs (reminders, analysis, session end detection)**                                     |
-| **app.js**                     | Express app setup, core middleware (**incl. error handling**), webhook routing                      |
-| **memory/\***                  | **LangChain conversation memory components/configuration**                                        |
-| **middleware/errorHandler.js** | **Global Express error handler**                                                                    |
-| **middleware/authHandler.js**  | **Middleware to check user roles for commands/routes (Phase 6+)**                                   |
-| **config/\***                  | **Static config, prompt templates, etc.**                                                           |
-| **errors/\***                  | **Custom error class definitions (optional)**                                                       |
+| Module                          | Responsibility                                                                                      |
+| :------------------------------ | :-------------------------------------------------------------------------------------------------- |
+| **core/env.js**                 | load + validate `.env` vars                                                                         |
+| **core/prisma.js**              | singleton Prisma client                                                                             |
+| **core/bot.js**                 | Telegraf instance                                                                                   |
+| **core/logger.js**              | singleton structured logger instance (e.g., Pino)                                                   |
+| **core/sessionTypes.js**        | helper for session types CRUD from DB (Phase 6+)                                                    |
+| **tools/stateManager.js**       | LangChain tools for managing persistent user state/profile in DB                                      |
+| **tools/telegramNotifier.js**   | LangChain tools for sending messages/forms/broadcasts via Telegraf, **setting role-specific command scopes (`setRoleSpecificCommands`)** |
+| **tools/googleCalendar.js**     | LangChain tools for GCal interaction (stubs Phase 2, live Phase 7), **incl. availability blocking** |
+| **tools/analysisReporter.js**   | LangChain tools for querying DB/generating reports for admin (Phase 9+)                             |
+| **tools/waiverAnalyzer.js**     | LangChain tools for contra-indication/anomaly checks (Phase 9+)                                     |
+| **tools/prepAdvisor.js**        | LangChain tools for generating personalized prep guidance (Phase 9+)                                  |
+| **tools/packageVoucherMgr.js**  | Tools for managing packages/vouchers in DB (Phase 11+)                                               |
+| **tools/referralManager.js**    | Tools for managing referral codes/tracking (Phase 10+)                                              |
+| **tools/availabilityManager.js**| (Future Phase 12+) Tools for parsing NL schedule commands & managing complex availability rules   |
+| **commands/registry.js**        | maps command → handler by role                                                                      |
+| **graph/\***                    | LangGraph definitions (booking, analysis flows)                                                     |
+| **routes/...**                  | Express routers (forms, admin mini-app, APIs)                                                       |
+| **app.js**                      | Express app setup, core middleware (incl. error handling), webhook routing                          |
+| **memory/\***                   | LangChain conversation memory components/configuration                                            |
+| **middleware/errorHandler.js**  | Global Express error handler                                                                        |
+| **middleware/userLookup.js**    | (New/Refined) Middleware to find/attach user data (`ctx.state.user`, `isNewUser`)                   |
+| **middleware/updateRouter.js**  | (New) Middleware to route incoming updates (new user, command, message, callback)                 |
+| **middleware/commandRouter.js** | (New/Refined) Middleware (or part of updateRouter) for role-based command execution               |
+| **middleware/authHandler.js**   | Middleware to check user roles for *Express* routes (e.g., admin mini-app)                          |
+| **config/\***                   | Static config, prompt templates, etc.                                                               |
+| **errors/\***                   | Custom error class definitions (optional)                                                           |
+| **automations/\***              | Scheduled jobs (reminders, analysis, session end detection)                                         |
+| **bin/set_admin.js**            | (Optional) Script to assign admin role via CLI                                                      |
 
 ---
 
@@ -156,6 +158,7 @@ module.exports = {
   }
 };
 ```
+** Middleware (middleware/commandRouter.js or within middleware/updateRouter.js) routes /command based on ctx.state.user.role. Admin role typically assigned manually via DB script or dedicated setup command initially (See Phase 6). Telegram setMyCommands can be used (via a tool/helper like telegramNotifier.setRoleSpecificCommands(userId, role)) to show role-specific commands to users.**
 
 # 7.2 Session-Type Config (Database Driven from Phase 6)
 Database Table: SessionTypes defined in prisma/schema.prisma.
@@ -199,53 +202,204 @@ Testing Dependency Injection:** Use **`proxyquire`** to inject mocked dependenci
 Prioritize user privacy and data security in all features.
 
 # 11 Feature Details & Explanations
-Structured Logging (Phase 2): Implement Pino/Winston for filterable JSON logs via core/logger.js. Enhances debugging.
+### Structured Logging (Phase 2)
 
-Centralized Error Handling (Phase 2): Global Express middleware in app.js (using middleware/errorHandler.js) to catch errors, log them via core/logger, and send standardized responses. Prevents crashes and sensitive data leaks. Define custom error classes in src/errors/ as needed.
+*   **Goal:** Replace standard `console.log`/`error` with a more robust logging system.
+*   **Implementation:** Introduce the `pino` library. Create a singleton logger instance in `src/core/logger.js`. This logger will be configured to output structured JSON logs (ideal for production monitoring and analysis) but use `pino-pretty` to format logs readably during development (`NODE_ENV !== 'production'`). Update all core modules (`app.js`, `bin/server.js`, `core/*`, tool modules) to `require` and use this logger instance (`logger.info`, `logger.error({ err, ... }, 'message')`, etc.), passing error objects directly for detailed logging.
+*   **Benefit:** Greatly improves debuggability and observability, especially in complex flows or production environments. Allows easy filtering and searching of logs.
 
-Ask Veteran/Responder Status (Phase 2): Modify the registration form (public/registration-form.html) and the submission handling (formWorkflow.js or its replacement route handler) to include a checkbox or dropdown for this status. Update the Prisma users schema to store this boolean flag.
+---
 
-Basic Intelligent Scheduling Suggestions (Phase 3): Enhance the booking agent to query basic client history (last session date/type via tools/stateManager.js) or preferences (new field in users table, potentially asked during onboarding or via /profile) and slightly prioritize or suggest slots accordingly. Still relies on GCal free slots but adds a layer of context.
+### Centralized Error Handling (Phase 2)
 
-LangSmith Integration (Phase 3): Configure environment variables to enable tracing LLM calls within LangChain for easier debugging of the agent.
+*   **Goal:** Create a safety net to catch any unhandled errors within Express routes or middleware.
+*   **Implementation:** Create an Express error-handling middleware function in `src/middleware/errorHandler.js` (signature: `(err, req, res, next)`). This middleware will be registered using `app.use()` as the *very last* middleware in `src/app.js`. Inside the handler, use the structured logger (`core/logger.js`) to log detailed error information (error object, stack trace, request details). Determine an appropriate HTTP status code (e.g., 500 for unexpected errors, or `err.statusCode` if using custom operational errors). Send a standardized, generic JSON error response to the client (e.g., `{ status: 'error', message: 'Internal Server Error' }`) to avoid leaking sensitive details. Optionally, define custom error classes (e.g., `AppError`, `NotFoundError` in `src/errors/`) extending `Error` to allow specific status codes and operational error flagging (`err.isOperational`).
+*   **Benefit:** Prevents application crashes on unhandled errors, provides consistent error responses, ensures all critical errors are logged centrally.
 
-Conversation Memory Implementation (Phase 3): Choose and implement a LangChain memory strategy (e.g., BufferMemory stored in DB, ConversationSummaryBufferMemory) within src/memory/. Ensure the agent uses it.
+---
 
-DB-Based Session Types (Phase 6): Migrate sessionTypes.json data to a Prisma SessionTypes table. Update core/sessionTypes.js helper to use Prisma. Modify admin commands (/session_add, /session_del) to interact with the DB table.
+### Ask Veteran/Responder Status (Phase 2)
 
-Client/Session List Commands (Phase 6): Implement /sessions and /clients admin commands using Prisma to query and format data, sending it via tools/telegramNotifier.js. Implement role-checking middleware (middleware/authHandler.js) to protect admin commands.
+*   **Goal:** Capture whether a registering user is a veteran or first responder.
+*   **Implementation:**
+    1.  **DB Schema:** Add a boolean field (e.g., `is_veteran_or_responder`) to the `User` model in `prisma/schema.prisma`. Run `npx prisma migrate dev`.
+    2.  **Form:** Modify `public/registration-form.html` to include a checkbox or dropdown menu asking this question.
+    3.  **Handler:** Update the form submission handler (conceptual, implemented in Phase 5) to read this new field from the submitted data and save it to the corresponding user record during the `prisma.users.create` or `upsert` call.
+*   **Benefit:** Allows for potential future targeted programs, discounts (like the Vet Referral), or analytics.
 
-Admin Availability Management (Phase 7): Implement /block_time and /unblock_time commands. These will use tools/googleCalendar.js (now live) to create/delete specific blocking events in the practitioner's Google Calendar, which the findFreeSlots tool will then respect.
+---
 
-Admin Mini-App v1 (Phase 8): Create Express routes (routes/adminDashboard.js) serving an HTML/JS mini-app via Telegram.WebApp. Implement API endpoints for the app to fetch client/session lists, view basic calendar data (read-only initially), look up clients, and submit session notes (saved via Prisma to the sessions table). Requires role-based authentication for the web app routes/API.
+### Basic Intelligent Scheduling Suggestions (Phase 3)
 
-AI Analysis & Prep (Phase 9):
-FAQ/Doc-QA: Implement RAG using a vector store of Kambo docs accessible via a LangChain tool.
-Contra-indication/Anomaly Check: Enhance tools/waiverAnalyzer.js to use an LLM to review waiver form data (liability_form_data) for subtle issues beyond simple checks.
-Admin Trend Analysis: Implement /analyze command triggering an agent that uses tools/analysisReporter.js to run Prisma aggregate queries based on NL input.
-Pre-Session Prep: Create tools/prepAdvisor.js. Modify the reminder automation (automations/reminder.js) to call this tool, generating personalized advice based on session type/client data, and include it in the reminder message sent via tools/telegramNotifier.js.
+*   **Goal:** Make the AI's slot suggestions slightly more relevant than just random available times.
+*   **Implementation:** When the booking agent (built in Phase 3) suggests slots, enhance its logic/prompt:
+    1.  Give it access to a tool function retrieving basic client history (e.g., last session date/type via `tools/stateManager.js`) or preferences (`users` table field, set via `/profile`).
+    2.  Instruct the agent (via prompt) to *consider* this context when selecting from available slots returned by `findFreeSlots` (stub in Phase 3). Examples: "Suggest slots around the same time of day," or "Prioritize morning slots if preferred."
+*   **Benefit:** Improves client experience by offering potentially more convenient times without complex dynamic scheduling yet.
 
-Client Features v1 (Phase 10):
-Profile Command: /profile triggers handler using tools/stateManager.js to display info and potentially offer edits (could open mini-app).
-Contact Admin: /contact_admin handler retrieves practitioner contact info (from env/config) and displays it, possibly using Telegram's user mention feature if the admin's Telegram ID is known.
-Referral Program: /referral command generates/displays code via tools/referralManager.js. Update registration to accept code. Add DB fields/tables for tracking. Focus on "Refer-a-Vet" messaging/tracking if desired.
+---
 
-Admin Features v2 (Phase 11):
-Broadcast: /broadcast command handler gets list of client IDs from Prisma, iterates, and sends message via tools/telegramNotifier.js. Implement carefully to avoid rate limits.
-Packages/Vouchers: Define Prisma schemas. Implement admin commands using tools/packageVoucherMgr.js. Update booking flow/tools to handle selection/redemption. Consider payment gateway integration if selling directly.
+### LangSmith Integration (Phase 3)
 
-Post-Session Support (Phase 12): Implement /integration_start command. Create a LangGraph flow in graph/integrationGraph.js triggered by this or automatically post-session. Use tools/integrationHelper.js to manage prompts, store journal entries (securely in DB), retrieve resources, and potentially use LLM reasoning for reflective "insights". Requires clear opt-in and privacy controls.
+*   **Goal:** Enable detailed tracing and debugging of LangChain agent/graph executions.
+*   **Implementation:** Sign up for LangSmith ([https://smith.langchain.com/](https://smith.langchain.com/)). Obtain an API key. Set environment variables: `LANGCHAIN_TRACING_V2=true` and `LANGCHAIN_API_KEY=<your_api_key>` in `.env`. LangChain automatically sends traces.
+*   **Benefit:** Provides invaluable visibility into LLM calls, prompt chains, tool usage, and agent decision-making.
 
-Journey Visualization (Phase 13): Enhance the client-facing web app (requires Phase 10 profile command/mini-app first). Add routes/API endpoints (routes/clientApi.js) to fetch session history, journal summaries (if available via tools/journalSummarizer.js), etc. Frontend renders the timeline/dashboard.
+---
 
-AI Dynamic Scheduling (Phase 14+): Implement /set_schedule command. Create tools/availabilityManager.js to parse NL instructions and manage complex availability rules (stored in DB). Heavily modify tools/googleCalendar.js findFreeSlots to use these rules, buffer times, priorities, etc. Requires significant AI reasoning and careful testing.
+### Conversation Memory Implementation (Phase 3)
+
+*   **Goal:** Provide the AI agent with memory of the current conversation for multi-turn interactions.
+*   **Implementation:** Choose a LangChain memory strategy (e.g., `BufferMemory`, `ConversationSummaryBufferMemory`). Implement in `src/memory/` or where the agent is initialized. Decide on persistence (temporary, graph state, DB field). Configure the agent/graph to use the memory object.
+*   **Benefit:** Enables coherent dialogue, prevents repetitive questions, helps manage LLM token limits.
+
+---
+
+### Core Update Router (Phase 5)
+
+*   **Goal:** Create the central logic hub for processing incoming Telegram updates based on user status and update type.
+*   **Implementation:** Implement middleware (e.g., `src/middleware/updateRouter.js`, registered in `app.js` after user lookup). Logic:
+    1.  `if (ctx.state.isNewUser)`: Trigger registration flow (e.g., call `telegramNotifier.sendRegistrationLink(ctx)`). Stop processing.
+    2.  `else (existing user)`:
+        *   `if (isCommand(ctx))`: Pass to Role-Based Command Router (Phase 6).
+        *   `else if (isCallbackQuery(ctx))`: Handle callbacks (route to handlers or LangGraph).
+        *   `else if (isTextMessage(ctx))`: Route to conversational AI (agent/graph - Phase 3/4).
+        *   `else`: Handle other types or ignore.
+*   **Benefit:** Organizes the entry point for all user interactions, directing them appropriately.
+
+---
+
+### Server Merge (Phase 5)
+
+*   **Goal:** Consolidate all web server functionality into `src/app.js`, eliminating legacy `server.js`.
+*   **Implementation:**
+    1.  Identify routes/static logic in `legacy/server.js`.
+    2.  Re-implement routes using `express.Router()` in `src/routes/` (e.g., `forms.js`, `api.js`), mounted in `src/app.js`.
+    3.  Implement static file serving (`express.static('public')`) in `src/app.js`.
+    4.  Update HTML forms (`fetch` calls) to point to the main app's endpoints.
+    5.  Ensure route handlers use singleton `prisma` and `bot` from `src/core/`.
+    6.  Delete `legacy/server.js` and related legacy code/dependencies.
+*   **Benefit:** Achieves **P-1 (Single Source of Truth)**, simplifies deployment, eliminates inter-server calls.
+
+---
+
+### Designate Admin (Phase 6)
+
+*   **Goal:** Establish a mechanism to grant administrative privileges.
+*   **Implementation:**
+    1.  **Method 1 (Script):** Create `bin/set_admin.js`. Takes Telegram ID, uses `prisma.users.update` to set `role: 'admin'`.
+    2.  **Method 2 (Manual DB):** Directly update the `role` column in the `users` table.
+    3.  **(Future) Method 3 (Admin Command):** `/add_admin <userId>` command performs the update.
+*   **Benefit:** Allows activating admin-only features.
+
+---
+
+### Role-Based Command Routing (Phase 6)
+
+*   **Goal:** Ensure only authorized users can execute specific commands based on role.
+*   **Implementation:** Enhance `updateRouter.js` or create `middleware/commandRouter.js`. Logic:
+    1.  Detect command (e.g., starts with '/'). Extract command name.
+    2.  Check `ctx.state.user.role`.
+    3.  Look up command in `commandRegistry[role][commandName]`.
+    4.  If handler exists, execute `handler(ctx)`.
+    5.  If not found, reply "Unknown command." or similar.
+    6.  **Set Command Scope:** After role assignment (registration completion/admin designation), call `telegramNotifier.setRoleSpecificCommands(userId, role)`. This tool uses `bot.telegram.setMyCommands` with a chat-specific scope and the command list from the registry for that role.
+*   **Benefit:** Enforces command access control, provides tailored command list visibility in Telegram.
+
+---
+
+### DB-Based Session Types (Phase 6)
+
+*   **Goal:** Manage session offerings dynamically via the database.
+*   **Implementation:**
+    1.  **Schema:** Define `SessionType` model in `prisma/schema.prisma` (fields: `id`, `label`, `duration`, `description`, `active`, etc.). Run `prisma migrate dev`.
+    2.  **Migration:** Populate `SessionType` table from `sessionTypes.json` data (script/manual).
+    3.  **Helper Update:** Modify `src/core/sessionTypes.js` to use Prisma (`findMany`, `findUnique`, `create`, `delete`, `update`) instead of `fs`. Filter by `active` flag in `getAll`.
+    4.  **Admin Commands:** Implement `/session_add`, `/session_del` handlers using the updated helper functions.
+    5.  **(Cleanup)** Delete `src/config/sessionTypes.json`. Update dependent code.
+*   **Benefit:** Dynamic, robust management of session offerings via admin commands.
+
+---
+
+### Client/Session List Commands (Phase 6)
+
+*   **Goal:** Provide basic admin commands to view client and session data.
+*   **Implementation:** Create handlers for `/clients` and `/sessions` in `src/commands/`. Use `prisma` (`findMany`) to query data. Format results and reply via `ctx.reply()` or `tools/telegramNotifier.js`. Protect commands using role-based routing middleware.
+*   **Benefit:** Basic data visibility for admins within Telegram.
+
+---
+
+### Admin Availability Management (Phase 7)
+
+*   **Goal:** Allow admins to manually block time slots in the Google Calendar.
+*   **Implementation:** Create handlers for `/block_time`, `/unblock_time` commands. Parse date/time arguments. Call functions in `tools/googleCalendar.js` (now live) like `createBlockingEvent(start, end, reason)` or `deleteBlockingEvent(start, end)`. Update `findFreeSlots` tool to query and respect these blocking events.
+*   **Benefit:** Practitioner can manage schedule exceptions via Telegram.
+
+---
+
+### Admin Mini-App v1 (Phase 8)
+
+*   **Goal:** Create a basic web dashboard for admins within Telegram.
+*   **Implementation:**
+    1.  **Routing:** Create Express router (`src/routes/adminDashboard.js`) for serving static files and API endpoints (e.g., `/api/admin/clients`, `/api/admin/sessions`, `/api/admin/sessions/:id/notes`).
+    2.  **Authentication:** Protect routes/API via middleware (`middleware/authHandler.js`) checking for admin role via `Telegram.WebApp` data.
+    3.  **Backend API:** Implement handlers using `prisma` (fetch data, save notes) and potentially `googleCalendar.js` (fetch events). Implement client lookup.
+    4.  **Frontend:** Build UI (`public/admin/` or `src/views/`) using HTML/CSS/JS. Authenticate using `WebApp` data. Use `fetch` to interact with backend API.
+*   **Benefit:** Richer interface for admin data viewing and interaction (session notes).
+
+---
+
+### AI Analysis & Prep (Phase 9)
+
+*   **Goal:** Add AI-driven insights and proactive assistance.
+*   **Implementation:**
+    *   *FAQ/Doc-QA:* Set up vector store. Create RAG tool (`tools/docQa.js`). Wire to `/ask` command or agent.
+    *   *Contra-indication/Anomaly Check:* Enhance `tools/waiverAnalyzer.js`. Trigger after waiver submission. Use LLM to review full form data for subtle issues. Tool notifies admin via `telegramNotifier.js`.
+    *   *Admin Trend Analysis:* Implement `/analyze` command. Triggers agent/graph using `tools/analysisReporter.js`. Tool translates NL query to Prisma aggregate query, executes, formats results.
+    *   *Pre-Session Prep Guidance:* Create `tools/prepAdvisor.js`. Create scheduled job (`automations/reminder.js`). Job finds upcoming sessions, calls `prepAdvisor.js` for personalized advice (based on session type/client data), includes advice in reminder sent via `telegramNotifier.js`.
+*   **Benefit:** Leverages AI for safety checks, admin insights, and personalized client guidance.
+
+---
+
+### Client Features v1 (Phase 10)
+
+*   **Goal:** Add basic self-service features for clients.
+*   **Implementation:**
+    *   *Profile Command:* Implement `/profile` handler. Uses `stateManager.js` to fetch/display info. May offer button to web-app editor (served via `routes/clientApi.js`).
+    *   *Contact Admin:* Implement `/contact_admin` handler. Retrieves practitioner contact info (env/config) and displays, possibly using `tg://user?id=` link.
+    *   *Referral Program:* Add `referralCode`, `referredById` to `User` schema. Implement `/referral` handler using `tools/referralManager.js` (generate/retrieve code). Update registration (Phase 5) to accept code, validate, store referrer ID. Add logic for applying referral benefits (Vet focus).
+*   **Benefit:** Empowers clients, encourages engagement/growth.
+
+---
+
+### Admin Features v2 (Phase 11)
+
+*   **Goal:** Add advanced administrative tools for communication and offerings.
+*   **Implementation:**
+    *   *Broadcast:* Implement `/broadcast` handler. Fetches client IDs (Prisma). Iterates and sends message via `telegramNotifier.js` **with delays** to avoid rate limits. Consider client opt-out.
+    *   *Packages/Vouchers:* Define `Package`, `Voucher` Prisma models. Create admin CRUD commands using `tools/packageVoucherMgr.js`. Update booking flow (Agent/Graph) to handle selection/redemption. Optional: Integrate payment processor.
+*   **Benefit:** Enables mass communication and flexible management of pricing/offerings.
+
+---
+
+### AI Dynamic Scheduling (Phase 12+)
+
+*   **Goal:** Allow NL admin availability control and optimized scheduling.
+*   **Implementation:** (Significant effort)
+    1.  Implement `/set_schedule` command/agent/graph.
+    2.  Create `tools/availabilityManager.js` using NLP/LLM to parse NL commands into structured rules (stored in DB).
+    3.  Heavily refactor `googleCalendar.js` `findFreeSlots` to use GCal events + DB rules + buffers + session duration to calculate availability.
+    4.  Update booking agent/graph to use enhanced `findFreeSlots` and potentially optimize suggestions.
+*   **Benefit:** Ultimate scheduling flexibility for practitioner via NL interface.
 
 # 12 Potential Future Explorations (Beyond Phase 14)
-Advanced personalization based on deeper analysis of client journey data.
-Integration with external health tracking platforms (with consent).
-Multi-practitioner support.
-Automated A/B testing of different bot messages or flows.
-Sentiment analysis on journal entries to tailor integration support.
-Community features (opt-in group chats, shared resources).
+AI Post-Session Integration Support: Offer clients an opt-in program via the bot for integration guidance post-session. Use LangGraph to manage daily journal prompts, retrieve relevant resources (RAG), and potentially offer AI-generated reflections based on journal entries. Requires careful design around privacy, scope, and avoiding therapeutic claims. (Formerly Phase 12)
+Client "Kambo Journey" Visualization: Enhance the client-facing web app (requires Phase 10 profile/mini-app foundation) to display a timeline or dashboard of their session history. Could potentially include AI-summarized themes from journal entries (with consent) or intentions set. (Formerly Phase 13)
+Advanced Personalization: Deeper analysis of client journey data to tailor suggestions, resources, or check-ins even further.
+External Health Platform Integration: Allow clients (with explicit consent) to connect data from wearables or health apps for richer context (requires significant security/privacy work).
+Multi-Practitioner Support: Adapt the system to handle multiple practitioners with separate schedules and client lists.
+Automated A/B Testing: Experiment with different reminder messages, booking flow prompts, etc., and track conversion/effectiveness.
+Sentiment Analysis: Analyze journal entries or feedback to gauge client well-being and potentially tailor integration support or flag concerns for the practitioner.
+Community Features: Opt-in group chats, shared resource libraries within Telegram or the web app.
 
-# Last updated : 2025-04-24 v2
+# Last updated : 2025-04-24 v5

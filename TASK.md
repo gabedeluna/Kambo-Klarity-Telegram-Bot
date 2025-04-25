@@ -77,15 +77,16 @@
 | [X]**PH2‑04** | **Tool: `src/tools/stateManager.js` - `resetUserState` function**        | Create tool to reset user state (`state`, `session_type`, etc.) in Prisma. *Pass*: Unit tests confirm DB update call with correct parameters using mock Prisma. |
 | [X]**PH2‑05** | **Tool: `src/tools/stateManager.js` - `updateUserState` function**       | Add tool to update specific user fields (e.g., set `state` to 'BOOKING'). *Pass*: Unit tests confirm DB update call with correct parameters and data. |
 | [X]**PH2‑06** | **Tool: `src/tools/stateManager.js` - `storeBookingData` function**      | Create tool to specifically store AI-confirmed booking data (`booking_slot`, `session_type`) in Prisma. *Pass*: Unit tests confirm DB update calls using mock Prisma. |
-| [ ]**PH2‑07** | **Tool: `src/tools/telegramNotifier.js` - `sendWaiverLink` function**    | Create tool that sends the waiver form WebApp button via Telegraf, storing `message_id`. *Pass*: Unit tests confirm mock bot API call and mock Prisma update (`edit_msg_id`). |
-| [ ]**PH2‑08** | **Tool: `src/tools/telegramNotifier.js` - `sendTextMessage` function**   | Create generic tool to send a simple text message via Telegraf. *Pass*: Unit tests confirm mock bot API call with correct parameters. |
-| [ ]**PH2‑09** | **Tool: `src/tools/googleCalendar.js` - Stub `findFreeSlots`**         | Create **stub** function mimicking finding calendar slots (returns fake data). No API call. *Pass*: Unit tests confirm function returns expected fake data structure. |
-| [ ]**PH2‑10** | **Tool: `src/tools/googleCalendar.js` - Stub `createCalendarEvent`**     | Create **stub** function mimicking creating a calendar event (logs input, returns fake success). No API call. *Pass*: Unit tests confirm function logs input and returns fake success. |
-| [ ]**PH2‑11** | **Define LangChain Tool Schemas/Standard**                             | Decide on & implement a standard way to define tools for LangChain (e.g., StructuredTool, Zod schema for OpenAI functions). Apply to tools created above. *Pass*: Standard chosen, definitions created/tested. |
-| [ ]**PH2‑12** | **Update Registration Form & Handler (Veteran/Responder Status)**      | Modify `registration-form.html`, Prisma schema (`users` table), and form submission handler (`formWorkflow.js`/replacement) to include veteran/responder status. *Pass*: Form includes field, data saved to DB, tests updated. |
-| [ ]**PH2‑13** | **Test Coverage:**                                                     | Ensure all new/modified modules in PH2 (logger, error handler, tools, form handler) have unit tests, achieving >= 90% coverage for these modules. *Pass*: `npm test` shows sufficient coverage. |
-| [ ]**PH2‑14** | **Update `docs/architecture.md`:**                                     | Add new directories (`tools`, `middleware`, `errors`, `automations`) and key files. Update status section for Phase 2 progress. |
-| [ ]**PH2‑15** | **Final Review:**                                                      | Tick all Phase 2 task boxes here when done and ensure Discoveries/Insights are recorded. |
+| [ ]**PH2‑07** | **Tool: `src/tools/telegramNotifier.js` - `sendWaiverLink` function**    | Create tool that sends the waiver form WebApp button via Telegraf, storing `message_id` in `edit_msg_id` for later use. *Pass*: Unit tests confirm mock bot API call and mock Prisma update (`edit_msg_id`). |
+| [X]**PH2‑08** | **Tool: `src/tools/telegramNotifier.js` - `sendTextMessage` function**   | Create generic tool to send a simple text message via Telegraf. *Pass*: Unit tests confirm mock bot API call with correct parameters. |
+| [ ]**PH2‑09** | **Tool: `src/tools/googleCalendar.js` - Stub `findFreeSlots`**         | Create **stub** function mimicking finding calendar slots (returns fake data structure matching expected GCal format). No API call. *Pass*: Unit tests confirm function returns expected fake data structure. |
+| [ ]**PH2‑10** | **Tool: `src/tools/googleCalendar.js` - Stub `createCalendarEvent`**     | Create **stub** function mimicking creating a calendar event (logs input, returns fake success/event ID). No API call. *Pass*: Unit tests confirm function logs input and returns fake success. |
+| [ ]**PH2‑11** | **Define LangChain Tool Schemas/Standard**                             | Implement standard schema (e.g., Zod) for tools created (`stateManager`, `telegramNotifier`, `googleCalendar` stubs). Define in `src/tools/schemas.js` or similar. *Pass*: Schemas defined, unit tests validate tool input/output against schemas. |
+| [ ]**PH2‑12** | **Implement Veteran/Responder Status Feature**                         | Update Prisma schema (`User` model: `is_veteran_or_responder` boolean). Update `registration-form.html` with checkbox/dropdown. *Pass*: Migration successful, form updated. *(Note: Backend handler update deferred to Phase 5)*. |
+| [ ]**PH2‑13** | **Tool: `src/tools/telegramNotifier.js` - `setRoleSpecificCommands` function** | Create tool to set role-specific commands using `bot.telegram.setMyCommands` with scope. *Pass*: Unit tests confirm mock bot API call with correct scope and command list. *(Note: Tool usage deferred to Phase 6)*. |
+| [ ]**PH2‑14** | **Test Coverage:**                                                     | Ensure all new/modified modules in PH2 (logger, error handler, tools, schemas) have unit tests, achieving >= 90% coverage for these modules. *Pass*: `npm test` shows sufficient coverage. |
+| [ ]**PH2‑15** | **Update `docs/architecture.md`:**                                     | Add new directories (`tools`, `middleware`, `errors`, `automations`) and key files created in Phase 2. Update status section for Phase 2 progress. |
+| [ ]**PH2‑16** | **Final Review:**                                                      | Tick all Phase 2 task boxes here when done and ensure Discoveries/Insights are recorded. |
 
 ### 🚧 Discovered During Work
 *(Add new subtasks here, e.g., `PH2‑D1`)*
@@ -103,6 +104,8 @@
 *   **PH2-D12 (PH2-04):** Created `stateManager.js` tool. Implemented `resetUserState` using Prisma. Used Sinon stubs via proxyquire for Prisma in unit tests. Added logger DI setter.
 *   **PH2-D13 (PH2-05):** Added generic `updateUserState` function to `stateManager.js`. Included handling for Prisma P2025 (RecordNotFound) error.
 *   **PH2-D14 (PH2-06):** Added dedicated `storeBookingData` function to `stateManager.js` for saving confirmed session/slot.
+*   **PH2-D15 (PH2-07/08):** Created `telegramNotifier.js` tool with `initialize` and `sendTextMessage` functions. Added conditional exports for testing and a `_resetForTest` helper function to ensure test isolation.
+*   **PH2-D16 (PH2-08):** Simplified testing approach by directly importing the module and using dependency injection rather than proxyquire, which improved test reliability and readability.
 
 ### 💡 Insights & Decisions
 *(Explain logger choice, error handling strategy, tool design choices, mocking strategies, tool definition standard, etc.)*
@@ -124,4 +127,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-24
+**Last updated:** 2025-04-24 19:01
