@@ -9,6 +9,8 @@ const {
   storeBookingDataSchema,
   setActiveSessionIdSchema,
   clearActiveSessionIdSchema,
+  getUserProfileDataSchema,
+  getUserPastSessionsSchema,
 } = require("../../tools/toolSchemas");
 
 // Mock dependencies
@@ -22,6 +24,10 @@ const mockLogger = {
 const mockPrisma = {
   users: {
     update: sinon.stub(),
+    findUnique: sinon.stub(),
+  },
+  sessions: {
+    findMany: sinon.stub(),
   },
 };
 
@@ -33,6 +39,8 @@ const stateManager = proxyquire("../../tools/stateManager", {
 
 describe("Tool: stateManager", () => {
   let prismaUpdateStub;
+  let prismaFindUniqueStub;
+  let prismaFindManyStub;
 
   beforeEach(() => {
     // Explicitly reset history on each stub within the mock objects
@@ -41,9 +49,13 @@ describe("Tool: stateManager", () => {
     mockLogger.debug.resetHistory();
     mockLogger.warn.resetHistory();
     mockPrisma.users.update.resetHistory();
+    mockPrisma.users.findUnique.resetHistory();
+    mockPrisma.sessions.findMany.resetHistory();
 
-    // Re-assign the stub variable (optional but can be clearer)
+    // Re-assign the stub variables
     prismaUpdateStub = mockPrisma.users.update;
+    prismaFindUniqueStub = mockPrisma.users.findUnique;
+    prismaFindManyStub = mockPrisma.sessions.findMany;
   });
 
   afterEach(() => {
@@ -1150,4 +1162,272 @@ describe("Tool: stateManager", () => {
       expect(mockLogger.info.notCalled).to.be.true;
     });
   }); // End describe clearActiveSessionId
+
+  // New tests for getUserProfileData
+  describe("getUserProfileData", () => {
+    const testTelegramId = "123456789";
+    const bigIntTestTelegramId = BigInt(testTelegramId);
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = { telegramId: testTelegramId };
+        expect(() => getUserProfileDataSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = {};
+        expect(() => getUserProfileDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty string telegramId)", () => {
+        const invalidInput = { telegramId: "" };
+        expect(() => getUserProfileDataSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
+
+    it("should call prisma.users.findUnique with correct ID and return profile data", async () => {
+      const mockProfileData = {
+        first_name: "John",
+        role: "client",
+        state: "IDLE",
+        session_type: null,
+        active_session_id: null,
+      };
+
+      prismaFindUniqueStub.resolves(mockProfileData);
+
+      const result = await stateManager.getUserProfileData({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: true,
+        data: mockProfileData,
+      });
+
+      expect(prismaFindUniqueStub.calledOnce).to.be.true;
+      expect(prismaFindUniqueStub.firstCall.args[0].where.telegram_id).to.equal(
+        bigIntTestTelegramId,
+      );
+      expect(prismaFindUniqueStub.firstCall.args[0].select).to.deep.equal({
+        first_name: true,
+        role: true,
+        state: true,
+        session_type: true,
+        active_session_id: true,
+      });
+
+      expect(mockLogger.info.calledOnce).to.be.true;
+      expect(mockLogger.info.firstCall.args[0]).to.deep.equal({
+        telegramId: testTelegramId,
+      });
+      expect(mockLogger.info.firstCall.args[1]).to.equal(
+        "User profile data fetched successfully.",
+      );
+      expect(mockLogger.error.notCalled).to.be.true;
+    });
+
+    it("should return null data when user is not found", async () => {
+      prismaFindUniqueStub.resolves(null);
+
+      const result = await stateManager.getUserProfileData({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: true,
+        data: null,
+        message: "User profile not found.",
+      });
+
+      expect(prismaFindUniqueStub.calledOnce).to.be.true;
+      expect(mockLogger.warn.calledOnce).to.be.true;
+      expect(mockLogger.warn.firstCall.args[0]).to.deep.equal({
+        telegramId: testTelegramId,
+      });
+      expect(mockLogger.warn.firstCall.args[1]).to.equal(
+        "User profile not found.",
+      );
+      expect(mockLogger.error.notCalled).to.be.true;
+    });
+
+    it("should log error and return failure on database error", async () => {
+      const dbError = new Error("DB Error");
+      prismaFindUniqueStub.rejects(dbError);
+
+      const result = await stateManager.getUserProfileData({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Database error fetching user profile",
+      });
+
+      expect(prismaFindUniqueStub.calledOnce).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[0]).to.deep.include({
+        telegramId: testTelegramId,
+      });
+      expect(mockLogger.error.firstCall.args[0]).to.have.property(
+        "err",
+        dbError,
+      );
+      expect(mockLogger.error.firstCall.args[1]).to.equal(
+        "Database error fetching user profile",
+      );
+    });
+
+    it("should return error if telegramId is invalid", async () => {
+      const result = await stateManager.getUserProfileData({ telegramId: "" });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid Telegram ID provided.",
+      });
+
+      expect(prismaFindUniqueStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+    });
+  });
+
+  // Tests for getUserPastSessions
+  describe("getUserPastSessions", () => {
+    const testTelegramId = "123456789";
+    const bigIntTestTelegramId = BigInt(testTelegramId);
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = { telegramId: testTelegramId };
+        expect(() =>
+          getUserPastSessionsSchema.parse(validInput),
+        ).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = {};
+        expect(() => getUserPastSessionsSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty string telegramId)", () => {
+        const invalidInput = { telegramId: "" };
+        expect(() => getUserPastSessionsSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
+
+    it("should call prisma.sessions.findMany with correct parameters and return session dates", async () => {
+      const date1 = new Date("2025-01-01T10:00:00Z");
+      const date2 = new Date("2025-02-01T10:00:00Z");
+      const mockSessions = [
+        { appointment_datetime: date1 },
+        { appointment_datetime: date2 },
+      ];
+
+      prismaFindManyStub.resolves(mockSessions);
+
+      const result = await stateManager.getUserPastSessions({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: true,
+        data: [date1, date2],
+      });
+
+      expect(prismaFindManyStub.calledOnce).to.be.true;
+      expect(prismaFindManyStub.firstCall.args[0].where).to.deep.equal({
+        telegram_id: bigIntTestTelegramId,
+        session_status: "COMPLETED",
+      });
+      expect(prismaFindManyStub.firstCall.args[0].select).to.deep.equal({
+        appointment_datetime: true,
+      });
+      expect(prismaFindManyStub.firstCall.args[0].orderBy).to.deep.equal({
+        appointment_datetime: "desc",
+      });
+      expect(prismaFindManyStub.firstCall.args[0].take).to.equal(5);
+
+      expect(mockLogger.info.calledOnce).to.be.true;
+      expect(mockLogger.info.firstCall.args[0]).to.deep.equal({
+        telegramId: testTelegramId,
+        count: 2,
+      });
+      expect(mockLogger.info.firstCall.args[1]).to.equal(
+        "Past session dates fetched successfully.",
+      );
+      expect(mockLogger.error.notCalled).to.be.true;
+    });
+
+    it("should return empty array when no past sessions exist", async () => {
+      prismaFindManyStub.resolves([]);
+
+      const result = await stateManager.getUserPastSessions({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: true,
+        data: [],
+      });
+
+      expect(prismaFindManyStub.calledOnce).to.be.true;
+      expect(mockLogger.info.calledOnce).to.be.true;
+      expect(mockLogger.info.firstCall.args[0]).to.deep.equal({
+        telegramId: testTelegramId,
+        count: 0,
+      });
+      expect(mockLogger.error.notCalled).to.be.true;
+    });
+
+    it("should log error and return failure on database error", async () => {
+      const dbError = new Error("DB Error");
+      prismaFindManyStub.rejects(dbError);
+
+      const result = await stateManager.getUserPastSessions({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Database error fetching past sessions",
+      });
+
+      expect(prismaFindManyStub.calledOnce).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[0]).to.deep.include({
+        telegramId: testTelegramId,
+      });
+      expect(mockLogger.error.firstCall.args[0]).to.have.property(
+        "err",
+        dbError,
+      );
+      expect(mockLogger.error.firstCall.args[1]).to.equal(
+        "Database error fetching past sessions",
+      );
+    });
+
+    it("should return error if telegramId is invalid", async () => {
+      const result = await stateManager.getUserPastSessions({ telegramId: "" });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid Telegram ID provided.",
+      });
+
+      expect(prismaFindManyStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+    });
+  });
 }); // End describe stateManager

@@ -399,11 +399,124 @@ function setLogger(newLogger) {
   logger = newLogger;
 }
 
+/**
+ * Retrieves basic profile data for a given user.
+ * Fetches fields relevant for initial agent interaction or context.
+ *
+ * @param {object} params - The parameters for fetching user profile data.
+ * @param {string} params.telegramId - The Telegram ID of the user.
+ * @returns {Promise<{success: boolean, data?: {first_name: string, role: string, state: string, session_type: string|null, active_session_id: string|null}|null, message?: string, error?: string}>} - Result object. `data` is null if user not found.
+ * @throws {Error} If dependencies are not initialized.
+ * @throws {z.ZodError} If input validation fails.
+ */
+async function getUserProfileData({ telegramId }) {
+  if (!prisma || !logger) {
+    throw new Error("StateManager not initialized. Call initialize first.");
+  }
+  // Input validation happens via Zod schema in the agent/tool definition
+  // but good practice to have a basic check here too
+  if (
+    !telegramId ||
+    typeof telegramId !== "string" ||
+    telegramId.trim() === ""
+  ) {
+    logger.error(
+      { telegramId },
+      "Invalid telegramId provided to getUserProfileData.",
+    );
+    return { success: false, error: "Invalid Telegram ID provided." };
+  }
+
+  logger.debug({ telegramId }, "Attempting to fetch user profile data");
+  try {
+    const userProfile = await prisma.users.findUnique({
+      where: { telegram_id: BigInt(telegramId) },
+      select: {
+        first_name: true,
+        role: true,
+        state: true,
+        session_type: true,
+        active_session_id: true,
+      },
+    });
+
+    if (!userProfile) {
+      logger.warn({ telegramId }, "User profile not found.");
+      return { success: true, data: null, message: "User profile not found." };
+    }
+
+    logger.info({ telegramId }, "User profile data fetched successfully.");
+    return { success: true, data: userProfile };
+  } catch (error) {
+    logger.error(
+      { telegramId, err: error },
+      "Database error fetching user profile",
+    );
+    return { success: false, error: "Database error fetching user profile" };
+  }
+}
+
+/**
+ * Retrieves the appointment dates of the last 5 completed sessions for a user.
+ *
+ * @param {object} params - The parameters for fetching past sessions.
+ * @param {string} params.telegramId - The Telegram ID of the user.
+ * @returns {Promise<{success: boolean, data?: Date[], error?: string}>} - Result object. `data` contains an array of Date objects.
+ * @throws {Error} If dependencies are not initialized.
+ * @throws {z.ZodError} If input validation fails.
+ */
+async function getUserPastSessions({ telegramId }) {
+  if (!prisma || !logger) {
+    throw new Error("StateManager not initialized. Call initialize first.");
+  }
+  // Basic validation
+  if (
+    !telegramId ||
+    typeof telegramId !== "string" ||
+    telegramId.trim() === ""
+  ) {
+    logger.error(
+      { telegramId },
+      "Invalid telegramId provided to getUserPastSessions.",
+    );
+    return { success: false, error: "Invalid Telegram ID provided." };
+  }
+
+  logger.debug({ telegramId }, "Attempting to fetch past completed sessions");
+  try {
+    const pastSessions = await prisma.sessions.findMany({
+      where: {
+        telegram_id: BigInt(telegramId),
+        session_status: "COMPLETED",
+      },
+      select: { appointment_datetime: true },
+      orderBy: { appointment_datetime: "desc" },
+      take: 5, // Limit results
+    });
+
+    const sessionDates = pastSessions.map((s) => s.appointment_datetime);
+
+    logger.info(
+      { telegramId, count: sessionDates.length },
+      "Past session dates fetched successfully.",
+    );
+    return { success: true, data: sessionDates };
+  } catch (error) {
+    logger.error(
+      { telegramId, err: error },
+      "Database error fetching past sessions",
+    );
+    return { success: false, error: "Database error fetching past sessions" };
+  }
+}
+
 module.exports = {
   resetUserState,
   updateUserState,
   storeBookingData,
   setActiveSessionId,
   clearActiveSessionId,
-  setLogger, // Keep exported for tests/setup
+  setLogger, // Keep exported for tests
+  getUserProfileData, // Added export
+  getUserPastSessions, // Added export
 };

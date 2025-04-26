@@ -91,6 +91,20 @@ const createCalendarEventSchema = z
   })
   .describe("Input schema for creating a calendar event (stub).");
 
+// --- NEW SCHEMAS --- //
+
+const getUserProfileDataSchema = z
+  .object({
+    telegramId: z.string().min(1),
+  })
+  .describe("Input schema for retrieving basic user profile data.");
+
+const getUserPastSessionsSchema = z
+  .object({
+    telegramId: z.string().min(1),
+  })
+  .describe("Input schema for retrieving dates of past completed sessions.");
+
 // --- Export all schemas ---
 module.exports = {
   resetUserStateSchema,
@@ -102,4 +116,6 @@ module.exports = {
   createCalendarEventSchema,
   setActiveSessionIdSchema,
   clearActiveSessionIdSchema,
+  getUserProfileDataSchema, // Added export
+  getUserPastSessionsSchema, // Added export
 };
