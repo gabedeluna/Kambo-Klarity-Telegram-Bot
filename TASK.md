@@ -174,7 +174,7 @@
 | [X]**PH3‑03** | **Install/Verify LangChain OpenAI dependency**                          | Ensure necessary package (`@langchain/openai`) is available for the agent. *Pass*: Package present in `package.json`. |
 | [X]**PH3‑04** | **Define Agent Core Prompt (`src/config/agentPrompts.js`)**             | Create initial system prompt for OpenAI Functions agent (booking role, rules, personality, tool awareness, **handling cancellation *during* booking flow only**). *Pass*: Prompt file created, clearly defines agent behavior for booking flow. |
 | [X]**PH3‑05** | **Structure Tools for OpenAI Functions Agent**                          | Ensure existing tool Zod schemas (PH2-11) are correctly formatted/adapted for the OpenAI Functions agent framework (e.g., using LangChain helpers if needed). *Pass*: Tools can be successfully bound to the agent framework. |
-| [ ]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt (PH3-04), tools (stubs), and memory (PH3-02). *Pass*: Agent module created, basic runnable sequence defined. |
+| [X]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt (PH3-04), tools (stubs), and memory (PH3-02). *Pass*: Agent module created, basic runnable sequence defined. |
 | [ ]**PH3‑07** | **Tool: Add `getUserProfileData` to `stateManager.js`**                 | Provide agent means to fetch user history/prefs for smarter suggestions. *Pass*: New tool function created, Zod schema added, simple unit tests pass. |
 | [ ]**PH3‑08** | **Enhance Agent for Basic Intelligent Suggestions**                     | Update agent prompt/logic (PH3-04/06) to use `getUserProfileData` + `findFreeSlots` stubs for *slightly* more relevant slot suggestions. *Pass*: Agent attempts to use profile data (verified via LangSmith/tests). |
 | [ ]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify agent follows simple instructions, invokes mocked tools correctly (incl. cancellation path from PH3-04). *Pass*: Test suite created (`tests/agents/bookingAgent.test.js`), basic turns & tool calls tested (keep tests simple). |
@@ -188,6 +188,10 @@
 *   **(PH3-02):** Added `active_session_id` (String?) to User model in Prisma schema. Ran `prisma migrate dev`. Added `setActiveSessionId` and `clearActiveSessionId` functions to `stateManager.js` tool and corresponding Zod schemas to `toolSchemas.js`. Created `src/memory/sessionMemory.js` implementing in-memory BufferMemory manager keyed by `sessionId`. Added/updated unit tests for stateManager and sessionMemory.
 *   **(PH3-03):** Verified/Installed @langchain/openai dependency.
 *   **(PH3-05):** Realized the need to handle BigInt conversion carefully for `telegramId` in `stateManager`. Decided to centralize Zod schemas in `toolSchemas.js` for better organization and reusability. Added dependency injection pattern for `logger` in tools for easier testing. Ensured `initialize` functions in tools properly check for all required dependencies including nested config values. Reviewed tool exports and schema exports. Added/updated JSDoc descriptions to all exported tool functions, crucial for agent usage.
+*   **(PH3-06):** Created `src/agents/bookingAgent.js`.
+*   **(PH3-06):** Implemented agent executor using `createOpenAIFunctionsAgent`, wiring LLM, prompt, memory, and tools.
+*   **(PH3-06):** Used `StructuredTool` to wrap tool functions/schemas, including adapters for functions expecting multiple arguments (`updateUserState`, `storeBookingData`).
+*   **(PH3-06):** Temporarily used `telegramId` for memory key and static prompt values (pending PH3-07 tool).
 
 ### 💡 Insights & Decisions
 *(Explain memory choice, agent type choice, prompt design, testing strategy for agents, etc.)*
@@ -195,6 +199,7 @@
 *   **(PH3-02):** Opted for `sessionId` keying for memory from the start for better concurrent flow isolation. Requires managing active session state via DB field (`active_session_id`). Kept history storage in-memory for now, persistent storage is a future task.
 *   **Cancellation Logic:** Decided to handle cancellation *during* the booking flow (pre-waiver) within the Agent/Graph logic (using `resetUserState` and potentially deleting a *transient* GCal event), while cancellation of *confirmed* sessions will be handled by a dedicated `/cancel` command (Phase 10) interacting with the DB and live GCal API.
 *   **(PH3-05):** Centralized schema definition in PH2-11 proved beneficial. Ensured tool functions have clear JSDoc descriptions for the agent. Confirmed Zod schemas are ready for LangChain StructuredTool integration.
+*   **(PH3-06):** Agent executor setup provides the core conversational loop. Using OpenAI Functions agent leverages LLM's ability to call tools with structured args. Deferred dynamic context fetching/session ID logic to keep initial setup focused.
 
 ### 🧪 Quick‑Run Commands
 
