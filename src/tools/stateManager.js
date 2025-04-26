@@ -491,7 +491,7 @@ async function getUserPastSessions({ telegramId }) {
       },
       select: { appointment_datetime: true },
       orderBy: { appointment_datetime: "desc" },
-      take: 5, // Limit results
+      take: 5, // Limit to last 5 sessions as per documentation
     });
 
     const sessionDates = pastSessions.map((s) => s.appointment_datetime);

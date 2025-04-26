@@ -52,8 +52,7 @@
 *   **PH1-D26 (PH1-12):** Created/Updated docs/architecture.md with current folder structure and Phase 1 completion status.
 
 ### 💡 Insights & Decisions
-*Explain architectural choices or hurdles encountered.*
-*   **(PH1-05):** Skipped advanced unit test using Sinon to mock `process.exit` for missing token in `core/bot.js` due to potential complexity; noted as future enhancement.
+*Explain architectural choices or hurdles encountered.**   **(PH1-05):** Skipped advanced unit test using Sinon to mock `process.exit` for missing token in `core/bot.js` due to potential complexity; noted as future enhancement.
 *   **(PH1-05):** Tests for `core/bot.js` pass, but pre-existing tests in `core/env.test.js` are failing due to reliance on specific test values not present when loading real secrets from `.env`. These need separate investigation (new task?).
 *   **(PH1-06):** Exporting the configured Express `app` instance from `app.js` allows it to be easily imported for both server startup (`bin/server.js`) and integration testing (`tests/app.test.js`), promoting separation of concerns.
 *   **(PH1-02/07):** Separated Express app definition (`src/app.js`) from server execution (`bin/server.js`) to allow easier testing of the app instance without actually starting a listening server.
@@ -176,8 +175,8 @@
 | [X]**PH3‑05** | **Structure Tools for OpenAI Functions Agent**                          | Ensure existing tool Zod schemas (PH2-11) are correctly formatted/adapted for the OpenAI Functions agent framework (e.g., using LangChain helpers if needed). *Pass*: Tools can be successfully bound to the agent framework. |
 | [X]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt (PH3-04), tools (stubs), and memory (PH3-02). *Pass*: Agent module created, basic runnable sequence defined. |
 | [X]**PH3‑07 (2025-04-26)** | **Tool: Add `getUserProfileData` & `getUserPastSessions` to `stateManager.js`** | Implement tools to fetch user profile (name, state etc.) and past completed session dates. Add Zod schemas & unit tests. *Pass*: Tools implemented & tested. |
-| [ ]**PH3‑08** | **Enhance Agent for Intelligent Suggestions & Context**                 | Update `runBookingAgent` (PH3-06) to use PH3-07 tools: fetch user data, format prompt dynamically, use `active_session_id` for memory. Update prompt (PH3-04) if needed based on fetched data structure. *Pass*: Agent uses real user data for prompt/memory, attempts suggestions based on history/profile. |
-| [ ]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify agent follows simple instructions, invokes mocked tools correctly (incl. suggestions based on mock profile/history, cancellation path). *Pass*: Test suite created (`tests/agents/bookingAgent.test.js`), basic turns & tool calls tested (keep tests simple). |
+| [X]**PH3‑08** | **Enhance Agent for Intelligent Suggestions & Context**                 | Update `runBookingAgent` (PH3-06) to use PH3-07 tools: fetch user data, format prompt dynamically, use `active_session_id` for memory. Update prompt (PH3-04) if needed based on fetched data structure. *Pass*: Agent uses real user data for prompt/memory, attempts suggestions based on history/profile. |
+| [X]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify agent follows simple instructions, invokes mocked tools correctly (incl. suggestions based on mock profile/history, cancellation path). *Pass*: Test suite created (`tests/agents/bookingAgent.test.js`), basic turns & tool calls tested (keep tests simple). |
 | [ ]**PH3‑10** | **Test Coverage:**                                                      | Ensure Phase 3 modules (`memory/`, `config/agentPrompts.js`, `agents/bookingAgent.js`, new tool functions) meet ≥ 90% coverage. *Pass*: `npm test` coverage report confirms target. |
 | [ ]**PH3‑11** | **Update `docs/architecture.md`:**                                      | Add new directories/files (`memory/`, `agents/`, `config/agentPrompts.js`). Note LangGraph Studio hybrid approach for Phase 4. Update status section for Phase 3 progress. |
 | [ ]**PH3‑12** | **Final Review:**                                                       | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded. |
@@ -193,6 +192,9 @@
 *   **(PH3-06):** Used `StructuredTool` to wrap tool functions/schemas, including adapters for functions expecting multiple arguments (`updateUserState`, `storeBookingData`).
 *   **(PH3-06):** Temporarily used `telegramId` for memory key and static prompt values (pending PH3-07 tool).
 *   **(PH3-07):** Added `getUserProfileData` and `getUserPastSessions` tools to stateManager.js. Added corresponding Zod schemas to toolSchemas.js. Added comprehensive unit tests covering different scenarios (user found, user not found, database errors, validation).
+*   **(PH3-08):** Updated booking system prompt to use fetched user/session data. Modified runBookingAgent to call data tools, manage session ID, and format prompt dynamically. Added basic summary logic for past sessions. Added uuid dependency.
+*   **(PH3-08):** Used `getUserProfileData` and `getUserPastSessions` tools to fetch user data and format prompt dynamically.
+*   **(PH3-09):** Created basic integration tests for bookingAgent. Used proxyquire for extensive mocking of LLM/Executor, tools, memory. Tests verify core orchestration, tool invocation checks (simplified), and handling of context like first-time user acknowledgment.
 
 ### 💡 Insights & Decisions
 *(Explain memory choice, agent type choice, prompt design, testing strategy for agents, etc.)*
@@ -202,6 +204,7 @@
 *   **(PH3-05):** Centralized schema definition in PH2-11 proved beneficial. Ensured tool functions have clear JSDoc descriptions for the agent. Confirmed Zod schemas are ready for LangChain StructuredTool integration.
 *   **(PH3-07):** Implemented necessary tools for agent context/personalization. `getUserPastSessions` filters for COMPLETED status and limits results to 5 most recent sessions to provide relevant history without overwhelming the agent. Both tools follow the established pattern of input validation, structured logging, and consistent error handling.
 *   **(PH3-06):** Agent executor setup provides the core conversational loop. Using OpenAI Functions agent leverages LLM's ability to call tools with structured args. Deferred dynamic context fetching/session ID logic to keep initial setup focused.
+*   **(PH3-08):** Agent now uses dynamic user context for personalization and memory. Prompt guides agent on using past session history or acknowledging first-timers. Session ID management links state to memory. Dynamic context and memory guidance enable the agent to provide more personalized and relevant responses.
 
 ### 🧪 Quick‑Run Commands
 
@@ -211,4 +214,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-25 14:30
+**Last updated:** 2025-04-26 17:35

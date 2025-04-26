@@ -395,21 +395,22 @@ model test_run {
 }
 
 model user {
-  id                     String             @id(map: "PK_ea8f538c94b6e352418254ed6474a81f") @default(dbgenerated("uuid_in((OVERLAY(OVERLAY(md5((((random())::text || ':'::text) || (clock_timestamp())::text)) PLACING '4'::text FROM 13) PLACING to_hex((floor(((random() * (((11 - 8) + 1))::double precision) + (8)::double precision)))::integer) FROM 17))::cstring)")) @db.Uuid
-  email                  String?            @unique(map: "UQ_e12875dfb3b1d92d7d7c5377e2") @db.VarChar(255)
-  firstName              String?            @db.VarChar(32)
-  lastName               String?            @db.VarChar(32)
-  password               String?            @db.VarChar(255)
-  personalizationAnswers Json?              @db.Json
-  createdAt              DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
-  updatedAt              DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
-  settings               Json?              @db.Json
-  disabled               Boolean            @default(false)
-  mfaEnabled             Boolean            @default(false)
-  mfaSecret              String?
-  mfaRecoveryCodes       String?
-  role                   String
-  is_veteran_or_responder Boolean          @default(false)
+  id                      String             @id(map: "PK_ea8f538c94b6e352418254ed6474a81f") @default(dbgenerated("uuid_in((OVERLAY(OVERLAY(md5((((random())::text || ':'::text) || (clock_timestamp())::text)) PLACING '4'::text FROM 13) PLACING to_hex((floor(((random() * (((11 - 8) + 1))::double precision) + (8)::double precision)))::integer) FROM 17))::cstring)")) @db.Uuid
+  email                   String?            @unique(map: "UQ_e12875dfb3b1d92d7d7c5377e2") @db.VarChar(255)
+  firstName               String?            @db.VarChar(32)
+  lastName                String?            @db.VarChar(32)
+  password                String?            @db.VarChar(255)
+  personalizationAnswers  Json?              @db.Json
+  createdAt               DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt               DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  settings                Json?              @db.Json
+  disabled                Boolean            @default(false)
+  mfaEnabled              Boolean            @default(false)
+  mfaSecret               String?
+  mfaRecoveryCodes        String?
+  role                    String
+  is_veteran_or_responder Boolean?          @default(false)
+  active_session_id      String?
   auth_identity          auth_identity[]
   project_relation       project_relation[]
   user_api_keys          user_api_keys[]
@@ -428,27 +429,26 @@ model user_api_keys {
 }
 
 model users {
-  client_id            Int       @id(map: "client_users_pkey") @default(autoincrement())
-  telegram_id          BigInt    @unique(map: "client_users_telegram_id_key")
-  first_name           String?   @db.VarChar(255)
-  last_name            String?   @db.VarChar(255)
-  phone_number         String?   @db.VarChar(50)
-  email                String?   @db.VarChar(255)
-  date_of_birth        DateTime? @db.Date
-  reason_for_seeking   String?
-  created_at           DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
-  state                String?   @default("NONE") @db.VarChar
-  role                 String?   @default("client") @db.VarChar
-  session_type         String?   @db.VarChar
-  conversation_history String?
-  booking_slot         String?   @db.VarChar(255)
-  em_first_name        String?   @db.VarChar
-  em_last_name         String?   @db.VarChar
-  em_phone_number      String?   @db.VarChar
-  edit_msg_id          Int?
-
-  @@index([telegram_id], map: "idx_client_users_telegram_id")
+  client_id               Int       @id(map: "client_users_pkey") @default(autoincrement())
+  telegram_id             BigInt    @unique(map: "client_users_telegram_id_key")
+  first_name              String?   @db.VarChar(255)
+  last_name               String?   @db.VarChar(255)
+  phone_number            String?   @db.VarChar(50)
+  email                   String?   @db.VarChar(255)
+  date_of_birth           DateTime? @db.Date
+  reason_for_seeking      String?
+  created_at              DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime? @default(now()) @db.Timestamptz(6)
+  state                   String?   @default("NONE") @db.VarChar
+  role                    String?   @default("client") @db.VarChar
+  session_type            String?   @db.VarChar
+  conversation_history    String?
+  booking_slot            String?   @db.VarChar(255)
+  em_first_name           String?   @db.VarChar
+  em_last_name            String?   @db.VarChar
+  em_phone_number         String?   @db.VarChar
+  edit_msg_id             Int?
+  is_veteran_or_responder Boolean   @default(false)
 }
 
 model variables {
@@ -532,10 +532,4 @@ model workflows_tags {
 
   @@id([workflowId, tagId], map: "pk_workflows_tags")
   @@index([workflowId], map: "idx_workflows_tags_workflow_id")
-}
-
-model test_user {
-  id        BigInt    @id
-  firstName String?   @db.VarChar
-  createdAt DateTime? @default(now()) @db.Timestamptz(6)
 }

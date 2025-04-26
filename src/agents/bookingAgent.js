@@ -15,6 +15,7 @@ const {
   AgentExecutor,
 } = require("langchain/agents"); // Note: Using 'langchain' based on request and memory
 const { StructuredTool } = require("@langchain/core/tools");
+const { v4: uuidv4 } = require("uuid"); // <-- Add uuid import
 
 // Application Dependencies
 const stateManager = require("../tools/stateManager");
@@ -242,7 +243,6 @@ async function runBookingAgent({ userInput, telegramId }) {
     console.error(
       "[runBookingAgent] FATAL: Agent not properly initialized. Call initializeAgent() first.",
     );
-    // Attempt to use logger if available, otherwise console
     const log = logger || console;
     log.error(
       "[runBookingAgent] Agent dependencies (LLM, tools, logger, config) missing or incomplete.",
@@ -252,20 +252,129 @@ async function runBookingAgent({ userInput, telegramId }) {
 
   logger.info({ telegramId, userInput }, "Running booking agent...");
 
-  try {
-    // Get Memory (Temporary keying by telegramId)
-    const memory = sessionMemory.getMemoryForSession(String(telegramId));
+  let sessionId; // Declare sessionId here
 
-    // Prepare Prompt
+  try {
+    // --- 1. Fetch User Profile ---
+    let userProfile = null;
+    try {
+      const profileResult = await stateManager.getUserProfileData({
+        telegramId,
+      });
+      if (profileResult.success && profileResult.data) {
+        userProfile = profileResult.data;
+        logger.info({ telegramId }, "Fetched user profile data.");
+      } else if (profileResult.success && !profileResult.data) {
+        logger.warn(
+          { telegramId },
+          "User profile not found, proceeding as guest.",
+        );
+        userProfile = {
+          first_name: "Guest",
+          role: "client",
+          state: "NONE",
+          session_type: null,
+          active_session_id: null,
+        };
+      } else {
+        throw new Error(profileResult.error || "Failed to fetch user profile");
+      }
+    } catch (err) {
+      logger.error(
+        { err, telegramId },
+        "Error fetching user profile in runBookingAgent",
+      );
+      return { success: false, error: "Failed to get user profile" };
+    }
+
+    // --- 2. Fetch Past Sessions ---
+    let pastSessionDates = [];
+    try {
+      const pastSessionsResult = await stateManager.getUserPastSessions({
+        telegramId,
+      });
+      if (pastSessionsResult.success && pastSessionsResult.data) {
+        pastSessionDates = pastSessionsResult.data;
+        logger.info(
+          { telegramId, count: pastSessionDates.length },
+          "Fetched past session data.",
+        );
+      } else if (!pastSessionsResult.success) {
+        logger.warn(
+          { telegramId, error: pastSessionsResult.error },
+          "Failed to fetch past sessions, proceeding without history.",
+        );
+      } else {
+        logger.info({ telegramId }, "No past session data found for user.");
+      }
+    } catch (err) {
+      logger.error(
+        { err, telegramId },
+        "Error fetching past sessions in runBookingAgent",
+      );
+    }
+
+    // --- 3. Manage Session ID ---
+    sessionId = userProfile.active_session_id;
+    if (!sessionId) {
+      sessionId = uuidv4();
+      logger.info(
+        { telegramId, newSessionId: sessionId },
+        "No active session ID found, generated new one.",
+      );
+      try {
+        const setResult = await stateManager.setActiveSessionId({
+          telegramId: String(telegramId),
+          sessionId,
+        });
+        if (!setResult.success) {
+          logger.warn(
+            { telegramId, sessionId, error: setResult.error },
+            "Failed to store new active session ID.",
+          );
+        } else {
+          logger.info(
+            { telegramId, sessionId },
+            "Successfully stored new active session ID.",
+          );
+          userProfile.active_session_id = sessionId; // Update local profile
+        }
+      } catch (err) {
+        logger.error(
+          { err, telegramId, sessionId },
+          "Error setting active session ID",
+        );
+      }
+    } else {
+      logger.info(
+        { telegramId, sessionId },
+        "Using existing active session ID.",
+      );
+    }
+
+    // --- 4. Get Memory (Using Session Manager) ---
+    const memory = sessionMemory.getMemoryForSession(sessionId);
+
+    // --- 5. Analyze Past Sessions & Create Summary ---
+    let pastSessionSummary = "No past completed sessions found.";
+    if (pastSessionDates && pastSessionDates.length > 0) {
+      const formattedDates = pastSessionDates
+        .map((d) => new Date(d).toLocaleDateString())
+        .join(", ");
+      pastSessionSummary = `Found past sessions on: ${formattedDates}`;
+      logger.info({ telegramId, sessionId }, "Generated past session summary.");
+    }
+
+    // --- 6. Prepare Prompt (Dynamic Formatting) ---
     const currentDateTime = new Date().toISOString();
-    // TEMP Placeholders - Fetch real data in later phases
-    const userName = "User"; // TODO: Fetch from DB or context
-    const sessionType = "Unknown"; // TODO: Fetch from DB or context
+    const userName = userProfile.first_name || "Guest";
+    const initialSessionType = userProfile.session_type || "Not specified";
 
     const formattedSystemPrompt = bookingAgentSystemPrompt
       .replace("{current_date_time}", currentDateTime)
       .replace("{user_name}", userName)
-      .replace("{session_type}", sessionType);
+      .replace("{session_type}", initialSessionType)
+      .replace("{past_session_dates_summary}", pastSessionSummary);
 
     const prompt = ChatPromptTemplate.fromMessages([
       ["system", formattedSystemPrompt],
@@ -274,38 +383,48 @@ async function runBookingAgent({ userInput, telegramId }) {
       new MessagesPlaceholder("agent_scratchpad"),
     ]);
 
-    // Create Agent
+    // --- 7. Create Agent & Executor ---
     const agent = await createOpenAIFunctionsAgent({
       llm,
       tools: agentTools,
       prompt,
     });
 
-    // Create Agent Executor
     const agentExecutor = new AgentExecutor({
       agent,
       tools: agentTools,
       memory,
       verbose: config.NODE_ENV !== "production",
-      // returnIntermediateSteps: true, // Enable for detailed debugging if needed
       handleParsingErrors: (error) => {
-        // Add robust error handling
-        logger.error({ err: error }, "Agent parsing error occurred.");
+        logger.error(
+          { err: error, telegramId, sessionId },
+          "Agent parsing error occurred.",
+        );
         return "Agent encountered an internal error. Please try rephrasing your request.";
       },
     });
 
-    // Invoke Agent
-    logger.debug({ telegramId }, "Invoking agent executor...");
-    const result = await agentExecutor.invoke({ input: userInput });
+    // --- 8. Invoke Agent ---
+    logger.debug(
+      { telegramId, sessionId },
+      "Invoking agent executor with session config...",
+    );
+    const result = await agentExecutor.invoke(
+      { input: userInput },
+      { configurable: { sessionId: sessionId } },
+    );
 
     logger.info(
-      { telegramId, output: result.output },
+      { telegramId, sessionId, output: result.output },
       "Agent execution successful.",
     );
     return { success: true, output: result.output };
   } catch (error) {
-    logger.error({ telegramId, err: error }, "Agent execution failed");
+    const logContext = { telegramId, err: error };
+    if (typeof sessionId !== "undefined") {
+      logContext.sessionId = sessionId;
+    }
+    logger.error(logContext, "Agent execution failed");
     return { success: false, error: "Agent execution failed" };
   }
 }

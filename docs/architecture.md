@@ -66,10 +66,14 @@
 
 ## Project Status
 
-*   **Phase 1: Skeleton & Tests** - ✅ Completed (Date: 2025-04-23) <!-- Date might need adjustment based on actual completion -->
-    *   Established core folder structure, singletons, testing, linting, formatting, Husky hooks.
-    *   Scaffolded command registry and session type configuration. Achieved >90% coverage.
-*   **Phase 2: LangChain Tools & Core Enhancements** - ✅ Completed (Date: 2025-04-25)
+*   **Phase 1: Skeleton & Tests** - ✅ Completed (Date: 2025-04-24)
+    *   Established core folder structure (`src/`).
+    *   Implemented singletons for Env, Prisma, Bot, and Express App.
+    *   Set up testing (Mocha, Chai, Sinon, Supertest, NYC) and linting/formatting (ESLint, Prettier).
+    *   Achieved >90% test coverage on core modules.
+    *   Configured Husky pre-commit hooks.
+    *   Scaffolded command registry and session type configuration.
+**Phase 2: LangChain Tools & Core Enhancements** - ✅ Completed (Date: 2025-04-25)
     *   Implemented structured logging (Pino) and centralized error handling.
     *   Created core tool modules (`stateManager`, `telegramNotifier`) with DI.
     *   Created Google Calendar tool stubs (`findFreeSlots`, `createCalendarEvent`).
@@ -77,3 +81,4 @@
     *   Added Veteran/Responder status field to DB schema and registration form.
     *   Achieved >90% test coverage on new Phase 2 modules.
 *   **Phase 3: Agent & Memory** - Pending
+
