@@ -7,6 +7,8 @@ const {
   resetUserStateSchema,
   updateUserStateSchema,
   storeBookingDataSchema,
+  setActiveSessionIdSchema,
+  clearActiveSessionIdSchema,
 } = require("../../tools/toolSchemas");
 
 // Mock dependencies
@@ -822,4 +824,330 @@ describe("Tool: stateManager", () => {
       expect(mockLogger.info.notCalled).to.be.true;
     });
   }); // End describe storeBookingData
+
+  // Tests for setActiveSessionId
+  describe("setActiveSessionId", () => {
+    const testTelegramId = "123456789";
+    const testSessionId = "session-123";
+    const bigIntTestTelegramId = BigInt(testTelegramId);
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = {
+          telegramId: testTelegramId,
+          sessionId: testSessionId,
+        };
+        expect(() => setActiveSessionIdSchema.parse(validInput)).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = { sessionId: testSessionId };
+        expect(() => setActiveSessionIdSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (missing sessionId)", () => {
+        const invalidInput = { telegramId: testTelegramId };
+        expect(() => setActiveSessionIdSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty telegramId)", () => {
+        const invalidInput = { telegramId: "", sessionId: testSessionId };
+        expect(() => setActiveSessionIdSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty sessionId)", () => {
+        const invalidInput = { telegramId: testTelegramId, sessionId: "" };
+        expect(() => setActiveSessionIdSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
+
+    it("should call prisma.users.update with correct ID and sessionId, log success", async () => {
+      prismaUpdateStub.resolves({
+        id: "user-1",
+        telegram_id: bigIntTestTelegramId,
+        active_session_id: testSessionId,
+      });
+
+      const result = await stateManager.setActiveSessionId({
+        telegramId: testTelegramId,
+        sessionId: testSessionId,
+      });
+
+      expect(result).to.deep.equal({ success: true });
+      expect(prismaUpdateStub.calledOnce).to.be.true;
+      expect(prismaUpdateStub.firstCall.args[0].where.telegram_id).to.equal(
+        bigIntTestTelegramId,
+      );
+      expect(prismaUpdateStub.firstCall.args[0].data).to.deep.equal({
+        active_session_id: testSessionId,
+      });
+      expect(mockLogger.info.calledTwice).to.be.true;
+      expect(mockLogger.info.secondCall.args[0]).to.deep.equal({
+        telegramId: String(bigIntTestTelegramId),
+      });
+      expect(mockLogger.info.secondCall.args[1]).to.equal(
+        "Successfully set active session ID.",
+      );
+      expect(mockLogger.error.notCalled).to.be.true;
+    });
+
+    it("should log error and return failure on prisma update error", async () => {
+      const dbError = new Error("DB Error");
+      prismaUpdateStub.rejects(dbError);
+
+      const result = await stateManager.setActiveSessionId({
+        telegramId: testTelegramId,
+        sessionId: testSessionId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Database error setting active session ID.",
+      });
+      expect(prismaUpdateStub.calledOnce).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[0]).to.deep.include({
+        telegramId: String(bigIntTestTelegramId),
+        sessionId: testSessionId,
+      });
+      expect(mockLogger.error.firstCall.args[0]).to.have.property(
+        "err",
+        dbError,
+      );
+      expect(mockLogger.error.firstCall.args[1]).to.equal(
+        "Error setting active session ID in database.",
+      );
+      expect(mockLogger.info.calledOnce).to.be.true; // Only 'Attempting' log
+    });
+
+    it("should handle user not found error (P2025)", async () => {
+      const notFoundError = new Error("Record not found");
+      notFoundError.code = "P2025";
+      prismaUpdateStub.rejects(notFoundError);
+
+      const result = await stateManager.setActiveSessionId({
+        telegramId: testTelegramId,
+        sessionId: testSessionId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "User not found.",
+      });
+      expect(prismaUpdateStub.calledOnce).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[1]).to.equal(
+        "Error setting active session ID in database.",
+      );
+      expect(mockLogger.info.calledOnce).to.be.true; // Only 'Attempting' log
+    });
+
+    it("should return failure if telegramId is missing", async () => {
+      const result = await stateManager.setActiveSessionId({
+        sessionId: testSessionId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid input: telegramId and sessionId are required.",
+      });
+      expect(prismaUpdateStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.info.notCalled).to.be.true;
+    });
+
+    it("should return failure if sessionId is missing", async () => {
+      const result = await stateManager.setActiveSessionId({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid input: telegramId and sessionId are required.",
+      });
+      expect(prismaUpdateStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.info.notCalled).to.be.true;
+    });
+
+    it("should return failure if sessionId is empty", async () => {
+      const result = await stateManager.setActiveSessionId({
+        telegramId: testTelegramId,
+        sessionId: "  ",
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid input: telegramId and sessionId are required.",
+      });
+      expect(prismaUpdateStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.info.notCalled).to.be.true;
+    });
+
+    it("should return failure if telegramId is invalid format", async () => {
+      const invalidId = "abc";
+      const result = await stateManager.setActiveSessionId({
+        telegramId: invalidId,
+        sessionId: testSessionId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid input: telegramId format is invalid.",
+      });
+      expect(prismaUpdateStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[0].telegramId).to.equal(invalidId);
+      expect(mockLogger.error.firstCall.args[0].err).to.be.instanceOf(Error);
+      expect(mockLogger.info.notCalled).to.be.true;
+    });
+  }); // End describe setActiveSessionId
+
+  // Tests for clearActiveSessionId
+  describe("clearActiveSessionId", () => {
+    const testTelegramId = "123456789";
+    const bigIntTestTelegramId = BigInt(testTelegramId);
+
+    // --- Schema Validation Tests ---
+    describe("Schema Validation", () => {
+      it("should accept valid input according to schema", () => {
+        const validInput = { telegramId: testTelegramId };
+        expect(() =>
+          clearActiveSessionIdSchema.parse(validInput),
+        ).to.not.throw();
+      });
+
+      it("should reject invalid input (missing telegramId)", () => {
+        const invalidInput = {};
+        expect(() => clearActiveSessionIdSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+
+      it("should reject invalid input (empty telegramId)", () => {
+        const invalidInput = { telegramId: "" };
+        expect(() => clearActiveSessionIdSchema.parse(invalidInput)).to.throw(
+          z.ZodError,
+        );
+      });
+    });
+    // --- End Schema Validation Tests ---
+
+    it("should call prisma.users.update to set active_session_id to null, log success", async () => {
+      prismaUpdateStub.resolves({
+        id: "user-1",
+        telegram_id: bigIntTestTelegramId,
+        active_session_id: null,
+      });
+
+      const result = await stateManager.clearActiveSessionId({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({ success: true });
+      expect(prismaUpdateStub.calledOnce).to.be.true;
+      expect(prismaUpdateStub.firstCall.args[0].where.telegram_id).to.equal(
+        bigIntTestTelegramId,
+      );
+      expect(prismaUpdateStub.firstCall.args[0].data).to.deep.equal({
+        active_session_id: null,
+      });
+      expect(mockLogger.info.calledTwice).to.be.true;
+      expect(mockLogger.info.secondCall.args[0]).to.deep.equal({
+        telegramId: String(bigIntTestTelegramId),
+      });
+      expect(mockLogger.info.secondCall.args[1]).to.equal(
+        "Successfully cleared active session ID.",
+      );
+      expect(mockLogger.error.notCalled).to.be.true;
+    });
+
+    it("should log error and return failure on prisma update error", async () => {
+      const dbError = new Error("DB Error");
+      prismaUpdateStub.rejects(dbError);
+
+      const result = await stateManager.clearActiveSessionId({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Database error clearing active session ID.",
+      });
+      expect(prismaUpdateStub.calledOnce).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[0]).to.deep.include({
+        telegramId: String(bigIntTestTelegramId),
+      });
+      expect(mockLogger.error.firstCall.args[0]).to.have.property(
+        "err",
+        dbError,
+      );
+      expect(mockLogger.error.firstCall.args[1]).to.equal(
+        "Error clearing active session ID in database.",
+      );
+      expect(mockLogger.info.calledOnce).to.be.true; // Only 'Attempting' log
+    });
+
+    it("should handle user not found error (P2025)", async () => {
+      const notFoundError = new Error("Record not found");
+      notFoundError.code = "P2025";
+      prismaUpdateStub.rejects(notFoundError);
+
+      const result = await stateManager.clearActiveSessionId({
+        telegramId: testTelegramId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "User not found.",
+      });
+      expect(prismaUpdateStub.calledOnce).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[1]).to.equal(
+        "Error clearing active session ID in database.",
+      );
+      expect(mockLogger.info.calledOnce).to.be.true; // Only 'Attempting' log
+    });
+
+    it("should return failure if telegramId is missing", async () => {
+      const result = await stateManager.clearActiveSessionId({});
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid input: telegramId is required.",
+      });
+      expect(prismaUpdateStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.info.notCalled).to.be.true;
+    });
+
+    it("should return failure if telegramId is invalid format", async () => {
+      const invalidId = "abc";
+      const result = await stateManager.clearActiveSessionId({
+        telegramId: invalidId,
+      });
+
+      expect(result).to.deep.equal({
+        success: false,
+        error: "Invalid input: telegramId format is invalid.",
+      });
+      expect(prismaUpdateStub.notCalled).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockLogger.error.firstCall.args[0].telegramId).to.equal(invalidId);
+      expect(mockLogger.error.firstCall.args[0].err).to.be.instanceOf(Error);
+      expect(mockLogger.info.notCalled).to.be.true;
+    });
+  }); // End describe clearActiveSessionId
 }); // End describe stateManager

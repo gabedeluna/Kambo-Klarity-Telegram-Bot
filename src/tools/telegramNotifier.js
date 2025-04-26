@@ -56,13 +56,14 @@ function initialize(dependencies) {
 }
 
 /**
- * Sends a message containing the waiver web app link to the specified user
- * and stores the sent message's ID for potential future edits (e.g., confirmation).
+ * Sends a message containing a button linking to the waiver web app form.
+ * Also stores the sent message's ID in the database for potential future edits (e.g., adding confirmation).
+ * Call this when the user needs to fill out the waiver form before confirming their booking.
  *
  * @param {object} params - The parameters for sending the waiver link.
  * @param {string|number} params.telegramId - The Telegram User ID to send the message to.
- * @param {string} params.sessionType - The type of session being booked (e.g., '1hr-kambo').
- * @param {string} [params.messageText] - Optional custom text to precede the button.
+ * @param {string} params.sessionType - The type of session being booked (e.g., '1hr-kambo'). This is included in the waiver link URL parameters.
+ * @param {string} [params.messageText] - Optional custom text to display above the waiver button.
  * @returns {Promise<{success: boolean, error?: string, messageId?: number|null, warning?: string}>}
  *          - success: true if the operation was successful (even with warnings).
  *          - error: Description of the error if success is false.
@@ -184,11 +185,12 @@ async function sendWaiverLink({ telegramId, sessionType, messageText }) {
 
 /**
  * Sends a simple text message to a given Telegram user ID.
+ * Use this for general communication, providing information, asking clarifying questions, or sending confirmations that don't require special formatting or buttons.
  *
  * @param {object} params - The function parameters.
  * @param {string|number} params.telegramId - The Telegram chat ID to send the message to.
- * @param {string} params.text - The text content of the message.
- * @returns {Promise<object>} A promise that resolves to an object indicating success or failure.
+ * @param {string} params.text - The plain text content of the message.
+ * @returns {Promise<{success: boolean, error?: string, messageId?: number}>} A promise that resolves to an object indicating success or failure.
  *   On success: { success: true, messageId: number }
  *   On failure: { success: false, error: string }
  */
@@ -227,12 +229,13 @@ async function sendTextMessage({ telegramId, text }) {
 }
 
 /**
- * Sets the appropriate command list for a specific user in Telegram based on their role.
- * Uses the command registry to fetch commands for 'client' and 'admin' roles.
+ * Sets the appropriate Telegram command menu (/command) for a specific user based on their role ('client' or 'admin').
+ * This ensures users see only the commands relevant to them.
+ * Call this after identifying or updating a user's role (e.g., upon first interaction or role change).
  *
  * @param {object} params - The function parameters.
  * @param {string|number} params.telegramId - The user's Telegram ID.
- * @param {'client'|'admin'|string} params.role - The user's role.
+ * @param {'client'|'admin'|string} params.role - The user's role. Currently supports 'client' and 'admin'.
  * @returns {Promise<{success: boolean, error?: string}>} - Object indicating success or failure.
  */
 async function setRoleSpecificCommands({ telegramId, role }) {

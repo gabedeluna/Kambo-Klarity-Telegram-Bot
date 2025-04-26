@@ -43,6 +43,19 @@ const storeBookingDataSchema = z
   })
   .describe("Input schema for storing confirmed booking data.");
 
+const setActiveSessionIdSchema = z
+  .object({
+    telegramId: z.string().min(1, { message: "Telegram ID is required" }),
+    sessionId: z.string().min(1, { message: "Session ID is required" }),
+  })
+  .describe("Input schema for setting the active session ID for a user.");
+
+const clearActiveSessionIdSchema = z
+  .object({
+    telegramId: z.string().min(1, { message: "Telegram ID is required" }),
+  })
+  .describe("Input schema for clearing the active session ID for a user.");
+
 // --- telegramNotifier.js Schemas ---
 const sendWaiverLinkSchema = z
   .object({
@@ -87,4 +100,6 @@ module.exports = {
   sendTextMessageSchema,
   findFreeSlotsSchema,
   createCalendarEventSchema,
+  setActiveSessionIdSchema,
+  clearActiveSessionIdSchema,
 };

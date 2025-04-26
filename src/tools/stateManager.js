@@ -7,10 +7,10 @@ const prisma = require("../core/prisma");
 let logger = require("../core/logger"); // Use let for potential dependency injection
 
 /**
- * Resets specific fields of a user's record in the database to default/null values.
- * This is typically used after a user interaction flow (like booking) is completed or cancelled.
+ * Resets the user's booking-related state fields in the database (e.g., state, session_type, booking_slot, edit_msg_id).
+ * Call this when a booking flow is explicitly cancelled, successfully completed (after booking data is stored), or definitively concluded without a booking.
  *
- * @param {string|number} telegramId - The Telegram ID of the user whose state needs to be reset.
+ * @param {string|number} telegramId - The Telegram ID of the user whose state should be reset.
  * @returns {Promise<{success: boolean, error?: string}>} - An object indicating success or failure.
  */
 async function resetUserState(telegramId) {
@@ -70,9 +70,10 @@ async function resetUserState(telegramId) {
 
 /**
  * Updates specific fields of a user's record in the database.
+ * Use this to change the user's current state (e.g., 'AWAITING_SLOT_CONFIRMATION'), store temporary data like a message ID to be edited, or update conversation history.
  *
  * @param {string|number} telegramId - The Telegram ID of the user to update.
- * @param {object} dataToUpdate - An object containing the fields and values to update. Must not be empty.
+ * @param {object} dataToUpdate - An object containing the fields and values to update (e.g., { state: 'NEW_STATE', edit_msg_id: 123 }). Must not be empty. Refer to toolSchemas.js updateUserStateSchema for allowed fields.
  * @returns {Promise<{success: boolean, error?: string, user?: object}>} - An object indicating success/failure and potentially the updated user data.
  */
 async function updateUserState(telegramId, dataToUpdate) {
@@ -145,11 +146,12 @@ async function updateUserState(telegramId, dataToUpdate) {
 }
 
 /**
- * Stores confirmed booking data (session type and slot) for a user.
+ * Stores the confirmed booking session type and start time for a user after they have confirmed their choice.
+ * Call this ONLY when a booking slot has been definitively chosen and confirmed by the user.
  *
  * @param {string|number} telegramId - The Telegram ID of the user.
- * @param {string} sessionType - The type of session booked (e.g., '1hr-kambo').
- * @param {string|Date} bookingSlot - The specific date/time slot booked (ISO string or Date object).
+ * @param {string} sessionType - The type of session booked (e.g., '1hr-kambo', must match configured session types).
+ * @param {string} bookingSlot - The confirmed start time of the booking in ISO 8601 format (e.g., '2024-05-21T10:00:00Z').
  * @returns {Promise<{success: boolean, error?: string, user?: object}>} - An object indicating success/failure and potentially the updated user data.
  */
 async function storeBookingData(telegramId, sessionType, bookingSlot) {
@@ -261,6 +263,133 @@ async function storeBookingData(telegramId, sessionType, bookingSlot) {
 }
 
 /**
+ * Sets the active LangGraph session ID for a user in the database.
+ * This links the user's current interaction thread to a specific state machine instance.
+ * Call this when initiating a new stateful interaction (like a booking graph).
+ *
+ * @param {object} params - The parameters object.
+ * @param {string|number} params.telegramId - The Telegram ID of the user.
+ * @param {string} params.sessionId - The LangGraph session ID (thread_id) to associate with the user.
+ * @returns {Promise<{success: boolean, error?: string}>} - An object indicating success or failure.
+ */
+async function setActiveSessionId({ telegramId, sessionId }) {
+  if (!telegramId || typeof sessionId !== "string" || !sessionId.trim()) {
+    logger.error(
+      { telegramId: String(telegramId), sessionId },
+      "setActiveSessionId called with invalid input.",
+    );
+    return {
+      success: false,
+      error: "Invalid input: telegramId and sessionId are required.",
+    };
+  }
+
+  let bigIntTelegramId;
+  try {
+    bigIntTelegramId = BigInt(telegramId);
+  } catch (error) {
+    logger.error(
+      { telegramId: String(telegramId), err: error },
+      "Invalid telegramId format for setActiveSessionId. Cannot convert to BigInt.",
+    );
+    return {
+      success: false,
+      error: "Invalid input: telegramId format is invalid.",
+    };
+  }
+
+  logger.info(
+    { telegramId: String(bigIntTelegramId), sessionId },
+    "Attempting to set active session ID",
+  );
+
+  try {
+    await prisma.users.update({
+      where: { telegram_id: bigIntTelegramId },
+      data: { active_session_id: sessionId },
+    });
+    logger.info(
+      { telegramId: String(bigIntTelegramId) },
+      "Successfully set active session ID.",
+    );
+    return { success: true };
+  } catch (error) {
+    logger.error(
+      { telegramId: String(bigIntTelegramId), sessionId, err: error },
+      "Error setting active session ID in database.",
+    );
+    if (error.code === "P2025") {
+      return { success: false, error: "User not found." };
+    }
+    return {
+      success: false,
+      error: "Database error setting active session ID.",
+    };
+  }
+}
+
+/**
+ * Clears the active LangGraph session ID for a user (sets it to null) in the database.
+ * Call this when a stateful interaction (like a booking graph) concludes or is explicitly reset, detaching the user from that specific graph instance.
+ *
+ * @param {object} params - The parameters object.
+ * @param {string|number} params.telegramId - The Telegram ID of the user.
+ * @returns {Promise<{success: boolean, error?: string}>} - An object indicating success or failure.
+ */
+async function clearActiveSessionId({ telegramId }) {
+  if (!telegramId) {
+    logger.error("clearActiveSessionId called without a telegramId.");
+    return {
+      success: false,
+      error: "Invalid input: telegramId is required.",
+    };
+  }
+
+  let bigIntTelegramId;
+  try {
+    bigIntTelegramId = BigInt(telegramId);
+  } catch (error) {
+    logger.error(
+      { telegramId: String(telegramId), err: error },
+      "Invalid telegramId format for clearActiveSessionId. Cannot convert to BigInt.",
+    );
+    return {
+      success: false,
+      error: "Invalid input: telegramId format is invalid.",
+    };
+  }
+
+  logger.info(
+    { telegramId: String(bigIntTelegramId) },
+    "Attempting to clear active session ID",
+  );
+
+  try {
+    await prisma.users.update({
+      where: { telegram_id: bigIntTelegramId },
+      data: { active_session_id: null },
+    });
+    logger.info(
+      { telegramId: String(bigIntTelegramId) },
+      "Successfully cleared active session ID.",
+    );
+    return { success: true };
+  } catch (error) {
+    logger.error(
+      { telegramId: String(bigIntTelegramId), err: error },
+      "Error clearing active session ID in database.",
+    );
+    if (error.code === "P2025") {
+      return { success: false, error: "User not found." };
+    }
+    return {
+      success: false,
+      error: "Database error clearing active session ID.",
+    };
+  }
+}
+
+/**
  * Sets the logger instance used by this module.
  * Useful for dependency injection in tests.
  *
@@ -274,5 +403,7 @@ module.exports = {
   resetUserState,
   updateUserState,
   storeBookingData,
-  setLogger,
+  setActiveSessionId,
+  clearActiveSessionId,
+  setLogger, // Keep exported for tests/setup
 };

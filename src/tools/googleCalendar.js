@@ -24,14 +24,15 @@ class GoogleCalendarTool {
   }
 
   /**
-   * STUB FUNCTION: Finds free time slots in a Google Calendar.
-   * This is a stub and returns hardcoded fake data.
+   * STUB FUNCTION: Finds available time slots based on optional date range and duration.
+   * In the future, this will query the practitioner's Google Calendar. Currently returns predefined fake slots.
+   * Use this to check practitioner availability when a user asks for booking times or initiates a booking request.
    *
-   * @param {object} [options={}] - Options for finding slots (ignored by stub).
-   * @param {string} [options.startDate] - ISO 8601 start date/time.
-   * @param {string} [options.endDate] - ISO 8601 end date/time.
-   * @param {number} [options.durationMinutes] - Desired slot duration.
-   * @returns {Promise<Array<{start: string, end: string}>>} A promise resolving to available slots.
+   * @param {object} [options={}] - Optional filtering options for finding slots.
+   * @param {string} [options.startDate] - ISO 8601 start date/time for search range (e.g., '2024-05-20T00:00:00Z').
+   * @param {string} [options.endDate] - ISO 8601 end date/time for search range (e.g., '2024-05-27T23:59:59Z').
+   * @param {number} [options.durationMinutes] - Required duration of the slot in minutes (e.g., 60 for a 1-hour session).
+   * @returns {Promise<Array<{start: string, end: string}>>} A promise resolving to a list of available slots, each with 'start' and 'end' times in ISO 8601 format.
    */
   async findFreeSlots(options = {}) {
     // Logger is now guaranteed to exist if constructor succeeded without throwing
@@ -56,21 +57,33 @@ class GoogleCalendarTool {
   }
 
   /**
-   * STUB FUNCTION: Creates a calendar event.
-   * Logs the input and returns a hardcoded success response.
+   * STUB FUNCTION: Creates a calendar event in the practitioner's Google Calendar.
+   * Logs the input and returns a hardcoded success response. In the future, this will interact with the Google Calendar API.
+   * Call this ONLY after a user has confirmed their booking slot AND completed any prerequisite steps (like waiver submission).
    *
    * @param {object} eventDetails - Details of the event to create.
-   * @param {string} eventDetails.start - Start time (ISO 8601 format).
-   * @param {string} eventDetails.end - End time (ISO 8601 format).
-   * @param {string} eventDetails.summary - Event title/summary.
-   * @param {string} [eventDetails.description] - Optional event description.
-   * @param {string} [eventDetails.attendeeEmail] - Optional attendee email.
-   * @returns {Promise<{success: boolean, eventId: string}>} A promise resolving to a fake success object.
+   * @param {string} eventDetails.start - Start time of the event in ISO 8601 format (e.g., '2024-05-21T10:00:00Z').
+   * @param {string} eventDetails.end - End time of the event in ISO 8601 format (e.g., '2024-05-21T11:00:00Z').
+   * @param {string} eventDetails.summary - Event title/summary (e.g., 'Kambo Session - John Doe').
+   * @param {string} [eventDetails.description] - Optional event description (e.g., 'Session Type: 1hr-kambo, Contact: @johndoe_tg').
+   * @param {string} [eventDetails.attendeeEmail] - Optional attendee email address to invite them to the event.
+   * @returns {Promise<{success: boolean, eventId?: string, error?: string}>} A promise resolving to an object indicating success (with the created event's ID) or failure (with an error message).
    */
   async createCalendarEvent(eventDetails = {}) {
     this.logger.info({ eventDetails }, "STUB: createCalendarEvent called");
     // Simulate API call delay
     await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Basic validation example (can be expanded)
+    if (!eventDetails.start || !eventDetails.end || !eventDetails.summary) {
+      this.logger.error(
+        "STUB: createCalendarEvent failed - Missing required fields (start, end, summary)",
+      );
+      return Promise.resolve({
+        success: false,
+        error: "Missing required event details: start, end, or summary.",
+      });
+    }
 
     const fakeResponse = { success: true, eventId: `fake-event-${Date.now()}` };
     return Promise.resolve(fakeResponse);

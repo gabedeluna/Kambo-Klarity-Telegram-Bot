@@ -163,37 +163,38 @@
 ---
 ---
 
+---
+
 ## 📅 Current Phase 3 – Agent & Memory
 
-| ID        | Task                                                                   | Why / Acceptance Criteria                                                                                                                        |
-| :-------- | :--------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
-| [X]**PH3‑01** | **Setup LangSmith Tracing**                                             | Enable observability into agent execution via LangSmith UI. *Pass*: Set `LANGCHAIN_TRACING_V2=true` & `LANGCHAIN_API_KEY` in `.env`. Basic test run (e.g., from agent tests later) shows traces in LangSmith. |
-| [X]**PH3‑02** | **Implement Conversation Memory (`src/memory/`)**                       | Provide agent with short-term memory for coherent conversations. *Pass*: Choose strategy (e.g., `BufferMemory`), implement basic setup (in-memory initially), add basic unit tests verifying state management. |
-| [X]**PH3‑03** | **Install/Verify LangChain OpenAI dependency**                          | Ensure necessary package (`@langchain/openai`) is available for the agent. *Pass*: `npm install @langchain/openai` succeeds or package already in `package.json`. |
-| [X]**PH3‑04** | **Define Agent Core Prompt (`src/config/agentPrompts.js`)**             | Create the initial system prompt instructing the OpenAI Functions agent on its role (booking assistant), rules, personality, and available tools. *Pass*: Prompt file created, defines core behavior clearly. |
-| [ ]**PH3‑05** | **Structure Tools for OpenAI Functions Agent**                          | Ensure existing tool Zod schemas (PH2-11) are correctly formatted/adapted for the OpenAI Functions agent framework (e.g., using LangChain helpers like `formatToOpenAIFunctionT` if needed). *Pass*: Tools can be successfully bound to the agent framework. |
-| [ ]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement the core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt, tools (stubs for now), and memory. *Pass*: Agent module created, basic agent executor/runnable sequence is defined and can be invoked. |
-| [ ]**PH3‑07** | **Tool: Add `getUserProfileData` to `stateManager.js`**                 | Provide agent means to fetch user history/prefs for smarter suggestions. *Pass*: New tool function created in `stateManager.js`, Zod schema added to `toolSchemas.js`, and unit tests pass (simple tests). |
-| [ ]**PH3‑08** | **Enhance Agent for Basic Intelligent Suggestions**                     | Update agent prompt (PH3-04) and potentially agent logic (PH3-06) to utilize `getUserProfileData` + `findFreeSlots` stubs to offer *slightly* more relevant slot suggestions based on simple heuristics (e.g., time of day preference). *Pass*: Agent attempts to use profile data when formulating slot suggestions (verified via LangSmith traces or specific tests). |
-| [ ]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify the agent can follow simple instructions and invoke mocked tools correctly based on input. *Pass*: Test suite for agent created (`src/tests/agents/bookingAgent.test.js`), basic conversational turns tested, tool invocation verified using mocks. Keep tests simple. |
-| [ ]**PH3‑10** | **Test Coverage:**                                                      | Ensure Phase 3 modules (`memory/`, `config/agentPrompts.js`, `agents/bookingAgent.js`, new tool function) meet ≥ 90% coverage. *Pass*: `npm test` coverage report confirms target for new files. |
-| [ ]**PH3‑11** | **Update `docs/architecture.md`:**                                      | Add new directories/files (`memory/`, `agents/`, `config/agentPrompts.js`). Update status section for Phase 3 progress. |
+| ID        | Task                                                                    | Why / Acceptance Criteria                                                                                                                               |
+| :-------- | :---------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [X]**PH3‑01** | **Setup LangSmith Tracing**                                             | Enable observability into agent execution via LangSmith UI. *Pass*: Set env vars. Verification via LangSmith UI later. |
+| [X]**PH3‑02** | **Implement Session-Based Conversation Memory (`src/memory/`)**         | Provide agent with short-term memory for coherent conversations, keyed by session ID. *Pass*: `active_session_id` added to User, `stateManager` tools updated, `sessionMemory.js` created (in-memory), tests pass. |
+| [X]**PH3‑03** | **Install/Verify LangChain OpenAI dependency**                          | Ensure necessary package (`@langchain/openai`) is available for the agent. *Pass*: Package present in `package.json`. |
+| [X]**PH3‑04** | **Define Agent Core Prompt (`src/config/agentPrompts.js`)**             | Create initial system prompt for OpenAI Functions agent (booking role, rules, personality, tool awareness, **handling cancellation *during* booking flow only**). *Pass*: Prompt file created, clearly defines agent behavior for booking flow. |
+| [X]**PH3‑05** | **Structure Tools for OpenAI Functions Agent**                          | Ensure existing tool Zod schemas (PH2-11) are correctly formatted/adapted for the OpenAI Functions agent framework (e.g., using LangChain helpers if needed). *Pass*: Tools can be successfully bound to the agent framework. |
+| [ ]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt (PH3-04), tools (stubs), and memory (PH3-02). *Pass*: Agent module created, basic runnable sequence defined. |
+| [ ]**PH3‑07** | **Tool: Add `getUserProfileData` to `stateManager.js`**                 | Provide agent means to fetch user history/prefs for smarter suggestions. *Pass*: New tool function created, Zod schema added, simple unit tests pass. |
+| [ ]**PH3‑08** | **Enhance Agent for Basic Intelligent Suggestions**                     | Update agent prompt/logic (PH3-04/06) to use `getUserProfileData` + `findFreeSlots` stubs for *slightly* more relevant slot suggestions. *Pass*: Agent attempts to use profile data (verified via LangSmith/tests). |
+| [ ]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify agent follows simple instructions, invokes mocked tools correctly (incl. cancellation path from PH3-04). *Pass*: Test suite created (`tests/agents/bookingAgent.test.js`), basic turns & tool calls tested (keep tests simple). |
+| [ ]**PH3‑10** | **Test Coverage:**                                                      | Ensure Phase 3 modules (`memory/`, `config/agentPrompts.js`, `agents/bookingAgent.js`, new tool function) meet ≥ 90% coverage. *Pass*: `npm test` coverage report confirms target. |
+| [ ]**PH3‑11** | **Update `docs/architecture.md`:**                                      | Add new directories/files (`memory/`, `agents/`, `config/agentPrompts.js`). Note LangGraph Studio hybrid approach for Phase 4. Update status section for Phase 3 progress. |
 | [ ]**PH3‑12** | **Final Review:**                                                       | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded. |
 
 ### 🚧 Discovered During Work
 *(Add new subtasks here, e.g., `PH3‑D1`)*
-*   **PH3-D1 (PH3-02):** Created src/memory/sessionMemory.js.
-*   **PH3-D2 (PH3-02):** Implemented simple in-memory BufferMemory manager keyed by sessionId.
-*   **PH3-D3 (PH3-02):** Added basic tests for instance creation/retrieval and history management.
-*   **PH3-D4 (PH3-04):** Created `src/config/agentPrompts.js` containing the `bookingAgentSystemPrompt`.
-*   **PH3-D5 (PH3-04):** Included placeholders (`{current_date_time}`, `{session_type}`, `{user_name}`) for dynamic context injection.
-*   **PH3-D6 (PH3-04):** Prompt focuses on behavioral instructions suitable for an OpenAI Functions agent.
+*   **(PH3-01):** Added LangSmith environment variables (LANGCHAIN_TRACING_V2, LANGCHAIN_API_KEY) to .env. Ensured .env is in .gitignore.
+*   **(PH3-02):** Added `active_session_id` (String?) to User model in Prisma schema. Ran `prisma migrate dev`. Added `setActiveSessionId` and `clearActiveSessionId` functions to `stateManager.js` tool and corresponding Zod schemas to `toolSchemas.js`. Created `src/memory/sessionMemory.js` implementing in-memory BufferMemory manager keyed by `sessionId`. Added/updated unit tests for stateManager and sessionMemory.
+*   **(PH3-03):** Verified/Installed @langchain/openai dependency.
+*   **(PH3-05):** Realized the need to handle BigInt conversion carefully for `telegramId` in `stateManager`. Decided to centralize Zod schemas in `toolSchemas.js` for better organization and reusability. Added dependency injection pattern for `logger` in tools for easier testing. Ensured `initialize` functions in tools properly check for all required dependencies including nested config values. Reviewed tool exports and schema exports. Added/updated JSDoc descriptions to all exported tool functions, crucial for agent usage.
 
 ### 💡 Insights & Decisions
 *(Explain memory choice, agent type choice, prompt design, testing strategy for agents, etc.)*
-*   **(PH3-02):** Chose simple in-memory BufferMemory for initial agent development. This is sufficient for testing but needs replacement with a persistent store (e.g., DB-backed) for production reliability. Keying by sessionId allows concurrent conversations.
-*   **(PH3-04):** Centralizing the system prompt in `src/config/agentPrompts.js` makes agent behavior easier to manage and iterate on.
-*   **(PH3-04):** Providing clear instructions within the prompt regarding operational constraints (available times, booking window) and tool usage (when to use `findFreeSlots`, `storeBookingData`, `sendWaiverLink`, etc.) is crucial for reliable agent performance.
+*   **(PH3-01):** Enabled LangSmith tracing via environment variables for enhanced AI observability, crucial for debugging agent behavior. Verification will occur during agent testing.
+*   **(PH3-02):** Opted for `sessionId` keying for memory from the start for better concurrent flow isolation. Requires managing active session state via DB field (`active_session_id`). Kept history storage in-memory for now, persistent storage is a future task.
+*   **Cancellation Logic:** Decided to handle cancellation *during* the booking flow (pre-waiver) within the Agent/Graph logic (using `resetUserState` and potentially deleting a *transient* GCal event), while cancellation of *confirmed* sessions will be handled by a dedicated `/cancel` command (Phase 10) interacting with the DB and live GCal API.
+*   **(PH3-05):** Centralized schema definition in PH2-11 proved beneficial. Ensured tool functions have clear JSDoc descriptions for the agent. Confirmed Zod schemas are ready for LangChain StructuredTool integration.
 
 ### 🧪 Quick‑Run Commands
 
