@@ -169,8 +169,8 @@
 | :-------- | :--------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
 | [X]**PH3‑01** | **Setup LangSmith Tracing**                                             | Enable observability into agent execution via LangSmith UI. *Pass*: Set `LANGCHAIN_TRACING_V2=true` & `LANGCHAIN_API_KEY` in `.env`. Basic test run (e.g., from agent tests later) shows traces in LangSmith. |
 | [X]**PH3‑02** | **Implement Conversation Memory (`src/memory/`)**                       | Provide agent with short-term memory for coherent conversations. *Pass*: Choose strategy (e.g., `BufferMemory`), implement basic setup (in-memory initially), add basic unit tests verifying state management. |
-| [ ]**PH3‑03** | **Install/Verify LangChain OpenAI dependency**                          | Ensure necessary package (`@langchain/openai`) is available for the agent. *Pass*: `npm install @langchain/openai` succeeds or package already in `package.json`. |
-| [ ]**PH3‑04** | **Define Agent Core Prompt (`src/config/agentPrompts.js`)**             | Create the initial system prompt instructing the OpenAI Functions agent on its role (booking assistant), rules, personality, and available tools. *Pass*: Prompt file created, defines core behavior clearly. |
+| [X]**PH3‑03** | **Install/Verify LangChain OpenAI dependency**                          | Ensure necessary package (`@langchain/openai`) is available for the agent. *Pass*: `npm install @langchain/openai` succeeds or package already in `package.json`. |
+| [X]**PH3‑04** | **Define Agent Core Prompt (`src/config/agentPrompts.js`)**             | Create the initial system prompt instructing the OpenAI Functions agent on its role (booking assistant), rules, personality, and available tools. *Pass*: Prompt file created, defines core behavior clearly. |
 | [ ]**PH3‑05** | **Structure Tools for OpenAI Functions Agent**                          | Ensure existing tool Zod schemas (PH2-11) are correctly formatted/adapted for the OpenAI Functions agent framework (e.g., using LangChain helpers like `formatToOpenAIFunctionT` if needed). *Pass*: Tools can be successfully bound to the agent framework. |
 | [ ]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement the core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt, tools (stubs for now), and memory. *Pass*: Agent module created, basic agent executor/runnable sequence is defined and can be invoked. |
 | [ ]**PH3‑07** | **Tool: Add `getUserProfileData` to `stateManager.js`**                 | Provide agent means to fetch user history/prefs for smarter suggestions. *Pass*: New tool function created in `stateManager.js`, Zod schema added to `toolSchemas.js`, and unit tests pass (simple tests). |
@@ -185,10 +185,15 @@
 *   **PH3-D1 (PH3-02):** Created src/memory/sessionMemory.js.
 *   **PH3-D2 (PH3-02):** Implemented simple in-memory BufferMemory manager keyed by sessionId.
 *   **PH3-D3 (PH3-02):** Added basic tests for instance creation/retrieval and history management.
+*   **PH3-D4 (PH3-04):** Created `src/config/agentPrompts.js` containing the `bookingAgentSystemPrompt`.
+*   **PH3-D5 (PH3-04):** Included placeholders (`{current_date_time}`, `{session_type}`, `{user_name}`) for dynamic context injection.
+*   **PH3-D6 (PH3-04):** Prompt focuses on behavioral instructions suitable for an OpenAI Functions agent.
 
 ### 💡 Insights & Decisions
 *(Explain memory choice, agent type choice, prompt design, testing strategy for agents, etc.)*
 *   **(PH3-02):** Chose simple in-memory BufferMemory for initial agent development. This is sufficient for testing but needs replacement with a persistent store (e.g., DB-backed) for production reliability. Keying by sessionId allows concurrent conversations.
+*   **(PH3-04):** Centralizing the system prompt in `src/config/agentPrompts.js` makes agent behavior easier to manage and iterate on.
+*   **(PH3-04):** Providing clear instructions within the prompt regarding operational constraints (available times, booking window) and tool usage (when to use `findFreeSlots`, `storeBookingData`, `sendWaiverLink`, etc.) is crucial for reliable agent performance.
 
 ### 🧪 Quick‑Run Commands
 
