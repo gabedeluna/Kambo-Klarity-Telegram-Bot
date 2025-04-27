@@ -177,9 +177,11 @@
 | [X]**PH3‑07 (2025-04-26)** | **Tool: Add `getUserProfileData` & `getUserPastSessions` to `stateManager.js`** | Implement tools to fetch user profile (name, state etc.) and past completed session dates. Add Zod schemas & unit tests. *Pass*: Tools implemented & tested. |
 | [X]**PH3‑08** | **Enhance Agent for Intelligent Suggestions & Context**                 | Update `runBookingAgent` (PH3-06) to use PH3-07 tools: fetch user data, format prompt dynamically, use `active_session_id` for memory. Update prompt (PH3-04) if needed based on fetched data structure. *Pass*: Agent uses real user data for prompt/memory, attempts suggestions based on history/profile. |
 | [X]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify agent follows simple instructions, invokes mocked tools correctly (incl. suggestions based on mock profile/history, cancellation path). *Pass*: Test suite created (`tests/agents/bookingAgent.test.js`), basic turns & tool calls tested (keep tests simple). |
-| [ ]**PH3‑10** | **Test Coverage:**                                                      | Ensure Phase 3 modules (`memory/`, `config/agentPrompts.js`, `agents/bookingAgent.js`, new tool functions) meet ≥ 90% coverage. *Pass*: `npm test` coverage report confirms target. |
-| [ ]**PH3‑11** | **Update `docs/architecture.md`:**                                      | Add new directories/files (`memory/`, `agents/`, `config/agentPrompts.js`). Note LangGraph Studio hybrid approach for Phase 4. Update status section for Phase 3 progress. |
-| [ ]**PH3‑12** | **Final Review:**                                                       | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded. |
+| [X]**PH3‑10** | **Refactor Agent for Multi-Provider Support (OpenAI/Gemini)**          | Modify agent setup to support OpenAI GPT-4T & Gemini 1.5 Flash via `AI_PROVIDER` env var. Use `createToolCallingAgent`. Update dependencies & env validation. | *Pass*: Agent initializes correct LLM based on env var, uses standard agent constructor. Tests adapted. |
+| [ ]**PH3‑11** | **Refine Agent Tests for Multi-Provider Verification**                 | Update/enhance agent tests (PH3-09) to verify core logic against *both* mocked providers (or structure tests for easy switching). Keep tests simple.          | *Pass*: Tests confirm basic flows work regardless of mocked provider. |
+| [ ]**PH3‑12** | **Test Coverage:**                                                     | Ensure Phase 3 modules meet ≥ 90% coverage after refactoring.                                                                                             | *Pass*: `npm test` coverage report confirms target. |
+| [ ]**PH3‑13** | **Update `docs/architecture.md`:**                                     | Reflect multi-provider setup in agent/config. Note hybrid LangGraph approach. Update Phase 3 status.                                                      |
+| [ ]**PH3‑14** | **Final Review:**                                                      | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded.                      
 
 ### 🚧 Discovered During Work
 *(Add new subtasks here, e.g., `PH3‑D1`)*
@@ -205,6 +207,7 @@
 *   **(PH3-07):** Implemented necessary tools for agent context/personalization. `getUserPastSessions` filters for COMPLETED status and limits results to 5 most recent sessions to provide relevant history without overwhelming the agent. Both tools follow the established pattern of input validation, structured logging, and consistent error handling.
 *   **(PH3-06):** Agent executor setup provides the core conversational loop. Using OpenAI Functions agent leverages LLM's ability to call tools with structured args. Deferred dynamic context fetching/session ID logic to keep initial setup focused.
 *   **(PH3-08):** Agent now uses dynamic user context for personalization and memory. Prompt guides agent on using past session history or acknowledging first-timers. Session ID management links state to memory. Dynamic context and memory guidance enable the agent to provide more personalized and relevant responses.
+*   **(PH3-10):** Refactored booking agent to support both OpenAI and Google Gemini models via environment variable. Used `createToolCallingAgent` which works with both providers, replacing the OpenAI-specific `createOpenAIFunctionsAgent`. Enhanced environment validation to conditionally require API keys based on selected provider. Updated tests to support both providers while maintaining backward compatibility.
 
 ### 🧪 Quick‑Run Commands
 
@@ -214,4 +217,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-26 17:35
+**Last updated:** 2025-04-27 11:45

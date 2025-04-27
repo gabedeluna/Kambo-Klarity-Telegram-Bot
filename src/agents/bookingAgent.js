@@ -6,14 +6,12 @@
 
 // LangChain Imports
 const { ChatOpenAI } = require("@langchain/openai");
+const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
 const {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } = require("@langchain/core/prompts");
-const {
-  createOpenAIFunctionsAgent,
-  AgentExecutor,
-} = require("langchain/agents"); // Note: Using 'langchain' based on request and memory
+const { createToolCallingAgent, AgentExecutor } = require("langchain/agents"); // Note: Using 'langchain' based on request and memory
 const { StructuredTool } = require("@langchain/core/tools");
 const { v4: uuidv4 } = require("uuid"); // <-- Add uuid import
 
@@ -70,13 +68,41 @@ function initializeAgent(dependencies) {
   logger = dependencies.logger;
   config = dependencies.config;
 
-  // Initialize LLM
-  llm = new ChatOpenAI({
-    openAIApiKey: config.OPENAI_API_KEY,
-    modelName: config.OPENAI_MODEL || "gpt-4-turbo", // Use config or default
-    temperature: config.AGENT_TEMPERATURE || 0.2, // Use config or default
-  });
-  logger.info("[bookingAgent] ChatOpenAI LLM initialized.");
+  // Initialize LLM based on provider
+  logger.info(
+    `[bookingAgent] Initializing LLM with provider: ${config.aiProvider}`,
+  );
+  if (config.aiProvider === "openai") {
+    if (!config.openaiApiKey) {
+      const errorMsg =
+        "OpenAI provider selected, but OPENAI_API_KEY is missing.";
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+    llm = new ChatOpenAI({
+      openAIApiKey: config.openaiApiKey,
+      modelName: config.OPENAI_MODEL || "gpt-4-turbo", // Use config or default
+      temperature: config.AGENT_TEMPERATURE || 0.2, // Use config or default
+    });
+    logger.info("[bookingAgent] ChatOpenAI LLM initialized.");
+  } else if (config.aiProvider === "gemini") {
+    if (!config.googleApiKey) {
+      const errorMsg =
+        "Gemini provider selected, but GOOGLE_API_KEY is missing.";
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+    llm = new ChatGoogleGenerativeAI({
+      apiKey: config.googleApiKey,
+      model: "gemini-1.5-flash-latest", // As requested
+      temperature: config.AGENT_TEMPERATURE || 0.2, // Use shared temp config
+    });
+    logger.info("[bookingAgent] ChatGoogleGenerativeAI LLM initialized.");
+  } else {
+    const errorMsg = `Unsupported AI_PROVIDER: ${config.aiProvider}. Must be 'openai' or 'gemini'.`;
+    logger.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 
   // Initialize Tools that need it (using provided dependencies)
   // Note: Assuming tools have an 'initialize' function or similar mechanism
@@ -384,8 +410,8 @@ async function runBookingAgent({ userInput, telegramId }) {
     ]);
 
     // --- 7. Create Agent & Executor ---
-    const agent = await createOpenAIFunctionsAgent({
-      llm,
+    const agent = await createToolCallingAgent({
+      llm, // The conditionally initialized LLM
       tools: agentTools,
       prompt,
     });

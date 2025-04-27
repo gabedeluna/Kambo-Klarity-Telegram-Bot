@@ -4,8 +4,19 @@ const { expect } = require("chai");
 const sinon = require("sinon");
 const dotenv = require("dotenv");
 
-const REQUIRED_ENV_KEYS = ["TG_TOKEN", "DATABASE_URL", "FORM_URL"];
-const ALL_RELEVANT_KEYS = [...REQUIRED_ENV_KEYS, "PORT"];
+const REQUIRED_ENV_KEYS = [
+  "TG_TOKEN",
+  "DATABASE_URL",
+  "FORM_URL",
+  "LANGCHAIN_API_KEY",
+];
+const ALL_RELEVANT_KEYS = [
+  ...REQUIRED_ENV_KEYS,
+  "PORT",
+  "AI_PROVIDER",
+  "OPENAI_API_KEY",
+  "GOOGLE_API_KEY",
+];
 
 describe("core/env Module", () => {
   let originalEnvValues = {};
@@ -45,6 +56,10 @@ describe("core/env Module", () => {
       TG_TOKEN: "mock_token",
       DATABASE_URL: "mock_db_url",
       FORM_URL: "mock_form_url",
+      LANGCHAIN_API_KEY: "mock_langchain_key",
+      AI_PROVIDER: "openai",
+      OPENAI_API_KEY: "mock_openai_key",
+      GOOGLE_API_KEY: "mock_google_key",
     };
 
     // Start with original system env, but clean the required ones
@@ -87,7 +102,10 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(Error, "Missing required env vars: TG_TOKEN");
+    }).to.throw(
+      Error,
+      "Missing required env vars for provider 'openai': TG_TOKEN",
+    );
   });
 
   it("should throw error if DATABASE_URL is missing", () => {
@@ -97,7 +115,10 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(Error, "Missing required env vars: DATABASE_URL");
+    }).to.throw(
+      Error,
+      "Missing required env vars for provider 'openai': DATABASE_URL",
+    );
   });
 
   it("should throw error if FORM_URL is missing", () => {
@@ -107,7 +128,10 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(Error, "Missing required env vars: FORM_URL");
+    }).to.throw(
+      Error,
+      "Missing required env vars for provider 'openai': FORM_URL",
+    );
   });
 
   it("should throw error if multiple required vars are missing", () => {
@@ -117,7 +141,10 @@ describe("core/env Module", () => {
     expect(() => {
       delete require.cache[path];
       require(path);
-    }).to.throw(Error, "Missing required env vars: TG_TOKEN, FORM_URL");
+    }).to.throw(
+      Error,
+      "Missing required env vars for provider 'openai': TG_TOKEN, FORM_URL",
+    );
   });
 
   it("should use default PORT 3000 if not set in environment", () => {
