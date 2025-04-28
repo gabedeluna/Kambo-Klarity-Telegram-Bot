@@ -118,7 +118,7 @@
 *   **PH2-D24 (PH2-14):** Enhanced test coverage for telegramNotifier.js from 77% to over 95% by adding focused tests for initialization error handling, dependency validation, and edge cases in command setting functionality.
 
 ### 💡 Insights & Decisions
-*   **PH2-01:** Selected Pino for structured logging due to its excellent performance and simple API. Configured with pino-pretty for development (human-readable) and JSON for production (machine-parseable). This approach provides better context and filterability than console.log while maintaining good developer experience during development. The conditional transport configuration based on NODE_ENV ensures we get the right format in each environment without changing code.
+*   **PH2-01:** Selected Pino for structured logging for performance and JSON output.
 *   **PH2-01:** Implemented a test detection mechanism in the logger to automatically silence logs during test runs, preventing test output pollution while maintaining the ability to test logging behavior through mocks.
 *   **PH2-01:** Adopted Pino's error logging convention (error object as first parameter, message as second) which enables better error tracking and aggregation in production environments.
 *   **PH2-01:** Used dependency injection pattern for logger in key modules (server.js, prisma.js) to improve testability. This approach allows tests to inject mock loggers without relying on require cache manipulation, making tests more reliable and less brittle.
@@ -153,7 +153,7 @@
 
 #### 💡 Insights & Decisions
 
-*   Decided on Pino for structured logging for performance and JSON output.
+*   Decided on Pino for structured logging due to its excellent performance and simple API. Configured with pino-pretty for development (human-readable) and JSON for production (machine-parseable). This approach provides better context and filterability than console.log while maintaining good developer experience during development. The conditional transport configuration based on NODE_ENV ensures we get the right format in each environment without changing code.
 *   Centralized error handling middleware simplifies command/route logic.
 *   Using Zod for tool schemas improves reliability and DX.
 *   Dependency injection pattern for tools makes testing easier.
@@ -172,23 +172,25 @@
 | [X]**PH3‑02** | **Implement Session-Based Conversation Memory (`src/memory/`)**         | Provide agent with short-term memory for coherent conversations, keyed by session ID. *Pass*: `active_session_id` added to User, `stateManager` tools updated, `sessionMemory.js` created (in-memory), tests pass. |
 | [X]**PH3‑03** | **Install/Verify LangChain OpenAI dependency**                          | Ensure necessary package (`@langchain/openai`) is available for the agent. *Pass*: Package present in `package.json`. |
 | [X]**PH3‑04** | **Define Agent Core Prompt (`src/config/agentPrompts.js`)**             | Create initial system prompt for OpenAI Functions agent (booking role, rules, personality, tool awareness, **handling cancellation *during* booking flow only**). *Pass*: Prompt file created, clearly defines agent behavior for booking flow. |
+| [X]**PH3‑05** | **Structure Tools for OpenAI Functions Agent**                          | Ensure existing tool Zod schemas (PH2-11) are correctly formatted/adapted for the OpenAI Functions agent framework (e.g., using LangChain helpers if needed). *Pass*: Tools can be successfully bound to the agent framework. |
 | [X]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt (PH3-04), tools (stubs), and memory (PH3-02). *Pass*: Agent module created, basic runnable sequence defined. |
 | [X]**PH3‑07 (2025-04-26)** | **Tool: Add `getUserProfileData` & `getUserPastSessions` to `stateManager.js`** | Implement tools to fetch user profile (name, state etc.) and past completed session dates. Add Zod schemas & unit tests. *Pass*: Tools implemented & tested. |
 | [X]**PH3‑08** | **Enhance Agent for Intelligent Suggestions & Context**                 | Update `runBookingAgent` (PH3-06) to use PH3-07 tools: fetch user data, format prompt dynamically, use `active_session_id` for memory. Update prompt (PH3-04) if needed based on fetched data structure. *Pass*: Agent uses real user data for prompt/memory, attempts suggestions based on history/profile. |
 | [X]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify agent follows simple instructions, invokes mocked tools correctly (incl. suggestions based on mock profile/history, cancellation path). *Pass*: Test suite created (`tests/agents/bookingAgent.test.js`), basic turns & tool calls tested (keep tests simple). |
 | [X]**PH3‑10** | **Refactor Agent for Multi-Provider Support (OpenAI/Gemini)**          | Modify agent setup to support OpenAI GPT-4T & Gemini 1.5 Flash via `AI_PROVIDER` env var. Use `createToolCallingAgent`. Update dependencies & env validation. | *Pass*: Agent initializes correct LLM based on env var, uses standard agent constructor. Tests adapted. |
 | [X]**PH3‑11** | **Refine Agent Tests for Multi-Provider Verification** | Refactor agent tests to verify core functionality works correctly when configured for either OpenAI or Gemini providers, using mocking. |structure tests for easy switching). Keep tests simple.          | *Pass*: Tests confirm basic flows work regardless of mocked provider. |
-| [ ]**PH3‑12** | **Test Coverage:**                                                     | Ensure Phase 3 modules meet ≥ 90% coverage after refactoring.                                                                                             | *Pass*: `npm test` coverage report confirms target. |
-| [ ]**PH3‑13** | **Update `docs/architecture.md`:**                                     | Reflect multi-provider setup in agent/config. Note hybrid LangGraph approach. Update Phase 3 status.                                                      |
+| [X]**PH3‑12** | **Test Coverage:**                                                     | Ensure Phase 3 modules meet ≥ 90% coverage after refactoring.                                                                                             | *Pass*: `npm test` coverage report confirms target. |
+| [X]**PH3‑13** | **Update `docs/architecture.md`:**                                     | Add new directories (`agents/`, `memory/`, `config/`) and key files created in Phase 3. Update status section for Phase 3 progress. |
+> *Completion Note (PH3-13): Updated docs/architecture.md with Phase 3 structure (agents/, memory/, config/) and completion status. Added notes on multi-provider setup and hybrid LangGraph plan.*
 | [ ]**PH3‑14** | **Final Review:**                                                      | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded.                      
 
 ### 🚧 Discovered During Work
-{{ ... }}
+*(Add new subtasks here, e.g., `PH3‑D1`)*
 *   **(PH3-01):** Added LangSmith environment variables (LANGCHAIN_TRACING_V2, LANGCHAIN_API_KEY) to .env. Ensured .env is in .gitignore.
 *   **(PH3-02):** Added `active_session_id` (String?) to User model in Prisma schema. Ran `prisma migrate dev`. Added `setActiveSessionId` and `clearActiveSessionId` functions to `stateManager.js` tool and corresponding Zod schemas to `toolSchemas.js`. Created `src/memory/sessionMemory.js` implementing in-memory BufferMemory manager keyed by `sessionId`. Added/updated unit tests for stateManager and sessionMemory.
 *   **(PH3-03):** Verified/Installed @langchain/openai dependency.
-*   **(PH3-05):** Realized the need to handle BigInt conversion carefully for `telegramId` in `stateManager`. Decided to centralize Zod schemas in `toolSchemas.js` for better organization and reusability. Added dependency injection pattern for `logger` in tools for easier testing. Ensured `initialize` functions in tools properly check for all required dependencies including nested config values. Reviewed tool exports and schema exports. Added/updated JSDoc descriptions to all exported tool functions, crucial for agent usage.
-*   **(PH3-06):** Created `src/agents/bookingAgent.js`.
+*   **(PH3-05):** Realized the need to handle BigInt conversion carefully for `telegramId` in `stateManager`. Decided to centralize Zod schemas in PH2-11 proved beneficial. Ensured tool functions have clear JSDoc descriptions for the agent. Confirmed Zod schemas are ready for LangChain StructuredTool integration.
+*   **(PH3-06):** Agent executor setup provides the core conversational loop. Using OpenAI Functions agent leverages LLM's ability to call tools with structured args. Deferred dynamic context fetching/session ID logic to keep initial setup focused.
 *   **(PH3-06):** Implemented agent executor using `createOpenAIFunctionsAgent`, wiring LLM, prompt, memory, and tools.
 *   **(PH3-06):** Used `StructuredTool` to wrap tool functions/schemas, including adapters for functions expecting multiple arguments (`updateUserState`, `storeBookingData`).
 *   **(PH3-06):** Temporarily used `telegramId` for memory key and static prompt values (pending PH3-07 tool).
@@ -209,6 +211,8 @@
 *   **(PH3-10):** Refactored booking agent to support both OpenAI and Google Gemini models via environment variable. Used `createToolCallingAgent` which works with both providers, replacing the OpenAI-specific `createOpenAIFunctionsAgent`. Enhanced environment validation to conditionally require API keys based on selected provider. Updated tests to support both providers while maintaining backward compatibility.
 *   **(PH3-11):** Parametrized testing structure verifies multi-provider compatibility efficiently. Mocking the AgentExecutor directly simplifies testing the agent runner logic.
 *   **(PH3-11):** Refactored agent tests using a loop to run core scenarios against mocks configured for both 'openai' and 'gemini' providers. Simplified assertions to focus on orchestration and tool calls rather than internal agent state.
+*   **(PH3-13):** Updated docs/architecture.md with Phase 3 structure (agents/, memory/, config/) and completion status. Added notes on multi-provider setup and hybrid LangGraph plan.
+*   **(PH3-13):** Documentation updated to reflect agent implementation and key strategic decisions made during Phase 3.
 
 ### 🧪 Quick‑Run Commands
 
@@ -218,4 +222,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-27 11:45
+**Last updated:** 2025-04-28 11:45
