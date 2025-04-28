@@ -14,9 +14,9 @@ const { expect } = chai;
 describe("Booking Agent - Integration Tests", () => {
   // Define supported providers for multi-provider testing
   const providers = ["openai", "gemini"];
-  
+
   // Loop through each provider to test both configurations
-  providers.forEach(provider => {
+  providers.forEach((provider) => {
     describe(`Agent Execution (Provider: ${provider})`, () => {
       let bookingAgent;
       let mockLLM,
@@ -50,9 +50,10 @@ describe("Booking Agent - Integration Tests", () => {
               active_session_id: "existing-session",
             },
           }),
-          getUserPastSessions: sinon
-            .stub()
-            .resolves({ success: true, data: [{ session_id: "past-session-1" }] }),
+          getUserPastSessions: sinon.stub().resolves({
+            success: true,
+            data: [{ session_id: "past-session-1" }],
+          }),
           setActiveSessionId: sinon.stub().resolves({ success: true }),
           resetUserState: sinon.stub().resolves({ success: true }),
           storeBookingData: sinon.stub().resolves({ success: true }),
@@ -160,60 +161,63 @@ describe("Booking Agent - Integration Tests", () => {
           "langchain/agents": {
             AgentExecutor: sinon.stub().returns(mockAgentExecutor), // Mock the constructor
             createToolCallingAgent: sinon.stub().resolves(mockAgent), // Replace with createToolCallingAgent
-      },
+          },
           "@langchain/core/prompts": {
             ChatPromptTemplate: {
               fromMessages: sinon.stub().returns(mockBookingPromptTemplate),
             }, // Mock prompt creation
-            MessagesPlaceholder: sinon
-          .stub()
-              .returns({ inputVariables: ["chat_history", "agent_scratchpad"] }), // Mock placeholder including scratchpad
-      },
+            MessagesPlaceholder: sinon.stub().returns({
+              inputVariables: ["chat_history", "agent_scratchpad"],
+            }), // Mock placeholder including scratchpad
+          },
           "@langchain/core/messages": {
             SystemMessage: MockSystemMessage,
             HumanMessage: MockHumanMessage,
             AIMessage: MockAIMessage,
             ToolMessage: MockToolMessage,
-      },
-      "@langchain/community/tools/google_calendar/index": {
-        // Assuming this is where the tool wrappers are
-        GoogleCalendarCreateTool: sinon.stub(),
-        GoogleCalendarViewTool: sinon.stub(),
-      },
-      "langchain/tools": {
-        DynamicTool: sinon.stub().callsFake((config) => {
-          // Basic mock for DynamicTool, returning an object with name and description
-          return {
-            name: config.name,
-            description: config.description,
-            // You might need to add a mock 'call' function if the agent interacts with it directly
-            // call: sinon.stub().resolves('Mock Tool Result')
-          };
-        }),
-      },
-      "@langchain/core/tools": {
-        StructuredTool: MockStructuredTool, // Mock the constructor
-      },
-      // Mock local modules
-      "../tools/stateManager": mockStateManager,
-      "../tools/telegramNotifier": mockTelegramNotifier,
-      "../tools/googleCalendar": sinon.stub().returns(mockGoogleCalendar), // Replace with constructor mock
-      "../memory/sessionMemory": mockSessionMemory,
-      "../config/agentPrompts": {
-        bookingAgentSystemPrompt: "Test Prompt {user_name}" /* other prompts */,
-      }, // Use real or test prompt
-      "../core/logger": mockLogger,
-      "../core/env": mockConfig,
-      "../core/prisma": mockPrisma, // Inject Prisma mock
-      "../core/bot": mockBot, // Inject Bot mock
-      uuid: mockUuid,
-      // Mock potentially missing dependencies if agent imports them directly
-      "langchain/schema/runnable": { RunnableSequence: { from: sinon.stub() } },
-      "@langchain/core/agents": {
-        AgentFinish: sinon.stub(),
-        AgentAction: sinon.stub(),
-      },
-    });
+          },
+          "@langchain/community/tools/google_calendar/index": {
+            // Assuming this is where the tool wrappers are
+            GoogleCalendarCreateTool: sinon.stub(),
+            GoogleCalendarViewTool: sinon.stub(),
+          },
+          "langchain/tools": {
+            DynamicTool: sinon.stub().callsFake((config) => {
+              // Basic mock for DynamicTool, returning an object with name and description
+              return {
+                name: config.name,
+                description: config.description,
+                // You might need to add a mock 'call' function if the agent interacts with it directly
+                // call: sinon.stub().resolves('Mock Tool Result')
+              };
+            }),
+          },
+          "@langchain/core/tools": {
+            StructuredTool: MockStructuredTool, // Mock the constructor
+          },
+          // Mock local modules
+          "../tools/stateManager": mockStateManager,
+          "../tools/telegramNotifier": mockTelegramNotifier,
+          "../tools/googleCalendar": sinon.stub().returns(mockGoogleCalendar), // Replace with constructor mock
+          "../memory/sessionMemory": mockSessionMemory,
+          "../config/agentPrompts": {
+            bookingAgentSystemPrompt:
+              "Test Prompt {user_name}" /* other prompts */,
+          }, // Use real or test prompt
+          "../core/logger": mockLogger,
+          "../core/env": mockConfig,
+          "../core/prisma": mockPrisma, // Inject Prisma mock
+          "../core/bot": mockBot, // Inject Bot mock
+          uuid: mockUuid,
+          // Mock potentially missing dependencies if agent imports them directly
+          "langchain/schema/runnable": {
+            RunnableSequence: { from: sinon.stub() },
+          },
+          "@langchain/core/agents": {
+            AgentFinish: sinon.stub(),
+            AgentAction: sinon.stub(),
+          },
+        });
 
         // Pass mocks to initialization function
         bookingAgent.initializeAgent({
@@ -221,8 +225,8 @@ describe("Booking Agent - Integration Tests", () => {
           config: mockConfig,
           prisma: mockPrisma,
           bot: mockBot,
-    });
-  });
+        });
+      });
 
       afterEach(() => {
         sinon.restore(); // Use restore instead of resetHistory for better cleanup
@@ -230,29 +234,29 @@ describe("Booking Agent - Integration Tests", () => {
 
       it(`runBookingAgent should initialize correctly and invoke executor with ${provider}`, async () => {
         // Arrange: Override specific mocks for this test
-    mockStateManager.getUserProfileData.resolves({
-      success: true,
-      data: {
-        first_name: "Tester",
-        telegram_id: "123",
-        active_session_id: null,
-      },
-    }); // No active session
-    mockStateManager.getUserPastSessions.resolves({
-      success: true,
-      data: [{ session_id: "prev_session" }],
-    }); // Has past sessions
-    mockAgentExecutor.invoke.resolves({ output: "Hello Tester!" }); // Specific response
-    mockUuid.v4.returns("new-session-id-456"); // Specific new session ID
+        mockStateManager.getUserProfileData.resolves({
+          success: true,
+          data: {
+            first_name: "Tester",
+            telegram_id: "123",
+            active_session_id: null,
+          },
+        }); // No active session
+        mockStateManager.getUserPastSessions.resolves({
+          success: true,
+          data: [{ session_id: "prev_session" }],
+        }); // Has past sessions
+        mockAgentExecutor.invoke.resolves({ output: "Hello Tester!" }); // Specific response
+        mockUuid.v4.returns("new-session-id-456"); // Specific new session ID
 
         // Act
         const result = await bookingAgent.runBookingAgent({
-      userInput: "Hi",
-      telegramId: "123",
-    });
+          userInput: "Hi",
+          telegramId: "123",
+        });
 
         // Assert
-            expect(result.success).to.be.true;
+        expect(result.success).to.be.true;
         // Verify state manager calls (user profile, past sessions) - simplified
         expect(mockStateManager.getUserProfileData).to.have.been.calledOnce;
         expect(mockStateManager.getUserPastSessions).to.have.been.calledOnce;
@@ -262,98 +266,105 @@ describe("Booking Agent - Integration Tests", () => {
 
         // Verify Agent Executor call (simplified)
         expect(mockAgentExecutor.invoke).to.have.been.calledOnce;
-  });
+      });
 
       it(`runBookingAgent should handle intent to find slots with ${provider} (simplified check)`, async () => {
         // Arrange - reset stubs for this test
-    mockAgentExecutor.invoke.reset();
-    mockAgentExecutor.invoke.resolves({
-      output: `OK, I found these slots with ${provider}: Slot A, Slot B`,
-    });
+        mockAgentExecutor.invoke.reset();
+        mockAgentExecutor.invoke.resolves({
+          output: `OK, I found these slots with ${provider}: Slot A, Slot B`,
+        });
 
         // Act
         const result = await bookingAgent.runBookingAgent({
-      userInput: "Find me a slot",
-      telegramId: "123",
-    });
+          userInput: "Find me a slot",
+          telegramId: "123",
+        });
 
         // Assert - only check the most basic expectations
         expect(result.success).to.be.true;
         expect(mockAgentExecutor.invoke).to.have.been.called;
-  });
+      });
 
       it(`runBookingAgent should handle cancellation intent with ${provider} (simplified check)`, async () => {
-    // Arrange
-    mockAgentExecutor.invoke.resolves({ output: `OK, booking cancelled with ${provider}.` });
+        // Arrange
+        mockAgentExecutor.invoke.resolves({
+          output: `OK, booking cancelled with ${provider}.`,
+        });
 
         // Act
         const result = await bookingAgent.runBookingAgent({
-      userInput: "cancel my booking",
-      telegramId: "123",
-    });
+          userInput: "cancel my booking",
+          telegramId: "123",
+        });
 
         // Assert
-            expect(result.success).to.be.true;
-        expect(result.output).to.equal(`OK, booking cancelled with ${provider}.`);
+        expect(result.success).to.be.true;
+        expect(result.output).to.equal(
+          `OK, booking cancelled with ${provider}.`,
+        );
         expect(mockAgentExecutor.invoke).to.have.been.calledOnce;
 
         // Inferential check: Assume the agent logic triggered the state reset
-    // Note: This assumes resetUserState is called *after* or *by* the executor. If it's a tool
-    // called *by* the agent, the mockAgentExecutor needs to simulate that tool call sequence,
-    // which is more complex. Here, we assume the agent's *output* triggers a call *outside* the executor mock.
-    // Adjust if resetUserState is a LangChain tool called within the mocked AgentExecutor.
-    // For this simplified test, let's assume it's NOT called directly yet, as we only mocked the executor output.
-    // If resetUserState *were* a tool the executor should call, this test would need adjustment.
-    // expect(mockStateManager.resetUserState).to.have.been.calledOnceWith('123'); // This might fail depending on agent logic
-  });
+        // Note: This assumes resetUserState is called *after* or *by* the executor. If it's a tool
+        // called *by* the agent, the mockAgentExecutor needs to simulate that tool call sequence,
+        // which is more complex. Here, we assume the agent's *output* triggers a call *outside* the executor mock.
+        // Adjust if resetUserState is a LangChain tool called within the mocked AgentExecutor.
+        // For this simplified test, let's assume it's NOT called directly yet, as we only mocked the executor output.
+        // If resetUserState *were* a tool the executor should call, this test would need adjustment.
+        // expect(mockStateManager.resetUserState).to.have.been.calledOnceWith('123'); // This might fail depending on agent logic
+      });
 
       it(`runBookingAgent should acknowledge first-time user with ${provider} based on past sessions`, async () => {
-    // Arrange
-    mockStateManager.getUserProfileData.resolves({
-      success: true,
-      data: {
-        first_name: "Newbie",
-        telegram_id: "789",
-        active_session_id: "session-abc",
-      },
-    });
-    mockStateManager.getUserPastSessions.resolves({ success: true, data: [] }); // No past sessions
-    mockAgentExecutor.invoke.resolves({
-      output: `Welcome, Newbie! Looks like your first time using ${provider}...`,
-    });
+        // Arrange
+        mockStateManager.getUserProfileData.resolves({
+          success: true,
+          data: {
+            first_name: "Newbie",
+            telegram_id: "789",
+            active_session_id: "session-abc",
+          },
+        });
+        mockStateManager.getUserPastSessions.resolves({
+          success: true,
+          data: [],
+        }); // No past sessions
+        mockAgentExecutor.invoke.resolves({
+          output: `Welcome, Newbie! Looks like your first time using ${provider}...`,
+        });
 
         // Act
         const result = await bookingAgent.runBookingAgent({
-      userInput: "I want to book",
-      telegramId: "789",
-    });
+          userInput: "I want to book",
+          telegramId: "789",
+        });
 
         // Assert
-            expect(result.success).to.be.true;
+        expect(result.success).to.be.true;
         expect(mockStateManager.getUserProfileData).to.have.been.calledOnce;
         expect(mockStateManager.getUserPastSessions).to.have.been.calledOnce;
         expect(mockAgentExecutor.invoke).to.have.been.calledOnce;
-  });
+      });
 
       it(`runBookingAgent should handle stateManager profile fetch failure with ${provider}`, async () => {
-    // Arrange
-    mockStateManager.getUserProfileData.rejects(
-      new Error("Database connection failed"),
-    );
-    mockLogger.error = sinon.stub(); // Spy on logger error
+        // Arrange
+        mockStateManager.getUserProfileData.rejects(
+          new Error("Database connection failed"),
+        );
+        mockLogger.error = sinon.stub(); // Spy on logger error
 
         // Act
         const result = await bookingAgent.runBookingAgent({
-      userInput: "Hi",
-      telegramId: "123",
-    });
+          userInput: "Hi",
+          telegramId: "123",
+        });
 
         // Assert
         expect(result.success).to.be.false;
         expect(result.error).to.equal("Failed to get user profile"); // Match the actual error message
         expect(mockLogger.error).to.have.been.called; // Just check if error was logged
         expect(mockAgentExecutor.invoke).to.not.have.been.called;
-  });
+      });
     }); // End describe for provider
   }); // End providers.forEach
 });

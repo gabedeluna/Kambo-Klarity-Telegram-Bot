@@ -182,7 +182,7 @@
 | [X]**PH3‑12** | **Test Coverage:**                                                     | Ensure Phase 3 modules meet ≥ 90% coverage after refactoring.                                                                                             | *Pass*: `npm test` coverage report confirms target. |
 | [X]**PH3‑13** | **Update `docs/architecture.md`:**                                     | Add new directories (`agents/`, `memory/`, `config/`) and key files created in Phase 3. Update status section for Phase 3 progress. |
 > *Completion Note (PH3-13): Updated docs/architecture.md with Phase 3 structure (agents/, memory/, config/) and completion status. Added notes on multi-provider setup and hybrid LangGraph plan.*
-| [ ]**PH3‑14** | **Final Review:**                                                      | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded.                      
+| [X]**PH3‑14** | **Final Review:**                                                      | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded.                      
 
 ### 🚧 Discovered During Work
 *(Add new subtasks here, e.g., `PH3‑D1`)*
@@ -213,6 +213,28 @@
 *   **(PH3-11):** Refactored agent tests using a loop to run core scenarios against mocks configured for both 'openai' and 'gemini' providers. Simplified assertions to focus on orchestration and tool calls rather than internal agent state.
 *   **(PH3-13):** Updated docs/architecture.md with Phase 3 structure (agents/, memory/, config/) and completion status. Added notes on multi-provider setup and hybrid LangGraph plan.
 *   **(PH3-13):** Documentation updated to reflect agent implementation and key strategic decisions made during Phase 3.
+
+---
+
+## 📅 Current Phase 4 – LangGraph Flow
+
+| ID        | Task                                                                       | Why / Acceptance Criteria                                                                                                                                                           |
+| :-------- | :------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [X]**PH4‑01** | **Define Graph State Schema (`src/graph/state.js`)**                       | Define the structure of the state object that will be passed between nodes (e.g., user input, agent outcome, slots, confirmed booking, history). Use Zod or simple objects.           | *Pass*: State schema/interface defined and exported. *(Started: 2025-04-28)* |
+| [ ]**PH4‑02** | **Implement Core Graph Nodes (`src/graph/nodes.js`)**                      | Create functions representing graph nodes: `callAgent` (invokes PH3 agent), `callFindSlotsTool`, `callStoreBookingTool`, `callSendWaiverTool`, `callResetStateTool`, etc. Each node receives state, performs action, returns updates to state. | *Pass*: Node functions implemented, accept state, call appropriate (mocked) tools/agent, return partial state update. Unit tests pass (using mocked state/tools). |
+| [ ]**PH4‑03** | **Implement Graph Conditional Edges (`src/graph/edges.js` or inline)**     | Define functions that determine the next node based on the current state (e.g., check agent action type, check if slots found).                                                  | *Pass*: Edge functions implemented, return correct next node name based on input state. Unit tests pass. |
+| [ ]**PH4‑04** | **Assemble Booking Graph (`src/graph/bookingGraph.js`)**                   | Use `langgraph` (`StateGraph`) to define the graph: add nodes (PH4-02), set entry/finish points, add conditional edges (PH4-03) based on booking conversation logic. Compile the graph. | *Pass*: Graph definition file created, compiles successfully (`graph.compile()`). |
+| [ ]**PH4‑05** | **(Hybrid Option) Explore LangGraph Studio**                               | *Optional:* Use LangGraph Studio to visually design the booking flow. Export the code/config. Compare/Integrate with manually coded graph (PH4-04). Refactor as needed.              | *Pass*: Studio explored, decision made whether to use its output, potentially refactored PH4-04. |
+| [ ]**PH4‑06** | **Implement Graph Execution Tests (`src/tests/graph/bookingGraph.test.js`)** | Create integration tests for the compiled graph (`graph.invoke` or `graph.stream`). Simulate user inputs over multiple turns, mock tool/agent responses within nodes, assert the graph transitions through expected states and reaches correct end points. Keep tests simple. | *Pass*: Graph execution tests cover key booking scenarios (happy path, cancellation path) using mocks. |
+| [ ]**PH4‑07** | **Test Coverage:**                                                         | Ensure Phase 4 modules (`graph/state.js`, `graph/nodes.js`, `graph/edges.js`, `graph/bookingGraph.js`) meet ≥ 90% coverage.                                                    | *Pass*: `npm test` coverage report confirms target. |
+| [ ]**PH4‑08** | **Update `docs/architecture.md`:**                                         | Add `src/graph/` directory structure. Add high-level description of the booking graph flow. Update Phase 4 status.                                                             |
+| [ ]**PH4‑09** | **Final Review:**                                                          | Tick all Phase 4 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                        |
+
+### 🚧 Discovered During Work
+*(Add new subtasks here, e.g., `PH4‑D1`)*
+
+### 💡 Insights & Decisions
+*(Explain graph state design, node/edge implementation choices, LangGraph Studio usage decision, graph testing strategy, etc.)*
 
 ### 🧪 Quick‑Run Commands
 
