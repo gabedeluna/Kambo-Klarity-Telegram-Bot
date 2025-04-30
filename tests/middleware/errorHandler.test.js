@@ -6,8 +6,8 @@ const request = require("supertest");
 const { expect } = require("chai");
 const sinon = require("sinon");
 const express = require("express");
-const AppError = require("../../errors/AppError");
-const NotFoundError = require("../../errors/NotFoundError");
+const AppError = require("../../src/errors/AppError");
+const NotFoundError = require("../../src/errors/NotFoundError");
 
 // Import the actual error handler but with a mocked logger
 const proxyquire = require("proxyquire").noCallThru();
@@ -28,7 +28,7 @@ describe("Error Handler Middleware", () => {
     };
 
     // Use proxyquire to inject our mock logger
-    errorHandler = proxyquire("../../middleware/errorHandler", {
+    errorHandler = proxyquire("../../src/middleware/errorHandler", {
       "../core/logger": mockLogger,
     });
 

@@ -2,28 +2,11 @@ const { expect } = require("chai");
 const sinon = require("sinon");
 const path = require("path");
 
-// Create a logger mock that we'll use for all tests
-const loggerMock = {
-  info: sinon.stub(),
-  error: sinon.stub(),
-  warn: sinon.stub(),
-  debug: sinon.stub(),
-  fatal: sinon.stub(),
-  trace: sinon.stub(),
-};
-
-// Ensure the logger mock is used by the prisma module
-const loggerPath = path.resolve(process.cwd(), "src/core/logger.js");
-
-// Override the logger module in the require cache
-require.cache[loggerPath] = {
-  id: loggerPath,
-  filename: loggerPath,
-  loaded: true,
-  exports: loggerMock,
-};
+// Import the actual logger
+const logger = require('../../src/core/logger');
 
 describe("Core Prisma Module", () => {
+  let sandbox;
   let processOnStub;
 
   // Check singleton logic once before all tests
@@ -35,16 +18,26 @@ describe("Core Prisma Module", () => {
   });
 
   beforeEach(() => {
-    // Stub process.on before each test that might interact with it
-    processOnStub = sinon.stub(process, "on");
+    // Use a sandbox
+    sandbox = sinon.createSandbox();
+    // Stub process.on
+    processOnStub = sandbox.stub(process, "on");
 
-    // Reset logger mock stubs
-    Object.values(loggerMock).forEach((stub) => stub.reset());
+    // Stub actual logger methods within the sandbox using sandbox.replace
+    sandbox.replace(logger, 'info', sandbox.stub());
+    sandbox.replace(logger, 'error', sandbox.stub());
+    sandbox.replace(logger, 'warn', sandbox.stub());
+    sandbox.replace(logger, 'debug', sandbox.stub());
+    sandbox.replace(logger, 'fatal', sandbox.stub());
+    sandbox.replace(logger, 'trace', sandbox.stub());
+    // If logger.child is used, stub it as well
+    // sandbox.replace(logger, 'child', sandbox.stub().returnsThis());
   });
 
   afterEach(() => {
-    sinon.restore();
-    // Clear the require cache after each test
+    // Restore using sandbox
+    sandbox.restore();
+    // Cache clearing IS needed for prisma tests to isolate module initialization
     delete require.cache[path.resolve(process.cwd(), "src/core/prisma.js")];
   });
 
@@ -110,15 +103,10 @@ describe("Core Prisma Module", () => {
     // Import PrismaClient for prototype stubbing
     const { PrismaClient } = require("@prisma/client");
     const mockError = new Error("DB disconnect failed");
-    let disconnectStub;
 
     try {
-      // Reset all stubs before this test
-      Object.values(loggerMock).forEach((stub) => stub.reset());
-      processOnStub.reset();
-
-      // Stub the PrismaClient.$disconnect method to reject with our mock error
-      disconnectStub = sinon
+      // Stub the PrismaClient.$disconnect method using the existing sandbox
+      const disconnectStub = sandbox
         .stub(PrismaClient.prototype, "$disconnect")
         .rejects(mockError);
 
@@ -132,7 +120,7 @@ describe("Core Prisma Module", () => {
       );
 
       // Set our logger mock directly on the prisma instance
-      prismaInstance.setLogger(loggerMock);
+      // prismaInstance.setLogger(loggerMock);
 
       // Find the registered listener from the processOnStub
       const beforeExitCall = processOnStub
@@ -153,15 +141,15 @@ describe("Core Prisma Module", () => {
       expect(disconnectStub.called, "$disconnect should be called").to.be.true;
 
       // Verify logger.error was called with the error object
-      expect(loggerMock.error.called, "logger.error should be called").to.be
+      expect(logger.error.called, "logger.error should be called").to.be
         .true;
       expect(
-        loggerMock.error.firstCall.args[0],
+        logger.error.firstCall.args[0],
         "First argument should be the error object",
       ).to.equal(mockError);
     } finally {
-      // Ensure stubs are restored even if assertions fail
-      if (disconnectStub) disconnectStub.restore();
+      // Remove manual stub restore - sandbox.restore() in afterEach handles it
+      // disconnectStub.restore();
     }
   });
 });

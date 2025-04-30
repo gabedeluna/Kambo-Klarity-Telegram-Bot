@@ -11,7 +11,7 @@ const {
   clearActiveSessionIdSchema,
   getUserProfileDataSchema,
   getUserPastSessionsSchema,
-} = require("../../tools/toolSchemas");
+} = require("../../src/tools/toolSchemas"); // Adjusted path
 
 // Mock dependencies
 const mockLogger = {
@@ -32,7 +32,7 @@ const mockPrisma = {
 };
 
 // Load the module under test using proxyquire to inject mocks
-const stateManager = proxyquire("../../tools/stateManager", {
+const stateManager = proxyquire("../../src/tools/stateManager", {
   "../core/prisma": mockPrisma,
   "../core/logger": mockLogger,
 });

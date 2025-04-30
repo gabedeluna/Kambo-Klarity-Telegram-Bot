@@ -20,6 +20,7 @@ const ALL_RELEVANT_KEYS = [
 
 describe("core/env Module", () => {
   let originalEnvValues = {};
+  let sandbox;
 
   beforeEach(() => {
     // Backup original values of relevant env vars
@@ -33,8 +34,10 @@ describe("core/env Module", () => {
     });
 
     // Clear cache for env module before each test
-    // Ensures that require('../../core/env') re-runs the initialization logic
-    delete require.cache[require.resolve("../../core/env")];
+    // Ensures that require('../../src/core/env') re-runs the initialization logic
+    delete require.cache[require.resolve("../../src/core/env")];
+
+    sandbox = sinon.createSandbox();
   });
 
   afterEach(() => {
@@ -47,8 +50,8 @@ describe("core/env Module", () => {
     });
 
     // Optional: Clear cache again just in case (might be redundant)
-    delete require.cache[require.resolve("../../core/env")];
-    sinon.restore();
+    delete require.cache[require.resolve("../../src/core/env")];
+    sandbox.restore();
   });
 
   const setupEnv = (presentVars) => {
@@ -81,7 +84,7 @@ describe("core/env Module", () => {
     setupEnv(["TG_TOKEN", "DATABASE_URL", "FORM_URL"]);
     process.env.PORT = "5432";
 
-    const config = require("../../core/env");
+    const config = require("../../src/core/env");
 
     expect(config).to.be.an("object");
     expect(config.tgToken).to.equal("mock_token");
@@ -97,8 +100,8 @@ describe("core/env Module", () => {
 
   it("should throw error if TG_TOKEN is missing", () => {
     setupEnv(["DATABASE_URL", "FORM_URL"]);
-    sinon.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../core/env");
+    sandbox.stub(dotenv, "config").returns({});
+    const path = require.resolve("../../src/core/env");
     expect(() => {
       delete require.cache[path];
       require(path);
@@ -110,8 +113,8 @@ describe("core/env Module", () => {
 
   it("should throw error if DATABASE_URL is missing", () => {
     setupEnv(["TG_TOKEN", "FORM_URL"]);
-    sinon.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../core/env");
+    sandbox.stub(dotenv, "config").returns({});
+    const path = require.resolve("../../src/core/env");
     expect(() => {
       delete require.cache[path];
       require(path);
@@ -123,8 +126,8 @@ describe("core/env Module", () => {
 
   it("should throw error if FORM_URL is missing", () => {
     setupEnv(["TG_TOKEN", "DATABASE_URL"]);
-    sinon.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../core/env");
+    sandbox.stub(dotenv, "config").returns({});
+    const path = require.resolve("../../src/core/env");
     expect(() => {
       delete require.cache[path];
       require(path);
@@ -136,8 +139,8 @@ describe("core/env Module", () => {
 
   it("should throw error if multiple required vars are missing", () => {
     setupEnv(["DATABASE_URL"]);
-    sinon.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../core/env");
+    sandbox.stub(dotenv, "config").returns({});
+    const path = require.resolve("../../src/core/env");
     expect(() => {
       delete require.cache[path];
       require(path);
@@ -151,7 +154,7 @@ describe("core/env Module", () => {
     setupEnv(["TG_TOKEN", "DATABASE_URL", "FORM_URL"]);
     delete process.env.PORT;
 
-    const config = require("../../core/env");
+    const config = require("../../src/core/env");
     expect(config.port).to.equal(3000);
   });
 
@@ -161,7 +164,7 @@ describe("core/env Module", () => {
     process.env.FORM_URL = "temp_form_url";
     process.env.PORT = "8080";
 
-    const config = require("../../core/env");
+    const config = require("../../src/core/env");
     expect(config.port).to.equal("8080");
   });
 });

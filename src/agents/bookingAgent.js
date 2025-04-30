@@ -310,7 +310,7 @@ async function runBookingAgent({ userInput, telegramId }) {
         { err, telegramId },
         "Error fetching user profile in runBookingAgent",
       );
-      return { success: false, error: "Failed to get user profile" };
+      return { success: false, error: `Failed to get user profile: ${err.message}` };
     }
 
     // --- 2. Fetch Past Sessions ---
@@ -450,8 +450,8 @@ async function runBookingAgent({ userInput, telegramId }) {
     if (typeof sessionId !== "undefined") {
       logContext.sessionId = sessionId;
     }
-    logger.error(logContext, "Agent execution failed");
-    return { success: false, error: "Agent execution failed" };
+    logger.error(logContext, "Error during agent execution");
+    return { success: false, error: `Agent execution failed: ${error.message}` };
   }
 }
 

@@ -1,5 +1,5 @@
 const request = require("supertest");
-const app = require("../app"); // Adjust path as necessary
+const app = require("../src/app"); // Adjusted path
 
 describe("Health Check Endpoint", () => {
   it("GET /health should return 200 OK", (done) => {

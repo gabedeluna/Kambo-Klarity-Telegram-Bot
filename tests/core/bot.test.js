@@ -3,8 +3,8 @@ const { Telegraf } = require("telegraf");
 
 describe("Core Bot Module", () => {
   // Require the module multiple times to test singleton pattern
-  const botInstance1 = require("../../core/bot");
-  const botInstance2 = require("../../core/bot");
+  const botInstance1 = require("../../src/core/bot");
+  const botInstance2 = require("../../src/core/bot");
 
   it("should export the same bot instance (singleton)", () => {
     expect(botInstance1).to.equal(

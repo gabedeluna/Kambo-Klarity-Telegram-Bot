@@ -42,10 +42,11 @@ The system must automate practitioner tasks, empower admins via Telegram, and pr
 *   **Web:** Express 4 – serves mini-apps and API routes
 *   **DB:** PostgreSQL via Prisma singleton `core/prisma.js`
 *   **AI:** LangChain JS + LangGraph, default LLM = OpenAI GPT-4
-*   **Testing:** Mocha + Chai + Sinon + Supertest + NYC (≥ 90 % coverage)
+*   **Testing:** **Mocha ≥ 10** with `--parallel`, Chai, **Sinon ≥ 15** (sandbox API), Supertest, NYC (≥ 90 % coverage),        `chai-as-promised`. 
 *   **Lint/Format:** ESLint (`recommended`) + Prettier, husky pre-commit
 *   **Logging:** **Pino** (or Winston) via singleton `core/logger.js`
 *   **AI Observability:** **LangSmith** (recommended)
+*   **Testing Mocks:** Manual Dependency Injection (via initialize pattern) + Sinon for stubs/spies.
 
 ---
 
@@ -140,6 +141,8 @@ prisma/
 | automations/*                 | Scheduled jobs (reminders, analysis, session end detection)                                          |
 | bin/set_admin.js              | Script to assign admin role via CLI                                                                  |
 | bin/set_default_commands.js   | Script to set default Telegram commands                                                              |
+|tests/helpers/sandbox.js       | exports `createSandbox()` wrapper around `sinon.createSandbox()` + `verifyAndRestore()` |  
+|tests/helpers/initMocks.js|    |convenience factory returning fresh mocks for *every* dependency per test  |
 
 ---
 
@@ -192,6 +195,20 @@ Sessions (Implicit): sessions table in DB stores details of booked/confirmed ses
 
 # 7.4 Tests
 (Scope expands to cover all new commands, tools, automations, and phases)
+### Unit Tests  
+* **Pattern:** Manual DI – every module exports `initialize(deps)` and a pure implementation. {index=13}  
+* **Isolation:** All spies/stubs live in a sandbox created in `beforeEach`, restored in `afterEach`. {index=14}  
+* **Assertion Helpers:**  
+  * `expect(logger.error).calledWith(sinon.match.object, <msg>)`.  
+  * `chai-as-promised` for async error checks.
+
+### Debug Playbook (agent-visible)  
+| Symptom | Quick Command | Next Step |
+|---------|--------------|-----------|
+| Multiple noisy failures | `npx mocha path/to/file.test.js --bail` | Narrow with `it.only()` |
+| Unexpected call count | Check sandbox leaks via `verifyAndRestore()` | Move mocks into `beforeEach` |
+| Async timeout | Confirm `await` chain, use fake timers | Advance clock manually |
+
 
 # 8 External Integrations
 Service	Purpose	Notes
@@ -204,22 +221,23 @@ Payment Processor	For Packages/Vouchers (optional, future)	e.g., Stripe, PayPal 
 Render	Application Hosting (Planned)	Hosts Node.js app, DB
 
 # 9 Testing & CI
-Unit: Mocha for functions, tools, command handlers, helpers (using mocking). Agent/Graph tests verify flow logic using mocked tools.
-Integration: Supertest spins up app on random port (tests routes, middleware).
+Unit: Mocha for functions, tools, command handlers, helpers. Use Manual Dependency Injection pattern (initialize function in modules accepting mocked dependencies like logger, prisma, bot) and Sinon stubs/spies to isolate units. Keep tests simple and focused.
+Integration: Supertest spins up app instance for routes/middleware tests. Agent/Graph tests verify flow logic using mocked tools/dependencies passed via DI.
 Coverage: NYC gate ≥ 90 % (for application code in src/). Add simple tests for coverage gaps, don't overcomplicate.
 Lint/Format: ESLint + Prettier, enforced in husky pre-commit.
 AI Testing: LangSmith evaluations (manual/automated) for agent/graph quality. Scenario tests for complex flows.
 
 # 10 Constraints & Conventions
-CommonJS, no TypeScript
-JSDoc for every exported symbol
-No file > 500 lines – split into helpers when near limit. Test files should also respect this limit conceptually; split if excessively complex. (Consider module.function.test.js pattern if needed).
-Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`…)
-Use structured logger (`core/logger.js`) instead of `console.log`.
+CommonJS, no TypeScript.
+JSDoc for every exported symbol.
+No file > 500 lines – split into helpers when near limit. Test files should also respect this limit conceptually; split if excessively complex.
+Commit messages follow Conventional Commits (feat:, fix:, docs:, test:, chore:…).
+Use structured logger (core/logger.js) instead of console.log in application code.
 Handle errors gracefully (custom errors, centralized handler).
-Testing Dependency Injection:** Use **`proxyquire`** to inject mocked dependencies (like logger, prisma client) into modules during unit/integration testing to ensure isolation and verify interactions. *(Alternatively, or where appropriate, setter injection may be used, especially for testing singleton behavior itself).
-Prioritize Simplicity in Tests: Focus on primary outcomes and observable behavior. Avoid excessive mocking or overly complex assertions. (See Guideline).
+Dependency Injection: Use Manual DI pattern. Modules requiring dependencies (logger, prisma, bot, config, other tools) should export an initialize(dependencies) function and store received dependencies in module scope. Main application/test setup is responsible for calling initialize with appropriate (real or mock) dependencies. 
+Prioritize Simplicity in Tests: Focus on primary outcomes and observable behavior. Avoid excessive mocking or overly complex assertions.
 Prioritize user privacy and data security in all features.
+ **No single test file > 400 LOC** to keep review readable.
 
 # 11 Feature Details & Explanations
 (Existing explanations for Structured Logging, Cancellation Logic, Centralized Error Handling, Ask Veteran/Responder Status, Basic Intelligent Scheduling Suggestions, LangSmith Integration, Conversation Memory Implementation, Core Update Router, Server Merge, Designate Admin, Role-Based Command Routing, DB-Based Session Types, Client/Session List Commands, Admin Availability Management, Admin Mini-App v1, AI Analysis & Prep, Client Features v1, Admin Features v2, AI Dynamic Scheduling remain relevant)
@@ -460,4 +478,4 @@ Community Features: Opt-in group chats, shared resource libraries within Telegra
 Admin dashboard: Treat as its own complete program that we will start on after everything else is in place and we can focus on just that. Increasing functionality and and ease of use will be the main focus. Creating a power admin to really be able to form a community around this and communicate with that community. To provide incredible value to the community and practitioners. Not putting in features to just fluff it up. Putting in features that once experienced, will become a must have. This app is a community builder. That is the mantra. 
 
 # 13 Document Version
-v6 (2025-04-25): Refined cancellation logic, clarified LangGraph Studio approach, updated roadmap/module responsibilities slightly, added setup scripts to layout.
+v8 (2025-04-28): Formalized use of Manual Dependency Injection (via initialize) over proxyquire for testing. Updated tech stack/testing sections.

@@ -41,14 +41,14 @@ const errorHandler = (err, req, res, next) => {
 
   // Determine status code
   let statusCode = 500;
-  if (err instanceof AppError && err.isOperational) {
-    statusCode = err.statusCode;
+  if (err.isOperational) { // Trust operational errors
+    statusCode = err.statusCode || 500; // Use error's code, default 500 if missing
   }
   // Potentially handle specific built-in error types here too if needed
 
   // Determine response message
   const message =
-    err instanceof AppError && err.isOperational
+    err.isOperational
       ? err.message
       : "Internal Server Error";
 

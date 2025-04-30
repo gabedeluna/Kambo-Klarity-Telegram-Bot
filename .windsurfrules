@@ -38,6 +38,51 @@ Tests live in /tests, mirroring the main folder structure. Each new feature need
 
 Run tests with npm test; a change is not done until tests pass and coverage ≥ 90 %.
 
+## 1 Error-Handling Assertions
+1.1 Implementation code must propagate the underlying error text, e.g.
+throw new Error(`Agent execution failed: ${err.message}`);
+
+1.2 Tests assert on the dynamic part with regex:
+await expect(runBookingAgent()).to.be.rejectedWith(/Agent execution failed: .+/);
+ 
+
+## 2 Logger / Spy Assertions  
+2.1 Always match *both* positional arguments:  
+```js
+expect(logger.error)
+  .to.have.been.calledWith(sinon.match.object, 'human-readable message');
+```   
+
+2.2 Prefer `sinon.match.*` helpers to brittle string regexes. 
+
+## 3 Mock & Stub Hygiene  
+3.1 Create **all** fakes inside `beforeEach` *or* a Sinon sandbox; never at module scope.  
+3.2 Restore via `sandbox.verifyAndRestore()` in `afterEach` to catch leaks early.  
+3.3 If the SUT caches dependencies (e.g., `initializeNodes`), inject brand-new mocks every test.
+
+## 4 Isolation  
+Debug flow:
+
+--bail to stop on first failure.
+
+it.only() or --grep to narrow scope. 
+
+
+## 5 Dependency Injection
+5.1 All modules expose initialize(deps); tests pass stubs, prod passes singletons. 
+
+5.2 Absolutely no require()-time side-effects outside initializers.
+
+## 6 Coverage Gates
+6.1 nyc check-coverage --lines 90 --branches 80 runs in CI; build fails if below thresholds. 
+
+
+6.2 For legacy code < threshold, mark files /* istanbul ignore file */ and create a ticket.
+
+## 7 Time-Sensitive Code
+7.1 Use sinon.useFakeTimers() per test and advance explicitly; restore in afterEach. 
+
+
 # ✅ Task Completion # 
 Tick the box in TASK.md immediately after finishing a task.
 

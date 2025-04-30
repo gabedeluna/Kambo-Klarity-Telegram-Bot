@@ -2,37 +2,34 @@ const { expect } = require("chai");
 const fs = require("fs");
 const sinon = require("sinon");
 
-// Mock the logger before requiring sessionTypes
-const loggerMock = {
-  info: sinon.stub(),
-  error: sinon.stub(),
-  warn: sinon.stub(),
-  debug: sinon.stub(),
-  fatal: sinon.stub(),
-  trace: sinon.stub(),
-};
-
-// Use this to avoid circular dependencies when testing
-require.cache[require.resolve("../../core/logger")] = {
-  exports: loggerMock,
-};
+// Import the actual logger
+const logger = require('../../src/core/logger');
 
 // Import specific functions including the loader
 const {
   getAll,
   getById,
   _loadSessionTypes,
-} = require("../../core/sessionTypes");
+} = require("../../src/core/sessionTypes");
 
 describe("Session Types Helper", () => {
+  let sandbox;
+
   beforeEach(() => {
-    // Restore any stubs/spies before each test
-    sinon.restore();
+    // Use a sandbox
+    sandbox = sinon.createSandbox();
+    // Use sandbox.replace for more robust stubbing across cache interactions
+    sandbox.replace(logger, 'info', sandbox.stub());
+    sandbox.replace(logger, 'error', sandbox.stub());
+    sandbox.replace(logger, 'warn', sandbox.stub());
+    sandbox.replace(logger, 'debug', sandbox.stub());
+    sandbox.replace(logger, 'fatal', sandbox.stub());
+    sandbox.replace(logger, 'trace', sandbox.stub());
   });
 
   afterEach(() => {
-    // Clean up stubs/spies after each test
-    sinon.restore();
+    // Clean up stubs/spies after each test using the sandbox
+    sandbox.restore();
   });
 
   // --- Test Public API under normal conditions ---
@@ -90,12 +87,14 @@ describe("Session Types Helper", () => {
     let readFileSyncStub;
 
     beforeEach(() => {
-      // Reset logger mock stubs
-      Object.values(loggerMock).forEach((stub) => stub.reset());
-
       // Stub fs functions used by _loadSessionTypes
       existsSyncStub = sinon.stub(fs, "existsSync");
       readFileSyncStub = sinon.stub(fs, "readFileSync");
+    });
+
+    afterEach(() => {
+      existsSyncStub.restore();
+      readFileSyncStub.restore();
     });
 
     it("should return empty array and log error if file does not exist", () => {
@@ -106,8 +105,8 @@ describe("Session Types Helper", () => {
       expect(types).to.be.an("array").that.is.empty;
       expect(existsSyncStub.calledOnce).to.be.true;
       expect(readFileSyncStub.called).to.be.false; // Shouldn't try to read
-      expect(loggerMock.error.calledOnce).to.be.true;
-      expect(loggerMock.error.firstCall.args[0]).to.include("file not found");
+      expect(logger.error.calledOnce).to.be.true;
+      expect(logger.error.firstCall.args[0]).to.include("file not found");
     });
 
     it("should return empty array and log error if file content is not an array", () => {
@@ -119,8 +118,8 @@ describe("Session Types Helper", () => {
       expect(types).to.be.an("array").that.is.empty;
       expect(existsSyncStub.calledOnce).to.be.true;
       expect(readFileSyncStub.calledOnce).to.be.true;
-      expect(loggerMock.error.calledOnce).to.be.true;
-      expect(loggerMock.error.firstCall.args[0]).to.include(
+      expect(logger.error.calledOnce).to.be.true;
+      expect(logger.error.firstCall.args[0]).to.include(
         "Expected an array",
       );
     });
@@ -135,9 +134,9 @@ describe("Session Types Helper", () => {
       expect(types).to.be.an("array").that.is.empty;
       expect(existsSyncStub.calledOnce).to.be.true;
       expect(readFileSyncStub.calledOnce).to.be.true;
-      expect(loggerMock.error.calledOnce).to.be.true;
-      expect(loggerMock.error.firstCall.args[0]).to.equal(mockError);
-      expect(loggerMock.error.firstCall.args[1]).to.include(
+      expect(logger.error.calledOnce).to.be.true;
+      expect(logger.error.firstCall.args[0]).to.equal(mockError);
+      expect(logger.error.firstCall.args[1]).to.include(
         "Error loading session types",
       );
     });
@@ -151,11 +150,11 @@ describe("Session Types Helper", () => {
       expect(types).to.be.an("array").that.is.empty;
       expect(existsSyncStub.calledOnce).to.be.true;
       expect(readFileSyncStub.calledOnce).to.be.true;
-      expect(loggerMock.error.calledOnce).to.be.true;
+      expect(logger.error.calledOnce).to.be.true;
       // Check that the caught error is likely a SyntaxError
-      expect(loggerMock.error.firstCall.args[0]).to.be.instanceOf(Error);
-      expect(loggerMock.error.firstCall.args[0].name).to.equal("SyntaxError");
-      expect(loggerMock.error.firstCall.args[1]).to.include(
+      expect(logger.error.firstCall.args[0]).to.be.instanceOf(Error);
+      expect(logger.error.firstCall.args[0].name).to.equal("SyntaxError");
+      expect(logger.error.firstCall.args[1]).to.include(
         "Error loading session types",
       );
     });

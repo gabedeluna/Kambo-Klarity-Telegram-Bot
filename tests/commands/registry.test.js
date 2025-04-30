@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
-const registry = require("../../commands/registry");
+const registry = require("../../src/commands/registry");
 
 describe("Command Registry (src/commands/registry.js)", () => {
   it("should export an object with client and admin keys", () => {

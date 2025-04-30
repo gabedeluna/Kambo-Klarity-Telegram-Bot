@@ -152,7 +152,7 @@ describe("Booking Agent - Integration Tests", () => {
 
         // Use proxyquire to load the agent with mocks
         const mockAgent = { runnable: true }; // Simple mock object for the agent itself
-        bookingAgent = proxyquire("../../agents/bookingAgent", {
+        bookingAgent = proxyquire("../../src/agents/bookingAgent", {
           // Mock LangChain components - adjust paths based on actual usage in bookingAgent.js
           "@langchain/openai": { ChatOpenAI: sinon.stub().returns(mockLLM) },
           "@langchain/google-genai": {
@@ -348,9 +348,8 @@ describe("Booking Agent - Integration Tests", () => {
 
       it(`runBookingAgent should handle stateManager profile fetch failure with ${provider}`, async () => {
         // Arrange
-        mockStateManager.getUserProfileData.rejects(
-          new Error("Database connection failed"),
-        );
+        const mockError = new Error("Database connection failed");
+        mockStateManager.getUserProfileData.rejects(mockError);
         mockLogger.error = sinon.stub(); // Spy on logger error
 
         // Act
@@ -361,10 +360,38 @@ describe("Booking Agent - Integration Tests", () => {
 
         // Assert
         expect(result.success).to.be.false;
-        expect(result.error).to.equal("Failed to get user profile"); // Match the actual error message
+        expect(result.error).to.equal(`Failed to get user profile: ${mockError.message}`);
         expect(mockLogger.error).to.have.been.called; // Just check if error was logged
         expect(mockAgentExecutor.invoke).to.not.have.been.called;
       });
+
+      it(`runBookingAgent should handle agent executor failure gracefully with ${provider}`, async () => {
+        // Arrange
+        const agentErrorMessage = "Mock agent error";
+        // Ensure user profile/session setup succeeds
+        mockStateManager.getUserProfileData.resolves({
+          success: true,
+          data: { first_name: 'Test', telegram_id: '123', active_session_id: 'session-ok' }
+        });
+        mockStateManager.getUserPastSessions.resolves({ success: true, data: [] });
+        // Make the executor invocation fail
+        const mockError = new Error(agentErrorMessage);
+        mockAgentExecutor.invoke.rejects(mockError);
+
+        // Act
+        const result = await bookingAgent.runBookingAgent({
+          userInput: "This will fail",
+          telegramId: "123",
+        });
+
+        // Assert
+        expect(result.success).to.be.false;
+        expect(result.error).to.equal(`Agent execution failed: ${mockError.message}`);
+        // Check that error was logged with context object and specific message string
+        expect(mockLogger.error).to.have.been.calledWith(sinon.match.object, 'Error during agent execution');
+        expect(mockAgentExecutor.invoke).to.have.been.calledOnce; // Should still be called once
+      });
+
     }); // End describe for provider
   }); // End providers.forEach
 });

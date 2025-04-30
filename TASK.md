@@ -52,7 +52,8 @@
 *   **PH1-D26 (PH1-12):** Created/Updated docs/architecture.md with current folder structure and Phase 1 completion status.
 
 ### 💡 Insights & Decisions
-*Explain architectural choices or hurdles encountered.**   **(PH1-05):** Skipped advanced unit test using Sinon to mock `process.exit` for missing token in `core/bot.js` due to potential complexity; noted as future enhancement.
+*Explain architectural choices or hurdles encountered.*
+*   **(PH1-05):** Skipped advanced unit test using Sinon to mock `process.exit` for missing token in `core/bot.js` due to potential complexity; noted as future enhancement.
 *   **(PH1-05):** Tests for `core/bot.js` pass, but pre-existing tests in `core/env.test.js` are failing due to reliance on specific test values not present when loading real secrets from `.env`. These need separate investigation (new task?).
 *   **(PH1-06):** Exporting the configured Express `app` instance from `app.js` allows it to be easily imported for both server startup (`bin/server.js`) and integration testing (`tests/app.test.js`), promoting separation of concerns.
 *   **(PH1-02/07):** Separated Express app definition (`src/app.js`) from server execution (`bin/server.js`) to allow easier testing of the app instance without actually starting a listening server.
@@ -61,8 +62,6 @@
 *   **(PH1-09):** Externalized session type data into JSON config (`src/config/sessionTypes.json`), improving maintainability. Helper module (`src/core/sessionTypes.js`) encapsulates file reading logic. Tests (`src/tests/core/sessionTypes.test.js`) validate both schema and helper functions.
 *   **PH1-11:** Automated pre-commit checks enforce quality standards (testing, linting, formatting) consistently, preventing bad commits. Modern Husky versions might require manual `core.hooksPath` configuration and header lines in hook script despite deprecation warnings.
 *   **(PH1-12):** Keeping architecture documentation aligned with code is crucial for project understanding.
-
----
 
 ---
 
@@ -164,65 +163,13 @@
 
 ---
 
-## 📅 Current Phase 3 – Agent & Memory
-
-| ID        | Task                                                                    | Why / Acceptance Criteria                                                                                                                               |
-| :-------- | :---------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [X]**PH3‑01** | **Setup LangSmith Tracing**                                             | Enable observability into agent execution via LangSmith UI. *Pass*: Set env vars. Verification via LangSmith UI later. |
-| [X]**PH3‑02** | **Implement Session-Based Conversation Memory (`src/memory/`)**         | Provide agent with short-term memory for coherent conversations, keyed by session ID. *Pass*: `active_session_id` added to User, `stateManager` tools updated, `sessionMemory.js` created (in-memory), tests pass. |
-| [X]**PH3‑03** | **Install/Verify LangChain OpenAI dependency**                          | Ensure necessary package (`@langchain/openai`) is available for the agent. *Pass*: Package present in `package.json`. |
-| [X]**PH3‑04** | **Define Agent Core Prompt (`src/config/agentPrompts.js`)**             | Create initial system prompt for OpenAI Functions agent (booking role, rules, personality, tool awareness, **handling cancellation *during* booking flow only**). *Pass*: Prompt file created, clearly defines agent behavior for booking flow. |
-| [X]**PH3‑05** | **Structure Tools for OpenAI Functions Agent**                          | Ensure existing tool Zod schemas (PH2-11) are correctly formatted/adapted for the OpenAI Functions agent framework (e.g., using LangChain helpers if needed). *Pass*: Tools can be successfully bound to the agent framework. |
-| [X]**PH3‑06** | **Create OpenAI Functions Agent Executor (`src/agents/bookingAgent.js`)** | Implement core agent logic using LangChain `createOpenAIFunctionsAgent`, wiring LLM, prompt (PH3-04), tools (stubs), and memory (PH3-02). *Pass*: Agent module created, basic runnable sequence defined. |
-| [X]**PH3‑07 (2025-04-26)** | **Tool: Add `getUserProfileData` & `getUserPastSessions` to `stateManager.js`** | Implement tools to fetch user profile (name, state etc.) and past completed session dates. Add Zod schemas & unit tests. *Pass*: Tools implemented & tested. |
-| [X]**PH3‑08** | **Enhance Agent for Intelligent Suggestions & Context**                 | Update `runBookingAgent` (PH3-06) to use PH3-07 tools: fetch user data, format prompt dynamically, use `active_session_id` for memory. Update prompt (PH3-04) if needed based on fetched data structure. *Pass*: Agent uses real user data for prompt/memory, attempts suggestions based on history/profile. |
-| [X]**PH3‑09** | **Implement Basic Agent Unit/Integration Tests**                        | Verify agent follows simple instructions, invokes mocked tools correctly (incl. suggestions based on mock profile/history, cancellation path). *Pass*: Test suite created (`tests/agents/bookingAgent.test.js`), basic turns & tool calls tested (keep tests simple). |
-| [X]**PH3‑10** | **Refactor Agent for Multi-Provider Support (OpenAI/Gemini)**          | Modify agent setup to support OpenAI GPT-4T & Gemini 1.5 Flash via `AI_PROVIDER` env var. Use `createToolCallingAgent`. Update dependencies & env validation. | *Pass*: Agent initializes correct LLM based on env var, uses standard agent constructor. Tests adapted. |
-| [X]**PH3‑11** | **Refine Agent Tests for Multi-Provider Verification** | Refactor agent tests to verify core functionality works correctly when configured for either OpenAI or Gemini providers, using mocking. |structure tests for easy switching). Keep tests simple.          | *Pass*: Tests confirm basic flows work regardless of mocked provider. |
-| [X]**PH3‑12** | **Test Coverage:**                                                     | Ensure Phase 3 modules meet ≥ 90% coverage after refactoring.                                                                                             | *Pass*: `npm test` coverage report confirms target. |
-| [X]**PH3‑13** | **Update `docs/architecture.md`:**                                     | Add new directories (`agents/`, `memory/`, `config/`) and key files created in Phase 3. Update status section for Phase 3 progress. |
-> *Completion Note (PH3-13): Updated docs/architecture.md with Phase 3 structure (agents/, memory/, config/) and completion status. Added notes on multi-provider setup and hybrid LangGraph plan.*
-| [X]**PH3‑14** | **Final Review:**                                                      | Tick all Phase 3 task boxes here when done and ensure Discoveries/Insights are recorded.                      
-
-### 🚧 Discovered During Work
-*(Add new subtasks here, e.g., `PH3‑D1`)*
-*   **(PH3-01):** Added LangSmith environment variables (LANGCHAIN_TRACING_V2, LANGCHAIN_API_KEY) to .env. Ensured .env is in .gitignore.
-*   **(PH3-02):** Added `active_session_id` (String?) to User model in Prisma schema. Ran `prisma migrate dev`. Added `setActiveSessionId` and `clearActiveSessionId` functions to `stateManager.js` tool and corresponding Zod schemas to `toolSchemas.js`. Created `src/memory/sessionMemory.js` implementing in-memory BufferMemory manager keyed by `sessionId`. Added/updated unit tests for stateManager and sessionMemory.
-*   **(PH3-03):** Verified/Installed @langchain/openai dependency.
-*   **(PH3-05):** Realized the need to handle BigInt conversion carefully for `telegramId` in `stateManager`. Decided to centralize Zod schemas in PH2-11 proved beneficial. Ensured tool functions have clear JSDoc descriptions for the agent. Confirmed Zod schemas are ready for LangChain StructuredTool integration.
-*   **(PH3-06):** Agent executor setup provides the core conversational loop. Using OpenAI Functions agent leverages LLM's ability to call tools with structured args. Deferred dynamic context fetching/session ID logic to keep initial setup focused.
-*   **(PH3-06):** Implemented agent executor using `createOpenAIFunctionsAgent`, wiring LLM, prompt, memory, and tools.
-*   **(PH3-06):** Used `StructuredTool` to wrap tool functions/schemas, including adapters for functions expecting multiple arguments (`updateUserState`, `storeBookingData`).
-*   **(PH3-06):** Temporarily used `telegramId` for memory key and static prompt values (pending PH3-07 tool).
-*   **(PH3-07):** Added `getUserProfileData` and `getUserPastSessions` tools to stateManager.js. Added corresponding Zod schemas to toolSchemas.js. Added comprehensive unit tests covering different scenarios (user found, user not found, database errors, validation).
-*   **(PH3-08):** Updated booking system prompt to use fetched user/session data. Modified runBookingAgent to call data tools, manage session ID, and format prompt dynamically. Added basic summary logic for past sessions. Added uuid dependency.
-*   **(PH3-08):** Used `getUserProfileData` and `getUserPastSessions` tools to fetch user data and format prompt dynamically.
-*   **(PH3-09):** Created basic integration tests for bookingAgent. Used proxyquire for extensive mocking of LLM/Executor, tools, memory. Tests verify core orchestration, tool invocation checks (simplified), and handling of context like first-time user acknowledgment.
-
-### 💡 Insights & Decisions
-*(Explain memory choice, agent type choice, prompt design, testing strategy for agents, etc.)*
-*   **(PH3-01):** Enabled LangSmith tracing via environment variables for enhanced AI observability, crucial for debugging agent behavior. Verification will occur during agent testing.
-*   **(PH3-02):** Opted for `sessionId` keying for memory from the start for better concurrent flow isolation. Requires managing active session state via DB field (`active_session_id`). Kept history storage in-memory for now, persistent storage is a future task.
-*   **Cancellation Logic:** Decided to handle cancellation *during* the booking flow (pre-waiver) within the Agent/Graph logic (using `resetUserState` and potentially deleting a *transient* GCal event), while cancellation of *confirmed* sessions will be handled by a dedicated `/cancel` command (Phase 10) interacting with the DB and live GCal API.
-*   **(PH3-05):** Centralized schema definition in PH2-11 proved beneficial. Ensured tool functions have clear JSDoc descriptions for the agent. Confirmed Zod schemas are ready for LangChain StructuredTool integration.
-*   **(PH3-07):** Implemented necessary tools for agent context/personalization. `getUserPastSessions` filters for COMPLETED status and limits results to 5 most recent sessions to provide relevant history without overwhelming the agent. Both tools follow the established pattern of input validation, structured logging, and consistent error handling.
-*   **(PH3-06):** Agent executor setup provides the core conversational loop. Using OpenAI Functions agent leverages LLM's ability to call tools with structured args. Deferred dynamic context fetching/session ID logic to keep initial setup focused.
-*   **(PH3-08):** Agent now uses dynamic user context for personalization and memory. Prompt guides agent on using past session history or acknowledging first-timers. Session ID management links state to memory. Dynamic context and memory guidance enable the agent to provide more personalized and relevant responses.
-*   **(PH3-10):** Refactored booking agent to support both OpenAI and Google Gemini models via environment variable. Used `createToolCallingAgent` which works with both providers, replacing the OpenAI-specific `createOpenAIFunctionsAgent`. Enhanced environment validation to conditionally require API keys based on selected provider. Updated tests to support both providers while maintaining backward compatibility.
-*   **(PH3-11):** Parametrized testing structure verifies multi-provider compatibility efficiently. Mocking the AgentExecutor directly simplifies testing the agent runner logic.
-*   **(PH3-11):** Refactored agent tests using a loop to run core scenarios against mocks configured for both 'openai' and 'gemini' providers. Simplified assertions to focus on orchestration and tool calls rather than internal agent state.
-*   **(PH3-13):** Updated docs/architecture.md with Phase 3 structure (agents/, memory/, config/) and completion status. Added notes on multi-provider setup and hybrid LangGraph plan.
-*   **(PH3-13):** Documentation updated to reflect agent implementation and key strategic decisions made during Phase 3.
-
----
-
 ## 📅 Current Phase 4 – LangGraph Flow
 
 | ID        | Task                                                                       | Why / Acceptance Criteria                                                                                                                                                           |
 | :-------- | :------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [X]**PH4‑01** | **Define Graph State Schema (`src/graph/state.js`)**                       | Define the structure of the state object that will be passed between nodes (e.g., user input, agent outcome, slots, confirmed booking, history). Use Zod or simple objects.           | *Pass*: State schema/interface defined and exported. *(Started: 2025-04-28)* |
-| [ ]**PH4‑02** | **Implement Core Graph Nodes (`src/graph/nodes.js`)**                      | Create functions representing graph nodes: `callAgent` (invokes PH3 agent), `callFindSlotsTool`, `callStoreBookingTool`, `callSendWaiverTool`, `callResetStateTool`, etc. Each node receives state, performs action, returns updates to state. | *Pass*: Node functions implemented, accept state, call appropriate (mocked) tools/agent, return partial state update. Unit tests pass (using mocked state/tools). |
-| [ ]**PH4‑03** | **Implement Graph Conditional Edges (`src/graph/edges.js` or inline)**     | Define functions that determine the next node based on the current state (e.g., check agent action type, check if slots found).                                                  | *Pass*: Edge functions implemented, return correct next node name based on input state. Unit tests pass. |
+| [X]**PH4‑02** | **Implement Core Graph Nodes (`src/graph/nodes.js`)**                      | Create functions representing graph nodes: `callAgent` (invokes PH3 agent), `callFindSlotsTool`, `callStoreBookingTool`, `callSendWaiverTool`, `callResetStateTool`, etc. Each node receives state, performs action, returns updates to state. | *Pass*: Node functions implemented, accept state, call appropriate (mocked) tools/agent, return partial state update. Unit tests pass (using mocked state/tools). |
+| [X]**PH4‑03** | **Implement Graph Conditional Edges (`src/graph/edges.js` or inline)**     | Define functions that determine the next node based on the current state (e.g., check agent action type, check if slots found).                                                  | *Pass*: Edge functions implemented, return correct next node name based on input state. Unit tests pass. |
 | [ ]**PH4‑04** | **Assemble Booking Graph (`src/graph/bookingGraph.js`)**                   | Use `langgraph` (`StateGraph`) to define the graph: add nodes (PH4-02), set entry/finish points, add conditional edges (PH4-03) based on booking conversation logic. Compile the graph. | *Pass*: Graph definition file created, compiles successfully (`graph.compile()`). |
 | [ ]**PH4‑05** | **(Hybrid Option) Explore LangGraph Studio**                               | *Optional:* Use LangGraph Studio to visually design the booking flow. Export the code/config. Compare/Integrate with manually coded graph (PH4-04). Refactor as needed.              | *Pass*: Studio explored, decision made whether to use its output, potentially refactored PH4-04. |
 | [ ]**PH4‑06** | **Implement Graph Execution Tests (`src/tests/graph/bookingGraph.test.js`)** | Create integration tests for the compiled graph (`graph.invoke` or `graph.stream`). Simulate user inputs over multiple turns, mock tool/agent responses within nodes, assert the graph transitions through expected states and reaches correct end points. Keep tests simple. | *Pass*: Graph execution tests cover key booking scenarios (happy path, cancellation path) using mocks. |
@@ -232,9 +179,24 @@
 
 ### 🚧 Discovered During Work
 *(Add new subtasks here, e.g., `PH4‑D1`)*
+*   **PH4-D1 (Relates to PH4-01/02):** Fixed multiple failing tests in `bookingAgent.test.js` and `nodes.test.js` that were blocking progress on defining and testing the graph structure. See insights below.
 
 ### 💡 Insights & Decisions
 *(Explain graph state design, node/edge implementation choices, LangGraph Studio usage decision, graph testing strategy, etc.)*
+*   **(PH4-D1) Debugging Failing Agent/Graph Tests:** Encountered several interconnected issues causing test failures in `bookingAgent.test.js` and `nodes.test.js`. The resolution process highlighted key testing best practices:
+    1.  **Error Message Specificity:** Initial failures in `bookingAgent.test.js` occurred because tests asserted generic error messages (e.g., `Agent execution failed`), while the actual implementation correctly returned more specific messages incorporating the underlying error (e.g., `` `Agent execution failed: ${error.message}` ``). 
+        *   **Solution:** Updated the `runBookingAgent` function in `src/agents/bookingAgent.js` to return the detailed error messages from its `catch` blocks. Corresponding test assertions in `bookingAgent.test.js` were already correct in expecting the detailed format.
+    2.  **Logger Assertion Nuances (Sinon):** After fixing error messages, further failures occurred in `bookingAgent.test.js` related to logger assertions. The code called `logger.error(contextObject, messageString)`, but the test used `expect(logger.error).to.have.been.calledWithMatch(/messageString/)`. This failed because `calledWithMatch` attempts to match the *first* argument (the object) against the regex.
+        *   **Solution:** Modified the assertion to `expect(logger.error).to.have.been.calledWith(sinon.match.object, 'messageString')`, explicitly checking the second argument for the expected string and using `sinon.match.object` for the first.
+    3.  **Test Isolation & Mock Scope:** Tests in `nodes.test.js` produced garbled output and failed due to test interference, specifically call count mismatches (`called twice` instead of `once`). This occurred despite using `sinon.restore()` in `afterEach`. The root cause was that mock objects (like `mockBookingAgent`) were defined at the top level of the test file and reused across all tests. While `sinon.restore()` detaches Sinon from the *original* functions, the module-level variables in `src/graph/nodes.js` still held references to the *same shared mock objects* via `initializeNodes` being called in `beforeEach`.
+        *   **Solution:** Refactored `nodes.test.js` to move the creation of all mock objects (`mockLogger`, `mockBookingAgent`, `mockStateManager`, etc.) *inside* the `beforeEach` hook. This ensures each test runs with completely fresh, isolated mocks, preventing state leakage and interference between tests. Running `initializeNodes(freshMocks)` in `beforeEach` is now safe.
+    4.  **Debugging Strategy:**
+        *   Run individual failing test files (`npx mocha path/to/test.js`) to get cleaner output.
+        *   If output is still garbled or suggests interference, use `.only` on the specific failing `it(...)` block (`it.only(...)`) to isolate it completely.
+        *   If an isolated test passes but fails with others, use the `--bail` flag (`npx mocha ... --bail`) to stop on the *first* failure and examine its output without noise from subsequent failures.
+        *   Pay close attention to Sinon error messages (e.g., `called X times` vs. `expected Y times`) as they pinpoint the exact assertion failing.
+        *   When debugging test isolation issues, meticulously check the scope and lifecycle of mocks and stubs. Ensure they are properly reset *and* that the system under test receives fresh instances if necessary (as was the case with `initializeNodes`).
+
 
 ### 🧪 Quick‑Run Commands
 

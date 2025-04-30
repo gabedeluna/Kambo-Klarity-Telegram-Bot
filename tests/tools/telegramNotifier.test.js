@@ -11,7 +11,7 @@ const { z } = require("zod"); // Import Zod
 const {
   sendWaiverLinkSchema,
   sendTextMessageSchema,
-} = require("../../tools/toolSchemas");
+} = require("../../src/tools/toolSchemas");
 
 // Mock dependencies - TOP LEVEL
 const mockLogger = {
@@ -87,7 +87,7 @@ describe("Telegram Notifier Tool", () => {
     const configMock = { FORM_URL: "dummy-form-url" };
 
     // Use proxyquire with ALL necessary mocks and CORRECT paths
-    const notifierModule = proxyquire("../../tools/telegramNotifier", {
+    const notifierModule = proxyquire("../../src/tools/telegramNotifier", {
       "../../core/bot": { bot: mockBot },
       "../../core/logger": mockLogger,
       "../../core/prisma": mockPrisma, // Provide prisma mock
@@ -117,7 +117,7 @@ describe("Telegram Notifier Tool", () => {
   describe("initialize", function () {
     it("should throw an error if dependencies are missing", function () {
       // Create a new instance of the module to avoid affecting other tests
-      const notifierModule = proxyquire("../../tools/telegramNotifier", {
+      const notifierModule = proxyquire("../../src/tools/telegramNotifier", {
         "../../core/bot": { bot: mockBot },
         "../../core/logger": mockLogger,
         "../../core/prisma": mockPrisma,
@@ -244,7 +244,7 @@ describe("Telegram Notifier Tool", () => {
 
     it("should return error when tool is not initialized", async function () {
       // Create a new uninitalized instance of the module
-      const uninitializedNotifier = proxyquire("../../tools/telegramNotifier", {
+      const uninitializedNotifier = proxyquire("../../src/tools/telegramNotifier", {
         "../../core/bot": { bot: null },
         "../../core/logger": null,
         "../../core/prisma": null,
@@ -380,7 +380,7 @@ describe("Telegram Notifier Tool", () => {
 
     it("should return error when tool is not initialized", async function () {
       // Create a new uninitalized instance of the module
-      const uninitializedNotifier = proxyquire("../../tools/telegramNotifier", {
+      const uninitializedNotifier = proxyquire("../../src/tools/telegramNotifier", {
         "../../core/bot": { bot: null },
         "../../core/logger": null,
         "../../core/prisma": null,

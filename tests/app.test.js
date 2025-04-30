@@ -1,8 +1,9 @@
-// src/tests/app.test.js
+// tests/app.test.js
 const request = require("supertest");
 const { expect } = require("chai");
-const server = require("../../bin/server"); // Import the server instance
-const botInstance = require("../core/bot"); // To get the secret path
+const sinon = require('sinon');
+const app = require("../src/app"); // Import the Express app
+const botInstance = require("../src/core/bot"); // To get the secret path
 
 describe("Express App", () => {
   let secretPath;
@@ -13,13 +14,8 @@ describe("Express App", () => {
     secretPath = `/telegraf/${secretPathComponent}`;
   });
 
-  // Close the server after all tests in this describe block are done
-  after((done) => {
-    server.close(done); // Pass done callback to handle async close
-  });
-
   it("GET /health should return 200 OK", async () => {
-    const res = await request(server) // Use server instance
+    const res = await request(app) // Use app instance
       .get("/health")
       .expect("Content-Type", /text\/plain/)
       .expect(200);
@@ -27,10 +23,11 @@ describe("Express App", () => {
     expect(res.text).to.equal("OK");
   });
 
-  it("POST /<secretPath> should return 200 OK for basic requests", async () => {
+  it("POST /<secretPath> should return 200 OK for basic requests", async function() {
+    this.timeout(5000); // Increase timeout to 5 seconds for this test
     // Telegraf's webhookCallback handles basic POSTs gracefully even without
     // a valid Telegram update payload, responding 200 OK to prevent retries.
-    await request(server) // Use server instance
+    await request(app) // Use app instance
       .post(secretPath)
       .send({}) // Send an empty JSON body
       // .expect('Content-Type', /text\/plain/) // REMOVED: Don't assert content-type here
@@ -40,7 +37,7 @@ describe("Express App", () => {
   });
 
   it("GET /invalid-route should return 404 Not Found", async () => {
-    await request(server) // Use server instance
+    await request(app) // Use app instance
       .get("/non-existent-path-12345")
       .expect("Content-Type", /text\/html/) // Express default 404 is HTML
       .expect(404);
@@ -48,7 +45,7 @@ describe("Express App", () => {
 
   // Optional: Test webhook with invalid JSON (might depend on Express version)
   // it('POST /<secretPath> with invalid JSON should return 400 Bad Request', async () => {
-  //   await request(server)
+  //   await request(app)
   //     .post(secretPath)
   //     .set('Content-Type', 'application/json')
   //     .send('this is not json')

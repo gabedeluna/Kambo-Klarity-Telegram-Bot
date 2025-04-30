@@ -6,7 +6,7 @@ const { BufferMemory } = require("langchain/memory");
 const {
   getMemoryForSession,
   clearMemoryForSession,
-} = require("../../memory/sessionMemory");
+} = require("../../src/memory/sessionMemory");
 
 describe("Session Memory Manager", () => {
   afterEach(() => {

@@ -6,10 +6,10 @@ const {
   // Import schemas
   findFreeSlotsSchema,
   createCalendarEventSchema,
-} = require("../../../src/tools/toolSchemas");
+} = require("../../src/tools/toolSchemas");
 
 // Import the class
-const GoogleCalendarTool = require("../../../src/tools/googleCalendar");
+const GoogleCalendarTool = require("../../src/tools/googleCalendar");
 
 describe("Google Calendar Tool Class (Stubs)", () => {
   let calendarInstance;
@@ -195,7 +195,7 @@ describe("Google Calendar Tool Class (Stubs)", () => {
 
       // Use proxyquire to inject the mock pino
       const ToolWithMockedPino = proxyquire(
-        "../../../src/tools/googleCalendar",
+        "../../src/tools/googleCalendar",
         {
           pino: mockPinoFactory,
         },

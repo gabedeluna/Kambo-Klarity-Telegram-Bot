@@ -30,28 +30,30 @@
  * @returns {BookingState} An initial state object.
  */
 function createInitialBookingState(telegramId, sessionId) {
-    if (!telegramId || !sessionId) {
-        throw new Error("Telegram ID and Session ID are required for initial state.");
-    }
-    return {
-        userInput: null,
-        telegramId: telegramId,
-        sessionId: sessionId,
-        sessionType: null,
-        availableSlots: null,
-        confirmedSlot: null,
-        googleEventId: null,
-        agentOutcome: null,
-        error: null,
-        chatHistory: null, // Initialize explicitly if using
-        lastToolResponse: null,
-        userProfile: null,
-        pastSessionDates: null,
-    };
+  if (!telegramId || !sessionId) {
+    throw new Error(
+      "Telegram ID and Session ID are required for initial state.",
+    );
+  }
+  return {
+    userInput: null,
+    telegramId: telegramId,
+    sessionId: sessionId,
+    sessionType: null,
+    availableSlots: null,
+    confirmedSlot: null,
+    googleEventId: null,
+    agentOutcome: null,
+    error: null,
+    chatHistory: null, // Initialize explicitly if using
+    lastToolResponse: null,
+    userProfile: null,
+    pastSessionDates: null,
+  };
 }
 
 // We export the type definition via JSDoc and potentially the factory
 module.exports = {
-    // BookingState is defined via JSDoc @typedef
-    createInitialBookingState
+  // BookingState is defined via JSDoc @typedef
+  createInitialBookingState,
 };
