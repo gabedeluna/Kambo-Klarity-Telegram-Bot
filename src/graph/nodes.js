@@ -3,9 +3,6 @@
  * Each node function takes the current graph state and returns a partial state update.
  */
 
-const { BookingState } = require('./state'); // For JSDoc type hinting
-// const { BookingState } // Assuming BookingState is defined/imported here; adjust if necessary.
-
 // Module-level variables for injected dependencies
 let bookingAgent, stateManager, googleCalendar, telegramNotifier, logger;
 
@@ -21,7 +18,13 @@ let bookingAgent, stateManager, googleCalendar, telegramNotifier, logger;
  * @param {object} deps.logger - The application logger instance.
  */
 function initializeNodes(deps) {
-  if (!deps.bookingAgent || !deps.stateManager || !deps.googleCalendar || !deps.telegramNotifier || !deps.logger) {
+  if (
+    !deps.bookingAgent ||
+    !deps.stateManager ||
+    !deps.googleCalendar ||
+    !deps.telegramNotifier ||
+    !deps.logger
+  ) {
     console.error("FATAL: Node initialization failed. Missing dependencies.", {
       bookingAgent: !!deps.bookingAgent,
       stateManager: !!deps.stateManager,
@@ -36,7 +39,7 @@ function initializeNodes(deps) {
   googleCalendar = deps.googleCalendar;
   telegramNotifier = deps.telegramNotifier;
   logger = deps.logger;
-  logger.info('[Graph Nodes] Initialized successfully.');
+  logger.info("[Graph Nodes] Initialized successfully.");
 }
 
 /**
@@ -50,25 +53,41 @@ async function agentNode(state) {
   const { userInput, telegramId, chatHistory } = state;
 
   if (!userInput) {
-      logger.warn(`[Agent Node] No userInput found for user: ${telegramId}. Skipping agent call.`);
-      return { agentOutcome: null, error: 'User input missing for agent.' };
+    logger.warn(
+      `[Agent Node] No userInput found for user: ${telegramId}. Skipping agent call.`,
+    );
+    return { agentOutcome: null, error: "User input missing for agent." };
   }
 
   try {
     // Assuming bookingAgent.runBookingAgent handles the chat history internally or takes it as an arg
-    const result = await bookingAgent.runBookingAgent({ userInput, telegramId, chatHistory });
+    const result = await bookingAgent.runBookingAgent({
+      userInput,
+      telegramId,
+      chatHistory,
+    });
 
     if (result.success) {
-      logger.info(`[Agent Node] Agent call successful for user: ${telegramId}. Outcome: ${JSON.stringify(result.data)}`);
+      logger.info(
+        `[Agent Node] Agent call successful for user: ${telegramId}. Outcome: ${JSON.stringify(result.data)}`,
+      );
       // Ensure agentOutcome includes the agent's response text and any structured data
       return { agentOutcome: result.data };
     } else {
-      logger.error(`[Agent Node] Agent call failed for user: ${telegramId}. Error: ${result.error}`);
+      logger.error(
+        `[Agent Node] Agent call failed for user: ${telegramId}. Error: ${result.error}`,
+      );
       return { error: result.error, agentOutcome: null };
     }
   } catch (err) {
-    logger.error(`[Agent Node] Unexpected error during agent call for user: ${telegramId}.`, err);
-    return { error: 'Unexpected error in agent interaction.', agentOutcome: null };
+    logger.error(
+      `[Agent Node] Unexpected error during agent call for user: ${telegramId}.`,
+      err,
+    );
+    return {
+      error: "Unexpected error in agent interaction.",
+      agentOutcome: null,
+    };
   }
 }
 
@@ -85,7 +104,7 @@ async function findSlotsNode(state) {
     // Placeholder: derive actual start/end dates and duration from state
     startDate: new Date(), // Example: Use agent output
     endDate: new Date(new Date().setDate(new Date().getDate() + 14)), // Example: Next 14 days
-    durationMinutes: state.sessionType === 'private' ? 90 : 60, // Example: based on session type
+    durationMinutes: state.sessionType === "private" ? 90 : 60, // Example: based on session type
   };
 
   try {
@@ -93,24 +112,39 @@ async function findSlotsNode(state) {
 
     if (result.success) {
       if (result.data && result.data.length > 0) {
-        logger.info(`[Find Slots Node] Found ${result.data.length} slots for user: ${state.telegramId}`);
-        return { availableSlots: result.data, lastToolResponse: 'Found available slots.' };
+        logger.info(
+          `[Find Slots Node] Found ${result.data.length} slots for user: ${state.telegramId}`,
+        );
+        return {
+          availableSlots: result.data,
+          lastToolResponse: "Found available slots.",
+        };
       } else {
-        logger.info(`[Find Slots Node] No slots found for user: ${state.telegramId}`);
-        return { availableSlots: [], lastToolResponse: 'No available slots found for the requested time.' };
+        logger.info(
+          `[Find Slots Node] No slots found for user: ${state.telegramId}`,
+        );
+        return {
+          availableSlots: [],
+          lastToolResponse: "No available slots found for the requested time.",
+        };
       }
     } else {
-      logger.error(`[Find Slots Node] Failed to find slots for user: ${state.telegramId}. Error: ${result.error}`);
+      logger.error(
+        `[Find Slots Node] Failed to find slots for user: ${state.telegramId}. Error: ${result.error}`,
+      );
       state.error = result.error;
       state.availableSlots = null;
-      state.lastToolResponse = 'Error finding slots.';
+      state.lastToolResponse = "Error finding slots.";
       return state;
     }
   } catch (err) {
-    logger.error(`[Find Slots Node] Unexpected error searching slots for user: ${state.telegramId}.`, err);
-    state.error = err.message || 'Unexpected error when searching for slots.';
+    logger.error(
+      `[Find Slots Node] Unexpected error searching slots for user: ${state.telegramId}.`,
+      err,
+    );
+    state.error = err.message || "Unexpected error when searching for slots.";
     state.availableSlots = null;
-    state.lastToolResponse = 'Error finding slots.';
+    state.lastToolResponse = "Error finding slots.";
     return state;
   }
 }
@@ -126,8 +160,13 @@ async function storeBookingNode(state) {
   const { telegramId, confirmedSlot, sessionType } = state;
 
   if (!confirmedSlot || !confirmedSlot.start) {
-    logger.error(`[Store Booking Node] Invalid or missing confirmedSlot for user: ${telegramId}`);
-    return { error: 'Cannot store booking without a confirmed slot.', lastToolResponse: 'Error storing booking data.' };
+    logger.error(
+      `[Store Booking Node] Invalid or missing confirmedSlot for user: ${telegramId}`,
+    );
+    return {
+      error: "Cannot store booking without a confirmed slot.",
+      lastToolResponse: "Error storing booking data.",
+    };
   }
 
   try {
@@ -139,15 +178,28 @@ async function storeBookingNode(state) {
     });
 
     if (result.success) {
-      logger.info(`[Store Booking Node] Booking data stored for user: ${telegramId}`);
-      return { lastToolResponse: 'Booking data stored.' };
+      logger.info(
+        `[Store Booking Node] Booking data stored for user: ${telegramId}`,
+      );
+      return { lastToolResponse: "Booking data stored." };
     } else {
-      logger.error(`[Store Booking Node] Failed to store booking data for user: ${telegramId}. Error: ${result.error}`);
-      return { error: result.error, lastToolResponse: 'Error storing booking data.' };
+      logger.error(
+        `[Store Booking Node] Failed to store booking data for user: ${telegramId}. Error: ${result.error}`,
+      );
+      return {
+        error: result.error,
+        lastToolResponse: "Error storing booking data.",
+      };
     }
   } catch (err) {
-    logger.error(`[Store Booking Node] Unexpected error storing booking for user: ${telegramId}.`, err);
-    return { error: 'Unexpected error when storing booking.', lastToolResponse: 'Error storing booking data.' };
+    logger.error(
+      `[Store Booking Node] Unexpected error storing booking for user: ${telegramId}.`,
+      err,
+    );
+    return {
+      error: "Unexpected error when storing booking.",
+      lastToolResponse: "Error storing booking data.",
+    };
   }
 }
 
@@ -159,19 +211,26 @@ async function storeBookingNode(state) {
  * @returns {Promise<Partial<BookingState>>} Update with event ID or error.
  */
 async function createCalendarEventNode(state) {
-  logger.debug(`[Create Calendar Event Node] Entering for user: ${state.telegramId}`);
+  logger.debug(
+    `[Create Calendar Event Node] Entering for user: ${state.telegramId}`,
+  );
   const { confirmedSlot, sessionType, userProfile, telegramId } = state;
 
   if (!confirmedSlot || !confirmedSlot.start || !confirmedSlot.end) {
-    logger.error(`[Create Calendar Event Node] Invalid or missing confirmedSlot for user: ${telegramId}`);
-    return { error: 'Cannot create calendar event without a confirmed slot.', lastToolResponse: 'Error creating Google Calendar event.' };
+    logger.error(
+      `[Create Calendar Event Node] Invalid or missing confirmedSlot for user: ${telegramId}`,
+    );
+    return {
+      error: "Cannot create calendar event without a confirmed slot.",
+      lastToolResponse: "Error creating Google Calendar event.",
+    };
   }
 
   // TODO: Enhance event details (attendees, description)
   const eventDetails = {
     start: confirmedSlot.start,
     end: confirmedSlot.end,
-    summary: `Kambo Session (${sessionType}) with ${userProfile?.name || 'User ' + telegramId}`,
+    summary: `Kambo Session (${sessionType}) with ${userProfile?.name || "User " + telegramId}`,
     description: `Kambo Klarity Booking\nSession Type: ${sessionType}\nUser ID: ${telegramId}`,
     // attendees: [{ email: userProfile?.email }] // If email is available
   };
@@ -181,15 +240,33 @@ async function createCalendarEventNode(state) {
     const result = await googleCalendar.createCalendarEvent(eventDetails);
 
     if (result.success) {
-      logger.info(`[Create Calendar Event Node] Calendar event created (ID: ${result.eventId}) for user: ${telegramId}`);
-      return { googleEventId: result.eventId, lastToolResponse: 'Calendar event created.' };
+      logger.info(
+        `[Create Calendar Event Node] Calendar event created (ID: ${result.eventId}) for user: ${telegramId}`,
+      );
+      return {
+        googleEventId: result.eventId,
+        lastToolResponse: "Calendar event created.",
+      };
     } else {
-      logger.error(`[Create Calendar Event Node] Failed to create calendar event for user: ${telegramId}. Error: ${result.error}`);
-      return { error: result.error, googleEventId: null, lastToolResponse: 'Error creating Google Calendar event.' };
+      logger.error(
+        `[Create Calendar Event Node] Failed to create calendar event for user: ${telegramId}. Error: ${result.error}`,
+      );
+      return {
+        error: result.error,
+        googleEventId: null,
+        lastToolResponse: "Error creating Google Calendar event.",
+      };
     }
   } catch (err) {
-    logger.error(`[Create Calendar Event Node] Unexpected error creating GCal event for user: ${telegramId}.`, err);
-    return { error: 'Unexpected error when creating calendar event.', googleEventId: null, lastToolResponse: 'Error creating Google Calendar event.' };
+    logger.error(
+      `[Create Calendar Event Node] Unexpected error creating GCal event for user: ${telegramId}.`,
+      err,
+    );
+    return {
+      error: "Unexpected error when creating calendar event.",
+      googleEventId: null,
+      lastToolResponse: "Error creating Google Calendar event.",
+    };
   }
 }
 
@@ -205,18 +282,31 @@ async function sendWaiverNode(state) {
 
   try {
     // Assuming telegramNotifier.sendWaiverLink is async and returns { success: bool, error: string|null }
-    const result = await telegramNotifier.sendWaiverLink({ telegramId, sessionType });
+    const result = await telegramNotifier.sendWaiverLink({
+      telegramId,
+      sessionType,
+    });
 
     if (result.success) {
-      logger.info(`[Send Waiver Node] Waiver link sent successfully to user: ${telegramId}`);
-      return { lastToolResponse: 'Waiver sent.' };
+      logger.info(
+        `[Send Waiver Node] Waiver link sent successfully to user: ${telegramId}`,
+      );
+      return { lastToolResponse: "Waiver sent." };
     } else {
-      logger.error(`[Send Waiver Node] Failed to send waiver link to user: ${telegramId}. Error: ${result.error}`);
-      return { error: result.error, lastToolResponse: 'Error sending waiver.' };
+      logger.error(
+        `[Send Waiver Node] Failed to send waiver link to user: ${telegramId}. Error: ${result.error}`,
+      );
+      return { error: result.error, lastToolResponse: "Error sending waiver." };
     }
   } catch (err) {
-    logger.error(`[Send Waiver Node] Unexpected error sending waiver to user: ${telegramId}.`, err);
-    return { error: 'Unexpected error when sending waiver.', lastToolResponse: 'Error sending waiver.' };
+    logger.error(
+      `[Send Waiver Node] Unexpected error sending waiver to user: ${telegramId}.`,
+      err,
+    );
+    return {
+      error: "Unexpected error when sending waiver.",
+      lastToolResponse: "Error sending waiver.",
+    };
   }
 }
 
@@ -235,19 +325,32 @@ async function resetStateNode(state) {
     const result = await stateManager.resetUserState({ telegramId });
 
     if (result.success) {
-      logger.info(`[Reset State Node] User state reset successfully for user: ${telegramId}`);
+      logger.info(
+        `[Reset State Node] User state reset successfully for user: ${telegramId}`,
+      );
       // Important: Resetting state likely means the *caller* should terminate or restart the graph,
       // but the node itself signals success.
-      return { lastToolResponse: 'User state reset.' };
+      return { lastToolResponse: "User state reset." };
     } else {
-      logger.error(`[Reset State Node] Failed to reset state for user: ${telegramId}. Error: ${result.error}`);
+      logger.error(
+        `[Reset State Node] Failed to reset state for user: ${telegramId}. Error: ${result.error}`,
+      );
       // Even if reset fails, we might want to signal an error but not halt everything?
       // For now, return the error.
-      return { error: result.error, lastToolResponse: 'Error resetting state.' };
+      return {
+        error: result.error,
+        lastToolResponse: "Error resetting state.",
+      };
     }
   } catch (err) {
-    logger.error(`[Reset State Node] Unexpected error resetting state for user: ${telegramId}.`, err);
-    return { error: 'Unexpected error when resetting state.', lastToolResponse: 'Error resetting state.' };
+    logger.error(
+      `[Reset State Node] Unexpected error resetting state for user: ${telegramId}.`,
+      err,
+    );
+    return {
+      error: "Unexpected error when resetting state.",
+      lastToolResponse: "Error resetting state.",
+    };
   }
 }
 
@@ -260,25 +363,118 @@ async function resetStateNode(state) {
  */
 async function handleErrorNode(state) {
   // Convert error to string for consistent logging
-  const errorString = String(state.error || 'Unknown error');
-  logger.error(`[Handle Error Node] Entering for user: ${state.telegramId}. Error: ${errorString}`);
+  const errorString = String(state.error || "Unknown error");
+  logger.error(
+    `[Handle Error Node] Entering for user: ${state.telegramId}. Error: ${errorString}`,
+  );
 
   // Optionally, notify the user via Telegram
   if (telegramNotifier && state.telegramId) {
     try {
-        // Use the stringified error for the user message, applying substring correctly
-        const errorDetail = errorString.substring(0, 100);
-        const userMessage = `Sorry, I encountered an internal problem processing your request. The technical details are: ${errorDetail}. Please try again shortly or contact support if the issue persists.`;
-        await telegramNotifier.sendTextMessage({ telegramId: state.telegramId, text: userMessage });
-        logger.info(`[Handle Error Node] Notified user ${state.telegramId} about the error.`);
+      // Use the stringified error for the user message, applying substring correctly
+      const errorDetail = errorString.substring(0, 100);
+      const userMessage = `Sorry, I encountered an internal problem processing your request. The technical details are: ${errorDetail}. Please try again shortly or contact support if the issue persists.`;
+      await telegramNotifier.sendTextMessage({
+        telegramId: state.telegramId,
+        text: userMessage,
+      });
+      logger.info(
+        `[Handle Error Node] Notified user ${state.telegramId} about the error.`,
+      );
     } catch (notificationError) {
-        logger.error(`[Handle Error Node] Failed to send error notification to user ${state.telegramId}.`, notificationError);
+      logger.error(
+        `[Handle Error Node] Failed to send error notification to user ${state.telegramId}.`,
+        notificationError,
+      );
     }
   }
 
   // This node primarily handles the error (logging, notification); it doesn't modify the state further.
   // The graph's routing logic should decide where to go after an error (e.g., end, retry, reset).
   return {};
+}
+
+/**
+ * Node to send a text message to the user via Telegram.
+ *
+ * @param {BookingState} state - The current graph state.
+ * @returns {Promise<Partial<BookingState>>} Update indicating message sent status or error.
+ */
+async function sendTextMessageNode(state) {
+  logger.debug(`[Send Text Node] Entering for user: ${state.telegramId}`);
+  const { telegramId } = state;
+
+  const textToSend = state.agentOutcome?.output;
+  if (!textToSend) {
+    logger.warn({ state }, 'No text found in state for sendTextMessageNode');
+    return { error: 'Missing text to send' };
+  }
+
+  try {
+    const result = await telegramNotifier.sendTextMessage({ 
+      telegramId, 
+      text: textToSend 
+    });
+
+    if (result.success) {
+      logger.info(`[Send Text Node] Message sent successfully to user: ${telegramId}`);
+      return { lastToolResponse: 'Message sent.' };
+    } else {
+      logger.error(`[Send Text Node] Failed to send message to user: ${telegramId}. Error: ${result.error}`);
+      return { 
+        error: result.error || 'Failed to send message',
+        lastToolResponse: 'Error sending message.'
+      };
+    }
+  } catch (err) {
+    logger.error(`[Send Text Node] Unexpected error sending message to user: ${telegramId}.`, err);
+    return {
+      error: 'Unexpected error when sending message.',
+      lastToolResponse: 'Error sending message.'
+    };
+  }
+}
+
+/**
+ * Node to delete a calendar event from Google Calendar.
+ *
+ * @param {BookingState} state - The current graph state.
+ * @returns {Promise<Partial<BookingState>>} Update indicating deletion status or error.
+ */
+async function deleteCalendarEventNode(state) {
+  logger.debug(`[Delete Calendar Event Node] Entering for user: ${state.telegramId}`);
+  const { telegramId, googleEventId } = state;
+
+  if (!googleEventId) {
+    logger.error({ state }, 'No googleEventId found in state for deleteCalendarEventNode');
+    return { error: 'Missing Google Event ID to delete' };
+  }
+
+  try {
+    const result = await googleCalendar.deleteCalendarEvent({ 
+      eventId: googleEventId 
+    });
+
+    if (result.success) {
+      logger.info(`[Delete Calendar Event Node] Event deleted successfully for user: ${telegramId}`);
+      return { 
+        lastToolResponse: 'Calendar event deleted.',
+        googleEventId: null // Clear the event ID from state after deletion
+      };
+    } else {
+      logger.error(`[Delete Calendar Event Node] Failed to delete event for user: ${telegramId}. Error: ${result.error}`);
+      return { 
+        error: result.error || 'Failed to delete GCal event',
+        lastToolResponse: 'Error deleting calendar event.'
+      };
+    }
+  } catch (err) {
+    logger.error(`[Delete Calendar Event Node] Unexpected error deleting event for user: ${telegramId}.`, err);
+    return {
+      error: 'Unexpected error when deleting calendar event.',
+      lastToolResponse: 'Error deleting calendar event.'
+    };
+  }
 }
 
 module.exports = {
@@ -290,4 +486,6 @@ module.exports = {
   sendWaiverNode,
   resetStateNode,
   handleErrorNode,
+  sendTextMessageNode,
+  deleteCalendarEventNode
 };
