@@ -161,7 +161,6 @@
 ---
 ---
 
-
 ## 📅 Current Phase 3 – Agent & Memory
 
 | ID        | Task                                                                    | Why / Acceptance Criteria                                                                                                                               |
@@ -273,7 +272,7 @@
 | [X]**PH5‑01** | **Implement User Lookup Middleware (`middleware/userLookup.js`)**         | Refine/reimplement middleware (currently in legacy `bot.js`) to reliably fetch/attach `ctx.state.user` and `ctx.state.isNewUser` using core Prisma client.                             | *Pass*: Middleware created, uses core Prisma, attaches correct state, handles new/existing users, unit tests pass. |
 | [X]**PH5‑02** | **Implement Core Update Router Middleware (`middleware/updateRouter.js`)**| Create the central router (as described in PLANNING.md 11.X) to direct incoming Telegram updates based on user state (`isNewUser`) and update type (command, message, callback).       | *Pass*: Middleware created, routes new users, delegates commands/messages/callbacks correctly. Unit tests pass (mocking downstream handlers). |
 | [X]**PH5-02c** | **Implement Callback Handler (Session Type Selection) (`src/handlers/callbackQueryHandler.js`, `tests/handlers/callbackQueryHandler.test.js`)** | Create handler for callback queries (session type selection). Use `stateManager` to set state, `bookingAgent` to invoke agent, and `telegramNotifier` to send response. | *Pass*: Handler sets state, invokes agent, edits original message. Unit tests pass. |
-| [ ]**PH5‑03** | **Integrate Graph with Update Router (Message Handling)**                 | Modify `updateRouter.js` so that regular text messages from *existing* users are routed to invoke the compiled `bookingGraph` (from PH4-04) with user input and context.          | *Pass*: Text messages invoke `bookingGraph.invoke()`, graph state initialized correctly, agent response sent back to user (via a node/tool). Integration test verifies basic flow. |
+| [X]**PH5‑03** | **Integrate Graph with Update Router (Message Handling)**                 | Modify `updateRouter.js` so that regular text messages from *existing* users are routed to invoke the compiled `bookingGraph` (from PH4-04) with user input and context.          | *Pass*: Text messages invoke `bookingGraph.invoke()`, graph state initialized correctly, agent response sent back to user (via a node/tool). Integration test verifies basic flow. |
 | [ ]**PH5‑04** | **Refactor `app.js` to Use New Middleware**                               | Remove legacy dispatcher logic from `bot.js` / initial `app.js` setup. Register `userLookup` and `updateRouter` middleware in `src/app.js` *after* the webhook callback setup.         | *Pass*: `app.js` uses new middleware, legacy dispatcher removed. Basic bot interactions (e.g., sending a message) trigger the new router path. |
 | [ ]**PH5‑05** | **Implement Static File Serving (`app.js` / `routes/`)**                | Configure Express in `src/app.js` to serve static files (HTML, CSS, JS) from `public/`. Move `public/` directory if desired.                                                    | *Pass*: HTML forms (`registration-form.html`, `waiver-form.html`) are accessible via browser at expected URLs (e.g., `/registration-form.html`). |
 | [ ]**PH5‑06** | **Implement Form Routes & Handlers (`routes/forms.js`, `routes/api.js`)** | Re-implement routes from legacy `server.js` within the main app (`src/app.js`): `/registration` (GET), `/booking-form.html` (GET), `/api/user-data` (GET), `/api/submit-waiver` (POST), `/submit-registration` (POST). Use `express.Router`. | *Pass*: Routes defined, mounted in `app.js`. Basic integration tests (Supertest) verify routes exist and return expected status codes. |
@@ -302,10 +301,14 @@
 
 ### 💡 Insights & Decisions
 *(Explain routing logic, middleware design, server consolidation benefits/challenges, form handler implementation details, etc.)*
-*   The `uuid` package provides a simple way to generate unique session IDs.
-*   Dependency Injection remains crucial for initializing handlers and routers.
-*   Callback handler bridges button UI to agent flow. Editing original message provides clean UX. Careful state management (setting state/session ID, clearing edit_msg_id) is crucial.
-*   Error handling in the callback handler needs to inform the user and potentially reset state to avoid getting stuck.
-*   Passing the `sessionId` to the agent allows linking agent interactions to a specific booking attempt.
-*   Acknowledging callback queries promptly, even if subsequent processing fails, is important for UX.
-{{ ... }}
+*   **PH5-03:** Integrated the compiled bookingGraph into updateRouter for text messages when user state is 'BOOKING'. Added discovery notes for PH5-03.
+
+### 🧪 Quick‑Run Commands
+
+npm test          # run mocha suite with coverage
+npm run lint      # eslint check
+npm run format    # prettier write
+node bin/server   # local server
+
+---
+**Last updated:** 2025-05-01 02:33
