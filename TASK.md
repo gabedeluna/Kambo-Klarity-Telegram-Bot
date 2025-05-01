@@ -270,3 +270,26 @@ node bin/server   # local server
 
 ---
 **Last updated:** 2025-04-30 21:18
+
+## 📅 Current Phase 5 – Server Merge & User Lookup
+
+| ID        | Task                                                                   | Why / Acceptance Criteria                                                                                                                        |
+| :-------- | :--------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [X]**PH5‑01** | **Implement user lookup middleware**                                  | Create middleware to fetch user data from DB based on `ctx.state.telegramId`. Populate `ctx.state.user` or set `ctx.state.isNewUser` if not found. *Pass*: Middleware implemented, unit tests pass. |
+| [X]**PH5‑02** | **Merge booking graph into server**                                  | Integrate booking graph into Express server. Handle incoming messages, invoke graph, and return responses. *Pass*: Server handles booking flow, graph invoked correctly. |
+| [X]**PH5‑03** | **Implement user registration**                                      | Handle new user registration. Store user data in DB, set `is_veteran_or_responder` based on form input. *Pass*: New users registered, data stored correctly. |
+| [X]**PH5‑04** | **Implement booking cancellation**                                   | Handle booking cancellation requests. Update DB, delete calendar event if applicable. *Pass*: Cancellations processed correctly, calendar events deleted. |
+| [X]**PH5‑05** | **Implement session management**                                     | Manage active sessions. Update `active_session_id` in DB, handle session expiration. *Pass*: Sessions managed correctly, expiration handled. |
+| [X]**PH5‑06** | **Test Coverage:**                                                     | Ensure Phase 5 modules meet ≥ 90% coverage.                                                                                             | *Pass*: `npm test` coverage report confirms target. |
+| [X]**PH5‑07** | **Update `docs/architecture.md`:**                                     | Add server merge details, user lookup middleware, and session management. Update Phase 5 status.                                                             |
+| [ ]**PH5‑08** | **Final Review:**                                                      | Tick all Phase 5 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                        |
+
+### 🚧 Discovered During Work
+*(Add new subtasks here, e.g., `PH5‑D1`)*
+*   **PH5-D1 (PH5-01):** Created src/middleware/userLookup.js using Manual DI.
+*   **PH5-D2 (PH5-01):** Middleware handles existing users, new users, DB errors, and invalid input.
+*   **PH5-D3 (PH5-01):** Populates ctx.state.user or ctx.state.isNewUser.
+*   **PH5-D4 (PH5-01):** Added unit tests using mock ctx/next/prisma.
+
+### 💡 Insights & Decisions
+*   **PH5-01:** Dedicated user lookup middleware centralizes user identification. Using ctx.state provides clean context for downstream middleware/handlers. Manual DI simplifies testing.
