@@ -261,6 +261,33 @@
         *   When debugging test isolation issues, meticulously check the scope and lifecycle of mocks and stubs. Ensure they are properly reset *and* that the system under test receives fresh instances if necessary (as was the case with `initializeNodes`).
 *   **PH4-04:** Assembled graph components into a runnable workflow. Conditional edges are key for routing logic. Compilation step finalizes the graph definition.
 
+---
+
+## 📅 Current Phase 5 – Core Routing & Server Merge
+
+| ID        | Task                                                                      | Why / Acceptance Criteria                                                                                                                                                           |
+| :-------- | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [X]**PH5‑01** | **Implement User Lookup Middleware (`middleware/userLookup.js`)**         | Refine/reimplement middleware (currently in legacy `bot.js`) to reliably fetch/attach `ctx.state.user` and `ctx.state.isNewUser` using core Prisma client.                             | *Pass*: Middleware created, uses core Prisma, attaches correct state, handles new/existing users, unit tests pass. |
+| [ ]**PH5‑02** | **Implement Core Update Router Middleware (`middleware/updateRouter.js`)**| Create the central router (as described in PLANNING.md 11.X) to direct incoming Telegram updates based on user state (`isNewUser`) and update type (command, message, callback).       | *Pass*: Middleware created, routes new users, delegates commands/messages/callbacks correctly. Unit tests pass (mocking downstream handlers). |
+| [ ]**PH5‑03** | **Integrate Graph with Update Router (Message Handling)**                 | Modify `updateRouter.js` so that regular text messages from *existing* users are routed to invoke the compiled `bookingGraph` (from PH4-04) with user input and context.          | *Pass*: Text messages invoke `bookingGraph.invoke()`, graph state initialized correctly, agent response sent back to user (via a node/tool). Integration test verifies basic flow. |
+| [ ]**PH5‑04** | **Refactor `app.js` to Use New Middleware**                               | Remove legacy dispatcher logic from `bot.js` / initial `app.js` setup. Register `userLookup` and `updateRouter` middleware in `src/app.js` *after* the webhook callback setup.         | *Pass*: `app.js` uses new middleware, legacy dispatcher removed. Basic bot interactions (e.g., sending a message) trigger the new router path. |
+| [ ]**PH5‑05** | **Implement Static File Serving (`app.js` / `routes/`)**                | Configure Express in `src/app.js` to serve static files (HTML, CSS, JS) from `public/`. Move `public/` directory if desired.                                                    | *Pass*: HTML forms (`registration-form.html`, `waiver-form.html`) are accessible via browser at expected URLs (e.g., `/registration-form.html`). |
+| [ ]**PH5‑06** | **Implement Form Routes & Handlers (`routes/forms.js`, `routes/api.js`)** | Re-implement routes from legacy `server.js` within the main app (`src/app.js`): `/registration` (GET), `/booking-form.html` (GET), `/api/user-data` (GET), `/api/submit-waiver` (POST), `/submit-registration` (POST). Use `express.Router`. | *Pass*: Routes defined, mounted in `app.js`. Basic integration tests (Supertest) verify routes exist and return expected status codes. |
+| [ ]**PH5‑07** | **Implement `/submit-registration` Handler Logic**                      | Create handler function for the POST `/submit-registration` route. Use core `prisma` to save user, `telegramNotifier` to welcome client & notify admin. Connect to route from PH5-06. | *Pass*: Handler saves user via mock Prisma, calls mock notifier functions. Integration test POSTs data and verifies success response/mock calls. |
+| [ ]**PH5‑08** | **Implement `/api/user-data` Handler Logic**                            | Create handler for GET `/api/user-data`. Use core `prisma` to fetch user details (like legacy version). Format data for form pre-filling. Connect to route.                     | *Pass*: Handler fetches user data via mock Prisma, formats correctly. Integration test GETs data and verifies structure. |
+| [ ]**PH5‑09** | **Implement `/api/submit-waiver` Handler Logic**                        | Create handler for POST `/api/submit-waiver`. Use core `prisma` to create `Session`, update `User`. **Crucially: Notify admin.** Connect to route. *(Waiver completion webhook handled separately)* | *Pass*: Handler saves session/user via mock Prisma, calls mock notifier. Integration test POSTs data and verifies response/mock calls. |
+| [ ]**PH5‑10** | **Implement `/waiver-completed` Webhook Handler**                       | Re-implement the POST `/waiver-completed` route handler in the main app. Use core `bot` and `prisma` to update the original Telegram message (using `edit_msg_id`) status to confirmed. | *Pass*: Handler finds user/message ID via mock Prisma, calls mock `bot.telegram.editMessageText`. Integration test POSTs data and verifies response/mocks. |
+| [ ]**PH5‑11** | **Cleanup Legacy Server Code**                                          | Delete `legacy/server.js`, `legacy/formWorkflow.js`, `legacy/bot.js` (or large parts of it related to form handling/dispatching). Remove related dependencies if no longer needed. | *Pass*: Legacy files removed. Application still runs and passes tests. |
+| [ ]**PH5‑12** | **Test Coverage:**                                                      | Ensure Phase 5 modules (`middleware/*`, `routes/*`, modified `app.js`) meet ≥ 90% coverage via unit & integration tests.                                                     | *Pass*: `npm test` coverage report confirms target. |
+| [ ]**PH5‑13** | **Update `docs/architecture.md`:**                                      | Update diagram/descriptions to reflect consolidated server structure, new middleware, and routes. Update Phase 5 status.                                                        |
+| [ ]**PH5‑14** | **Final Review:**                                                       | Tick all Phase 5 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                        |
+
+### 🚧 Discovered During Work
+*(Add new subtasks here, e.g., `PH5‑D1`)*
+
+### 💡 Insights & Decisions
+*(Explain routing logic, middleware design, server consolidation benefits/challenges, form handler implementation details, etc.)*
+
 ### 🧪 Quick‑Run Commands
 
 npm test          # run mocha suite with coverage
@@ -270,26 +297,3 @@ node bin/server   # local server
 
 ---
 **Last updated:** 2025-04-30 21:18
-
-## 📅 Current Phase 5 – Server Merge & User Lookup
-
-| ID        | Task                                                                   | Why / Acceptance Criteria                                                                                                                        |
-| :-------- | :--------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
-| [X]**PH5‑01** | **Implement user lookup middleware**                                  | Create middleware to fetch user data from DB based on `ctx.state.telegramId`. Populate `ctx.state.user` or set `ctx.state.isNewUser` if not found. *Pass*: Middleware implemented, unit tests pass. |
-| [X]**PH5‑02** | **Merge booking graph into server**                                  | Integrate booking graph into Express server. Handle incoming messages, invoke graph, and return responses. *Pass*: Server handles booking flow, graph invoked correctly. |
-| [X]**PH5‑03** | **Implement user registration**                                      | Handle new user registration. Store user data in DB, set `is_veteran_or_responder` based on form input. *Pass*: New users registered, data stored correctly. |
-| [X]**PH5‑04** | **Implement booking cancellation**                                   | Handle booking cancellation requests. Update DB, delete calendar event if applicable. *Pass*: Cancellations processed correctly, calendar events deleted. |
-| [X]**PH5‑05** | **Implement session management**                                     | Manage active sessions. Update `active_session_id` in DB, handle session expiration. *Pass*: Sessions managed correctly, expiration handled. |
-| [X]**PH5‑06** | **Test Coverage:**                                                     | Ensure Phase 5 modules meet ≥ 90% coverage.                                                                                             | *Pass*: `npm test` coverage report confirms target. |
-| [X]**PH5‑07** | **Update `docs/architecture.md`:**                                     | Add server merge details, user lookup middleware, and session management. Update Phase 5 status.                                                             |
-| [ ]**PH5‑08** | **Final Review:**                                                      | Tick all Phase 5 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                        |
-
-### 🚧 Discovered During Work
-*(Add new subtasks here, e.g., `PH5‑D1`)*
-*   **PH5-D1 (PH5-01):** Created src/middleware/userLookup.js using Manual DI.
-*   **PH5-D2 (PH5-01):** Middleware handles existing users, new users, DB errors, and invalid input.
-*   **PH5-D3 (PH5-01):** Populates ctx.state.user or ctx.state.isNewUser.
-*   **PH5-D4 (PH5-01):** Added unit tests using mock ctx/next/prisma.
-
-### 💡 Insights & Decisions
-*   **PH5-01:** Dedicated user lookup middleware centralizes user identification. Using ctx.state provides clean context for downstream middleware/handlers. Manual DI simplifies testing.
