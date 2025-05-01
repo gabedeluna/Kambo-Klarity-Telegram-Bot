@@ -205,6 +205,9 @@
 *   **(PH3-05):** Centralized schema definition in PH2-11 proved beneficial. Ensured tool functions have clear JSDoc descriptions for the agent. Confirmed Zod schemas are ready for LangChain StructuredTool integration.
 *   **(PH3-07):** Implemented necessary tools for agent context/personalization. `getUserPastSessions` filters for COMPLETED status and limits results to 5 most recent sessions to provide relevant history without overwhelming the agent. Both tools follow the established pattern of input validation, structured logging, and consistent error handling.
 *   **(PH3-06):** Agent executor setup provides the core conversational loop. Using OpenAI Functions agent leverages LLM's ability to call tools with structured args. Deferred dynamic context fetching/session ID logic to keep initial setup focused.
+*   **(PH3-06):** Implemented agent executor using `createOpenAIFunctionsAgent`, wiring LLM, prompt, memory, and tools.
+*   **(PH3-06):** Used `StructuredTool` to wrap tool functions/schemas, including adapters for functions expecting multiple arguments (`updateUserState`, `storeBookingData`).
+*   **(PH3-06):** Temporarily used `telegramId` for memory key and static prompt values (pending PH3-07 tool).
 *   **(PH3-08):** Agent now uses dynamic user context for personalization and memory. Prompt guides agent on using past session history or acknowledging first-timers. Session ID management links state to memory. Dynamic context and memory guidance enable the agent to provide more personalized and relevant responses.
 *   **(PH3-10):** Refactored booking agent to support both OpenAI and Google Gemini models via environment variable. Used `createToolCallingAgent` which works with both providers, replacing the OpenAI-specific `createOpenAIFunctionsAgent`. Enhanced environment validation to conditionally require API keys based on selected provider. Updated tests to support both providers while maintaining backward compatibility.
 *   **(PH3-11):** Parametrized testing structure verifies multi-provider compatibility efficiently. Mocking the AgentExecutor directly simplifies testing the agent runner logic.
@@ -269,6 +272,7 @@
 | :-------- | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [X]**PH5‑01** | **Implement User Lookup Middleware (`middleware/userLookup.js`)**         | Refine/reimplement middleware (currently in legacy `bot.js`) to reliably fetch/attach `ctx.state.user` and `ctx.state.isNewUser` using core Prisma client.                             | *Pass*: Middleware created, uses core Prisma, attaches correct state, handles new/existing users, unit tests pass. |
 | [X]**PH5‑02** | **Implement Core Update Router Middleware (`middleware/updateRouter.js`)**| Create the central router (as described in PLANNING.md 11.X) to direct incoming Telegram updates based on user state (`isNewUser`) and update type (command, message, callback).       | *Pass*: Middleware created, routes new users, delegates commands/messages/callbacks correctly. Unit tests pass (mocking downstream handlers). |
+| [X]**PH5-02c** | **Implement Callback Handler (Session Type Selection) (`src/handlers/callbackQueryHandler.js`, `tests/handlers/callbackQueryHandler.test.js`)** | Create handler for callback queries (session type selection). Use `stateManager` to set state, `bookingAgent` to invoke agent, and `telegramNotifier` to send response. | *Pass*: Handler sets state, invokes agent, edits original message. Unit tests pass. |
 | [ ]**PH5‑03** | **Integrate Graph with Update Router (Message Handling)**                 | Modify `updateRouter.js` so that regular text messages from *existing* users are routed to invoke the compiled `bookingGraph` (from PH4-04) with user input and context.          | *Pass*: Text messages invoke `bookingGraph.invoke()`, graph state initialized correctly, agent response sent back to user (via a node/tool). Integration test verifies basic flow. |
 | [ ]**PH5‑04** | **Refactor `app.js` to Use New Middleware**                               | Remove legacy dispatcher logic from `bot.js` / initial `app.js` setup. Register `userLookup` and `updateRouter` middleware in `src/app.js` *after* the webhook callback setup.         | *Pass*: `app.js` uses new middleware, legacy dispatcher removed. Basic bot interactions (e.g., sending a message) trigger the new router path. |
 | [ ]**PH5‑05** | **Implement Static File Serving (`app.js` / `routes/`)**                | Configure Express in `src/app.js` to serve static files (HTML, CSS, JS) from `public/`. Move `public/` directory if desired.                                                    | *Pass*: HTML forms (`registration-form.html`, `waiver-form.html`) are accessible via browser at expected URLs (e.g., `/registration-form.html`). |
@@ -284,16 +288,24 @@
 
 ### 🚧 Discovered During Work
 *(Add new subtasks here, e.g., `PH5‑D1`)*
+*   Implemented callbackQueryHandler for session type selection.
+*   Handler sets state, session ID, invokes agent, edits original message.
+*   Integrated handler into updateRouter.
+*   Added uuid dependency.
+*   Added unit tests. // Assuming tests will be added in PH5-02d
+*   Need to ensure `stateManager.getUserProfileData` selects `edit_msg_id`.
+*   Added sessionId passing to `bookingAgent.runBookingAgent`.
+*   Improved error handling and user feedback messages in the handler.
+*   Added state reset logic upon agent invocation failure.
+*   Handled potential `answerCbQuery` failures more gracefully.
+*   Acknowledged non-matching callback queries.
 
 ### 💡 Insights & Decisions
 *(Explain routing logic, middleware design, server consolidation benefits/challenges, form handler implementation details, etc.)*
-
-### 🧪 Quick‑Run Commands
-
-npm test          # run mocha suite with coverage
-npm run lint      # eslint check
-npm run format    # prettier write
-node bin/server   # local server
-
----
-**Last updated:** 2025-05-01 02:33
+*   The `uuid` package provides a simple way to generate unique session IDs.
+*   Dependency Injection remains crucial for initializing handlers and routers.
+*   Callback handler bridges button UI to agent flow. Editing original message provides clean UX. Careful state management (setting state/session ID, clearing edit_msg_id) is crucial.
+*   Error handling in the callback handler needs to inform the user and potentially reset state to avoid getting stuck.
+*   Passing the `sessionId` to the agent allows linking agent interactions to a specific booking attempt.
+*   Acknowledging callback queries promptly, even if subsequent processing fails, is important for UX.
+{{ ... }}

@@ -1,136 +1,81 @@
-const { logger } = require("../core/logger");
+const logger = require('../utils/logger')('updateRouter');
 
-// Dependencies to be injected
-let bookingAgent;
-// These will be used in future implementations
-// eslint-disable-next-line no-unused-vars
-let commandHandler;
-// eslint-disable-next-line no-unused-vars
-let callbackHandler;
+// Module dependencies
+let dependencies; // Dependencies (messageHandler, callbackQueryHandler) injected via initialize
+
+/**
+ * Checks if the update context represents a standard text message.
+ * @param {object} ctx - Telegraf context object.
+ * @returns {boolean} True if it's a text message, false otherwise.
+ */
+const isTextMessage = (ctx) => !!ctx.message?.text;
+
+/**
+ * Checks if the update context represents a callback query (inline button press).
+ * @param {object} ctx - Telegraf context object.
+ * @returns {boolean} True if it's a callback query, false otherwise.
+ */
+const isCallbackQuery = (ctx) => !!ctx.callbackQuery?.data;
 
 /**
  * Initializes the update router middleware with necessary dependencies.
- * @param {object} deps - Dependencies object.
- * @param {object} deps.bookingAgent - The booking agent instance.
- * @param {object} deps.commandHandler - Handler for bot commands.
- * @param {object} deps.callbackHandler - Handler for callback queries.
+ * @param {object} deps - Dependency object containing handlers.
+ * @throws {Error} If dependencies are missing.
  */
 function initialize(deps) {
-  if (!deps.bookingAgent) {
-    throw new Error(
-      "Dependency Error: bookingAgent is required for updateRouter.",
-    );
-  }
-  if (!deps.commandHandler) {
-    throw new Error(
-      "Dependency Error: commandHandler is required for updateRouter.",
-    );
-  }
-  if (!deps.callbackHandler) {
-    throw new Error(
-      "Dependency Error: callbackHandler is required for updateRouter.",
-    );
-  }
-  bookingAgent = deps.bookingAgent;
-  commandHandler = deps.commandHandler;
-  callbackHandler = deps.callbackHandler;
-  logger.info("Update router initialized successfully.");
+    // Validate and assign injected deps
+    if (!deps.messageHandler || !deps.callbackQueryHandler) {
+        throw new Error('UpdateRouterMiddleware requires messageHandler and callbackQueryHandler dependencies.');
+    }
+    dependencies = deps;
+    logger.info('Update router initialized.');
 }
 
 /**
- * Telegraf middleware to route updates based on type and user state.
- * Must be placed *after* userLookupMiddleware.
+ * Middleware function to route incoming Telegraf updates based on type.
  * @param {object} ctx - Telegraf context object.
- * @param {Function} next - Telegraf next middleware function.
  */
-// eslint-disable-next-line no-unused-vars
-async function updateRouterMiddleware(ctx, next) {
-  const userState = ctx.state.user?.state; // Assumes user state is attached by userLookupMiddleware
-  const updateType = ctx.updateType;
+async function updateRouterMiddleware(ctx) {
+    const updateType = ctx.updateType;
+    const userId = ctx.from?.id || 'unknown';
 
-  logger.debug(
-    { updateType, userState, userId: ctx.state.user?.id },
-    "Routing update...",
-  );
+    logger.debug({ userId, updateType, updateId: ctx.update.update_id }, 'Routing update...');
 
-  try {
-    if (updateType === "message") {
-      const message = ctx.message;
-      if (message.text) {
-        if (message.text.startsWith("/")) {
-          // Handle commands
-          logger.debug(
-            { command: message.text, userId: ctx.state.user?.id },
-            "Routing command...",
-          );
-          // Placeholder: Route to command handler
-          // await commandHandler.handle(ctx);
-          await ctx.reply("Command received (handler placeholder)."); // Replace with actual handler call
-        } else {
-          // Handle regular text messages
-          if (userState === "BOOKING") {
-            logger.info(
-              { userId: ctx.state.user?.id },
-              "User in BOOKING state, routing to booking agent.",
-            );
-            await bookingAgent.runBookingAgent({
-              telegramId: ctx.from.id.toString(),
-              message: message.text,
-            });
-          } else {
-            logger.debug(
-              { userId: ctx.state.user?.id, state: userState },
-              "User not in BOOKING state, sending generic reply.",
-            );
-            await ctx.reply("Got it. How can I help you today?");
-          }
+    if (isTextMessage(ctx)) {
+        logger.info({ userId, text: ctx.message.text }, 'Routing to messageHandler.');
+        try {
+            // Correctly use the injected dependency
+            await dependencies.messageHandler.handleTextMessage(ctx);
+        } catch (err) {
+            logger.error({ err, userId }, 'Unhandled error in messageHandler');
+            // Consider sending a generic error message to the user
+            // await ctx.reply("Sorry, something went wrong processing your message.");
         }
-      } else {
-        // Handle non-text messages (photos, stickers, etc.)
-        logger.debug(
-          { userId: ctx.state.user?.id },
-          "Received non-text message.",
-        );
-        await ctx.reply("I can only process text messages right now.");
-      }
-    } else if (updateType === "callback_query") {
-      // Handle callback queries (inline buttons)
-      logger.debug(
-        { callbackData: ctx.callbackQuery.data, userId: ctx.state.user?.id },
-        "Routing callback query...",
-      );
-      // Placeholder: Route to callback handler
-      // await callbackHandler.handle(ctx);
-      await ctx.answerCbQuery("Callback received (handler placeholder)."); // Replace with actual handler call
-      // Optionally edit the original message or send a new one
-      // await ctx.editMessageText('Processing your selection...');
+        return; // Stop processing this update further down the middleware chain
+    } else if (isCallbackQuery(ctx)) {
+        logger.info({ userId, callbackData: ctx.callbackQuery.data }, 'Routing to callbackQueryHandler.');
+        try {
+             // Correctly use the injected dependency
+             await dependencies.callbackQueryHandler.handleCallbackQuery(ctx);
+        } catch (err) {
+             logger.error({ err, userId: userId, callbackData: ctx.callbackQuery.data }, 'Unhandled error in callbackQueryHandler');
+             // Attempt to answer query anyway to prevent infinite loading on client
+             try { await ctx.answerCbQuery("Error processing selection."); } catch (e) {
+                logger.warn({ err: e, userId }, 'Failed to answer callback query after handler error.');
+             }
+        }
+        return; // Stop processing
     } else {
-      // Handle other update types (inline_query, chosen_inline_result, etc.)
-      logger.warn(
-        { updateType, userId: ctx.state.user?.id },
-        "Received unhandled update type.",
-      );
-      // Optionally call next() if other middleware should handle this
-      // return next();
+        // Handle other update types or ignore
+        logger.warn({ userId, updateType }, 'Received unhandled update type.');
     }
-  } catch (error) {
-    logger.error(
-      { err: error, userId: ctx.state.user?.id, updateType },
-      "Error processing update in router.",
-    );
-    // Avoid crashing the bot, send a generic error message
-    try {
-      await ctx.reply(
-        "Sorry, something went wrong while processing your request.",
-      );
-    } catch (replyError) {
-      logger.error({ err: replyError }, "Failed to send error reply to user.");
-    }
-  }
-  // If not handled or passed to next, stop processing here
+
+    // If the update wasn't handled by the specific routes above, proceed
+    // logger.debug({ userId, updateType }, 'Update not handled by router, passing to next middleware.');
+    // return next(); // Usually, we want specific handlers to terminate the flow
 }
 
 module.exports = {
-  initialize,
-  updateRouterMiddleware,
+    initialize,
+    updateRouterMiddleware
 };
