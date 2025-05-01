@@ -226,8 +226,8 @@
 | [X]**PH4‑04** | **Assemble Booking Graph (`src/graph/bookingGraph.js`)**                   | Use `langgraph` (`StateGraph`) to define the graph: add nodes (PH4-02), set entry/finish points, add conditional edges (PH4-03) based on booking conversation logic. Compile the graph. | *Pass*: Graph definition file created, compiles successfully (`graph.compile()`). |
 | [ ]**PH4‑05** | **(Hybrid Option) Explore LangGraph Studio**                               | *Optional:* Use LangGraph Studio to visually design the booking flow. Export the code/config. Compare/Integrate with manually coded graph (PH4-04). Refactor as needed.              | *Pass*: Studio explored, decision made whether to use its output, potentially refactored PH4-04. |
 | [X]**PH4‑06** | **Implement Graph Execution Tests (`src/tests/graph/bookingGraph.test.js`)** | Create integration tests for the compiled graph (`graph.invoke` or `graph.stream`). Simulate user inputs over multiple turns, mock tool/agent responses within nodes, assert the graph transitions through expected states and reaches correct end points. Keep tests simple. | *Pass*: Graph execution tests cover key booking/cancellation scenarios (happy path, cancellation path) using mocks. |
-| [ ]**PH4‑07** | **Test Coverage:**                                                         | Ensure Phase 4 modules (`graph/state.js`, `graph/nodes.js`, `graph/edges.js`, `graph/bookingGraph.js`) meet ≥ 90% coverage.                                                    | *Pass*: `npm test` coverage report confirms target. |
-| [ ]**PH4‑08** | **Update `docs/architecture.md`:**                                         | Add `src/graph/` directory structure. Add high-level description of the booking graph flow. Update Phase 4 status.                                                             |
+| [X]**PH4‑07** | **Test Coverage:**                                                         | Ensure Phase 4 modules (`graph/state.js`, `graph/nodes.js`, `graph/edges.js`, `graph/bookingGraph.js`) meet ≥ 90% coverage.                                                    | *Pass*: `npm test` coverage report confirms target. |
+| [X]**PH4‑08** | **Update `docs/architecture.md`:**                                         | Add `src/graph/` directory structure. Add high-level description of the booking graph flow. Update Phase 4 status.                                                             |
 | [ ]**PH4‑09** | **Final Review:**                                                          | Tick all Phase 4 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                        |
 
 ### 🚧 Discovered During Work
@@ -242,6 +242,7 @@
 *   **PH4-D6 (PH4-04):** Set agentNode as entry point.
 *   **PH4-D7 (PH4-04):** Compiled and exported the graph.
 *   **PH4-D8 (PH4-04):** Added basic tests verifying compilation.
+*   **PH4-D9 (PH4-08):** Updated docs/architecture.md with graph structure, flow description, and Phase 4 completion status.
 
 ### 💡 Insights & Decisions
 *(Explain graph state design, node/edge implementation choices, LangGraph Studio usage decision, graph testing strategy, etc.)*
@@ -268,4 +269,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-28 11:45
+**Last updated:** 2025-04-30 21:18
