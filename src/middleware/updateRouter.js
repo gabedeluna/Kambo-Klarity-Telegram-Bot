@@ -1,154 +1,203 @@
-const { isTextMessage, isCallbackQuery } = require("../utils/messageUtils");
-const logger = require("../utils/logger")("updateRouter");
-const { bookingGraph } = require("../graph/bookingGraph"); // Import the graph
-
-let handlerContext = {}; // To store injected dependencies
-
 /**
- * Initializes the update router middleware with necessary handlers.
+ * Initializes the update router middleware with necessary handlers and returns
+ * the configured routeUpdate middleware function.
  *
- * @param {object} context - Dependency context.
- * @param {object} context.commandHandler - Handler for command messages.
- * @param {object} context.callbackQueryHandler - Handler for callback queries.
- * @param {object} context.bookingAgent - The booking agent instance.
- * @param {object} context.bookingGraph - The compiled booking graph instance.
- * @throws {Error} If required handlers are missing.
+ * @param {object} deps - Dependency context.
+ * @param {object} deps.commandHandler - Handler for command messages.
+ * @param {object} deps.callbackQueryHandler - Handler for callback queries.
+ * @param {object} deps.bookingAgent - The booking agent instance.
+ * @param {object} deps.bookingGraph - The compiled booking graph instance.
+ * @returns {Function} The configured routeUpdate middleware function.
  */
-function initialize(context) {
-  if (
-    !context ||
-    !context.commandHandler ||
-    !context.callbackQueryHandler ||
-    !context.bookingAgent ||
-    !context.bookingGraph
-  ) {
-    // Add bookingGraph check
+function initialize(deps) {
+  const { logger: depLogger } = require("../core/logger");
+  const logger = depLogger; // Use the logger obtained via require
+
+  // --- Validate Dependencies ---
+  const {
+    commandHandler,
+    callbackQueryHandler,
+    bookingAgent,
+    // bookingGraph, // Currently unused?
+  } = deps || {};
+
+  if (!commandHandler || !callbackQueryHandler || !bookingAgent) {
+    const missing = [
+      !commandHandler && "commandHandler",
+      !callbackQueryHandler && "callbackQueryHandler",
+      !bookingAgent && "bookingAgent",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    logger.error(
+      { missingDependencies: missing },
+      `UpdateRouter initialization failed. Missing: ${missing}`,
+    );
     throw new Error(
-      "UpdateRouter requires commandHandler, callbackQueryHandler, bookingAgent, and bookingGraph.",
+      `UpdateRouter requires commandHandler, callbackQueryHandler, and bookingAgent.`,
     );
   }
-  handlerContext = context;
-  logger.info(
-    "Update router initialized successfully with all handlers and booking graph.",
-  );
-}
-
-/**
- * Telegraf middleware to route updates based on type and user state.
- *
- * @param {object} ctx - Telegraf context object.
- * @param {Function} next - Function to call the next middleware.
- */
-async function routeUpdate(ctx, next) {
-  const userId = ctx.state.user ? ctx.state.user.id : "unknown"; // Use internal DB user ID
-  const telegramId = ctx.from ? ctx.from.id : "unknown";
-  const userState = ctx.state.user ? ctx.state.user.state : "UNKNOWN";
 
   logger.info(
-    { userId, telegramId, userState, updateType: ctx.updateType },
-    "Routing update...",
+    "Update router initialized. Returning configured routeUpdate function.",
   );
 
-  if (ctx.message && ctx.message.text && ctx.message.text.startsWith("/")) {
-    logger.info({ userId }, "Routing to command handler.");
-    return handlerContext.commandHandler.handleCommand(ctx, next);
-  } else if (isCallbackQuery(ctx)) {
-    logger.info({ userId }, "Routing to callback query handler.");
-    return handlerContext.callbackQueryHandler.handleCallbackQuery(ctx, next);
-  } else if (isTextMessage(ctx)) {
-    logger.info(
-      { userId, userState },
-      "Processing text message based on state.",
-    );
-    // Handle text messages based on user state
-    if (userState === "BOOKING") {
-      logger.info(
-        { userId },
-        "Routing text message to booking graph (in BOOKING state).",
-      );
-      let sessionId; // Define sessionId outside try for catch block logging
-      try {
-        const userTelegramId = ctx.state.user.telegram_id.toString(); // Use consistent telegramId variable
-        sessionId = ctx.state.user.active_session_id; // Assign to outer scope variable
-        const userInput = ctx.message.text;
+  /**
+   * Telegraf middleware to route updates based on type and user state.
+   *
+   * @param {object} ctx - Telegraf context object.
+   * @param {Function} next - Function to call the next middleware.
+   */
+  async function routeUpdate(ctx, next) {
+    console.log(">>> routeUpdate START"); // DEBUG LOG
+    const telegramId = ctx.from?.id;
+    const user = ctx.state?.user; // Populated by preceding userState middleware
+    const isNewUser = ctx.state?.isNewUser;
 
-        if (!sessionId) {
-          logger.error(
-            { userId: userTelegramId },
-            "Cannot invoke graph: User is in BOOKING state but has no active_session_id.",
+    try {
+      // 1. Handle New User Registration
+      if (isNewUser === true) {
+        console.log(">>> routeUpdate NEW USER path"); // DEBUG LOG
+        const userName = ctx.from?.first_name || "there";
+        logger.info({ telegramId }, `New user detected: ${userName}`);
+        console.log(">>> routeUpdate NEW USER before reply"); // DEBUG LOG
+        await ctx.reply(
+          `👋 Welcome, ${userName}! To get started, please tell me about your travel plans or use /help.`,
+        );
+        console.log(">>> routeUpdate NEW USER after reply, before return"); // DEBUG LOG
+        return; // Stop processing further middleware
+      }
+
+      // 2. Handle Failed User Lookup (Error from previous middleware)
+      if (user === undefined) {
+        console.log(">>> routeUpdate FAILED LOOKUP path"); // DEBUG LOG
+        logger.error(
+          { userId: telegramId }, // Use actual telegramId for context
+          "Cannot route update: User lookup failed previously.",
+        );
+        return; // Stop processing
+      }
+
+      // At this point, we have an existing user object
+      const userState = user.state;
+      const sessionId = user.active_session_id;
+
+      // 3. Route Based on Update Type and User State
+      if (ctx.updateType === "message" && ctx.message?.text) {
+        const messageText = ctx.message.text;
+        console.log(`>>> routeUpdate MESSAGE path - State: ${userState}`); // DEBUG LOG
+
+        // 3.1 Handle Commands
+        if (messageText.startsWith("/")) {
+          console.log(">>> routeUpdate COMMAND path"); // DEBUG LOG
+          logger.info(
+            { telegramId, command: messageText },
+            "Routing to command handler.",
+          );
+          await commandHandler.handleCommand(ctx, next); // Pass next for potential fallthrough
+        }
+        // 3.2 Handle Text Message during Booking
+        else if (userState === "BOOKING") {
+          console.log(">>> routeUpdate BOOKING path"); // DEBUG LOG
+          if (!sessionId) {
+            logger.error(
+              { telegramId },
+              "Cannot invoke graph: User is in BOOKING state but has no active_session_id.",
+            );
+            await ctx.reply(
+              "There seems to be an issue with your current booking session. Please try starting a new request, perhaps with /book.",
+            );
+            return; // Stop processing
+          }
+          logger.debug(
+            { telegramId, sessionId },
+            "Routing message to booking graph",
+          );
+          const graphInput = { userInput: messageText };
+          console.log(">>> routeUpdate BOOKING before invokeGraph"); // DEBUG LOG
+          await bookingAgent.invokeGraph(sessionId, graphInput);
+          console.log(">>> routeUpdate BOOKING after invokeGraph"); // DEBUG LOG
+          // Agent is expected to handle the reply based on graphOutput
+          return; // Stop processing after graph handles it
+        }
+        // 3.3. Handle Generic Text (IDLE state)
+        else if (userState === "IDLE") {
+          console.log(">>> routeUpdate IDLE TEXT path"); // DEBUG LOG
+          logger.debug(
+            { telegramId },
+            "Handling generic text message in IDLE state.",
+          );
+          console.log(">>> routeUpdate IDLE TEXT before reply"); // DEBUG LOG
+          await ctx.reply(
+            "I received your message, but I'm not sure how to handle it in the current context. Try starting with a command like /start or /help.",
+          );
+          console.log(">>> routeUpdate IDLE TEXT after reply, before return"); // DEBUG LOG
+          return; // Stop processing after generic reply
+        } else {
+          // Should not happen if states are handled
+          console.log(`>>> routeUpdate UNKNOWN state TEXT path: ${userState}`); // DEBUG LOG
+          logger.warn(
+            { telegramId, userState },
+            "User in unhandled state received text message.",
           );
           await ctx.reply(
-            "Sorry, there's an issue with your current booking session. Please start again with /book.",
+            "I'm not sure how to handle that in my current state.",
           );
-          // TODO: Consider resetting user state here
           return;
         }
-
-        // Minimal input for this turn - graph manages its full state via sessionId
-        const graphInput = { userInput: userInput };
-
+      } else if (ctx.updateType === "callback_query") {
+        console.log(">>> routeUpdate CALLBACK QUERY path"); // DEBUG LOG
+        // 4. Route Callback Queries (IDLE or BOOKING state - handler decides)
         logger.info(
-          { userId: userTelegramId, sessionId },
-          "Invoking booking graph...",
+          { telegramId, data: ctx.callbackQuery?.data },
+          "Routing callback query",
         );
-
-        // Invoke graph, passing sessionId in config for memory scoping
-        const finalState = await handlerContext.bookingGraph.invoke(
-          graphInput,
-          { configurable: { sessionId: sessionId } },
+        await callbackQueryHandler.handleCallbackQuery(ctx, next); // Pass next
+      } else {
+        console.log(`>>> routeUpdate UNHANDLED type path: ${ctx.updateType}`); // DEBUG LOG
+        // 5. Warn and Pass Through Unhandled Update Types
+        const messageType = ctx.message
+          ? Object.keys(ctx.message).find(
+              (key) =>
+                key !== "message_id" &&
+                key !== "date" &&
+                key !== "chat" &&
+                key !== "from" &&
+                key !== "text",
+            )
+          : "unknown";
+        logger.warn(
+          { updateType: ctx.updateType, messageType },
+          "Unhandled update type received.",
         );
-
-        // Extract final output to send to user (adjust based on actual graph state structure)
-        // Assuming the final outcome is in agentOutcome.output, needs verification based on graph definition
-        const responseOutput = finalState?.agentOutcome?.output; // Example access path - VERIFY THIS PATH!
-
-        if (responseOutput) {
-          logger.info(
-            { userId: userTelegramId, sessionId },
-            "Graph returned output for user.",
-          );
-          await ctx.reply(responseOutput);
-        } else {
-          logger.warn(
-            { userId: userTelegramId, sessionId, finalState },
-            "Graph execution finished turn without direct user output.",
-          );
-          // Avoid sending generic message unless necessary, graph might handle this internally.
-          // If the graph *always* sends a message or updates state appropriately, no default reply is needed.
-        }
-      } catch (err) {
-        // Use userId and telegramId defined at the start of routeUpdate for reliable logging
-        logger.error(
-          { err, userId, telegramId, sessionId: sessionId || "unknown" },
-          "Error invoking booking graph.",
-        );
-        await ctx.reply(
-          "Sorry, an unexpected error occurred while processing your request.",
-        );
-        // TODO: Consider state reset?
+        await next(); // Pass to next middleware
       }
-    } else {
-      // Default handler for text messages when not in a specific state like 'BOOKING'
-      logger.info(
-        { userId, userState },
-        "Received unhandled text message for current state.",
+    } catch (err) {
+      console.error(">>> routeUpdate CAUGHT ERROR:", err); // DEBUG LOG
+      logger.error(
+        { err, telegramId },
+        "Unhandled error during update processing.",
       );
-      await ctx.reply(
-        "I received your message, but I'm not sure how to handle it in the current context. Try starting with a command like /start or /help.",
-      );
+      try {
+        console.log(">>> routeUpdate ERROR before reply"); // DEBUG LOG
+        await ctx.reply(
+          "Apologies, an unexpected error occurred while processing your request.",
+        );
+        console.log(">>> routeUpdate ERROR after reply"); // DEBUG LOG
+      } catch (replyErr) {
+        console.error(">>> routeUpdate FAILED TO SEND ERROR REPLY:", replyErr); // DEBUG LOG
+        logger.error(
+          { err: replyErr, originalError: err, telegramId },
+          "Error sending error reply to user.",
+        );
+      }
+      // Do not call next() after an error
+    } finally {
+      // console.log(">>> routeUpdate FINALLY block"); // DEBUG LOG - Maybe too noisy
     }
-  } else {
-    logger.warn(
-      { userId, updateType: ctx.updateType },
-      "Received unhandled update type.",
-    );
-    // Optional: Reply for unhandled update types
-    // await ctx.reply("Sorry, I don't know how to handle that type of message.");
-    return next(); // Pass to other middleware if needed
   }
+
+  return routeUpdate;
 }
 
-module.exports = {
-  initialize,
-  routeUpdate,
-};
+module.exports = { initialize };
