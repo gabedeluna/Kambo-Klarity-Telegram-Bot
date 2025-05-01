@@ -225,7 +225,7 @@
 | [X]**PH4‑03** | **Implement Graph Conditional Edges (`src/graph/edges.js` or inline)**     | Define functions that determine the next node based on the current state (e.g., check agent action type, check if slots found).                                                  | *Pass*: Edge functions implemented, return correct next node name based on input state. Unit tests pass. |
 | [X]**PH4‑04** | **Assemble Booking Graph (`src/graph/bookingGraph.js`)**                   | Use `langgraph` (`StateGraph`) to define the graph: add nodes (PH4-02), set entry/finish points, add conditional edges (PH4-03) based on booking conversation logic. Compile the graph. | *Pass*: Graph definition file created, compiles successfully (`graph.compile()`). |
 | [ ]**PH4‑05** | **(Hybrid Option) Explore LangGraph Studio**                               | *Optional:* Use LangGraph Studio to visually design the booking flow. Export the code/config. Compare/Integrate with manually coded graph (PH4-04). Refactor as needed.              | *Pass*: Studio explored, decision made whether to use its output, potentially refactored PH4-04. |
-| [ ]**PH4‑06** | **Implement Graph Execution Tests (`src/tests/graph/bookingGraph.test.js`)** | Create integration tests for the compiled graph (`graph.invoke` or `graph.stream`). Simulate user inputs over multiple turns, mock tool/agent responses within nodes, assert the graph transitions through expected states and reaches correct end points. Keep tests simple. | *Pass*: Graph execution tests cover key booking scenarios (happy path, cancellation path) using mocks. |
+| [X]**PH4‑06** | **Implement Graph Execution Tests (`src/tests/graph/bookingGraph.test.js`)** | Create integration tests for the compiled graph (`graph.invoke` or `graph.stream`). Simulate user inputs over multiple turns, mock tool/agent responses within nodes, assert the graph transitions through expected states and reaches correct end points. Keep tests simple. | *Pass*: Graph execution tests cover key booking/cancellation scenarios (happy path, cancellation path) using mocks. |
 | [ ]**PH4‑07** | **Test Coverage:**                                                         | Ensure Phase 4 modules (`graph/state.js`, `graph/nodes.js`, `graph/edges.js`, `graph/bookingGraph.js`) meet ≥ 90% coverage.                                                    | *Pass*: `npm test` coverage report confirms target. |
 | [ ]**PH4‑08** | **Update `docs/architecture.md`:**                                         | Add `src/graph/` directory structure. Add high-level description of the booking graph flow. Update Phase 4 status.                                                             |
 | [ ]**PH4‑09** | **Final Review:**                                                          | Tick all Phase 4 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                        |
@@ -237,23 +237,14 @@
     - `sendTextMessageNode`: Uses `agentOutcome.output` for message text, returns `lastToolResponse` with success/error status
     - `deleteCalendarEventNode`: Clears `googleEventId` from state after successful deletion
     - Added comprehensive tests covering success, missing data, and API failure cases
-*   **PH4-D3 (PH4-01):** Added `active_session_id` to state schema.
 *   **PH4-D4 (PH4-04):** Created src/graph/bookingGraph.js.
 *   **PH4-D5 (PH4-04):** Used StateGraph to add nodes and conditional edges based on edge functions.
 *   **PH4-D6 (PH4-04):** Set agentNode as entry point.
 *   **PH4-D7 (PH4-04):** Compiled and exported the graph.
 *   **PH4-D8 (PH4-04):** Added basic tests verifying compilation.
-*   **PH4-D1 (Relates to PH4-01/02):** Fixed multiple failing tests in `bookingAgent.test.js` and `nodes.test.js` that were blocking progress on defining and testing the graph structure. This included resolving ESLint `no-undef` errors for Mocha globals by correcting the file path in `eslint.config.js` and cleaning up unused variables. See insights below.
-*   **PH4-D2 (PH4-01):** Implemented both nodes with proper error handling and state management:
-    - `sendTextMessageNode`: Uses `agentOutcome.output` for message text, returns `lastToolResponse` with success/error status
-    - `deleteCalendarEventNode`: Clears `googleEventId` from state after successful deletion
-    - Added comprehensive tests covering success, missing data, and API failure cases
-{{ ... }}
 
 ### 💡 Insights & Decisions
 *(Explain graph state design, node/edge implementation choices, LangGraph Studio usage decision, graph testing strategy, etc.)*
-
-*   **PH4-04:** Assembled graph components into a runnable workflow. Conditional edges are key for routing logic. Compilation step finalizes the graph definition.
 *   **(PH4-D1) Debugging Failing Agent/Graph Tests:** Encountered several interconnected issues causing test failures in `bookingAgent.test.js` and `nodes.test.js`. The resolution process highlighted key testing best practices:
     1.  **Error Message Specificity:** Initial failures in `bookingAgent.test.js` occurred because tests asserted generic error messages (e.g., `Agent execution failed`), while the actual implementation correctly returned more specific messages incorporating the underlying error (e.g., `` `Agent execution failed: ${error.message}` ``). 
         *   **Solution:** Updated the `runBookingAgent` function in `src/agents/bookingAgent.js` to return the detailed error messages from its `catch` blocks. Corresponding test assertions in `bookingAgent.test.js` were already correct in expecting the detailed format.
@@ -267,7 +258,7 @@
         *   If an isolated test passes but fails with others, use the `--bail` flag (`npx mocha ... --bail`) to stop on the *first* failure and examine its output without noise from subsequent failures.
         *   Pay close attention to Sinon error messages (e.g., `called X times` vs. `expected Y times`) as they pinpoint the exact assertion failing.
         *   When debugging test isolation issues, meticulously check the scope and lifecycle of mocks and stubs. Ensure they are properly reset *and* that the system under test receives fresh instances if necessary (as was the case with `initializeNodes`).
-
+*   **PH4-04:** Assembled graph components into a runnable workflow. Conditional edges are key for routing logic. Compilation step finalizes the graph definition.
 
 ### 🧪 Quick‑Run Commands
 
