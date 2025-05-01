@@ -6,12 +6,11 @@ chai.use(chaiAsPromised.default || chaiAsPromised);
 const sinon = require("sinon"); // For unit & integration tests
 const proxyquire = require("proxyquire").noCallThru();
 const { expect } = chai;
-const { createInitialBookingState } = require('../../src/graph/state');
 
 // --- Integration Test Imports ---
-const { initializeGraph } = require('../../src/graph/bookingGraph');
-const nodesIntegration = require('../../src/graph/nodes'); // Use the actual nodes module
-const edgesIntegration = require('../../src/graph/edges'); // Use the actual edges module
+const { initializeGraph } = require("../../src/graph/bookingGraph");
+const nodesIntegration = require("../../src/graph/nodes"); // Use the actual nodes module
+const edgesIntegration = require("../../src/graph/edges"); // Use the actual edges module
 
 // --- Unit Test Mocks & Setup ---
 // Mock node functions
@@ -37,15 +36,15 @@ const mockEdges = {
   routeAfterReset: sinon.stub(),
 };
 
-// Mock the initializeGraph function itself for unit tests
-const mockInitializeGraph = sinon.stub();
-
 // Import the bookingGraph *initializer* using proxyquire for unit testing
-const { initializeGraph: unitTestInitializeGraph } = proxyquire("../../src/graph/bookingGraph", {
-  "./nodes": mockNodes,
-  "./edges": mockEdges, // Mock edges as well
-  // We don't mock StateGraph itself, we test the *logic* that uses it
-});
+const { initializeGraph: unitTestInitializeGraph } = proxyquire(
+  "../../src/graph/bookingGraph",
+  {
+    "./nodes": mockNodes,
+    "./edges": mockEdges, // Mock edges as well
+    // We don't mock StateGraph itself, we test the *logic* that uses it
+  },
+);
 
 describe("bookingGraph", () => {
   let sandbox;
@@ -59,9 +58,9 @@ describe("bookingGraph", () => {
   });
 
   it("should compile and export a runnable graph object", () => {
-    const testBookingGraph = unitTestInitializeGraph(mockNodes, mockEdges);
-    expect(testBookingGraph).to.be.an("object");
-    expect(testBookingGraph.invoke).to.be.a("function");
+    const testBookingGraphUnit = unitTestInitializeGraph(mockNodes, mockEdges);
+    expect(testBookingGraphUnit).to.be.an("object");
+    expect(testBookingGraphUnit.invoke).to.be.a("function");
   });
 
   it("should register all required nodes", () => {
@@ -77,46 +76,54 @@ describe("bookingGraph", () => {
   });
 });
 
-// ... rest of the code remains the same ...
+// --- Integration Tests --- //
+
+// Declare variables needed for integration tests in the describe scope
+let sandbox;
+let mockAgent,
+  mockStateManager,
+  mockGoogleCalendar,
+  mockTelegramNotifier,
+  mockLogger;
+let testBookingGraph;
 
 describe("Booking Graph - Integration Tests (Flow)", () => {
-
   beforeEach(() => {
     sandbox = sinon.createSandbox(); // Use top-level sinon
 
     // Create fresh mocks for external dependencies using sandbox
     mockAgent = { runBookingAgent: sandbox.stub() };
     mockStateManager = {
-        storeBookingData: sandbox.stub(),
-        resetUserState: sandbox.stub(),
-        getUserProfileData: sandbox.stub(),
-        getUserPastSessions: sandbox.stub(),
-        setActiveSessionId: sandbox.stub(),
-        clearActiveSessionId: sandbox.stub(),
+      storeBookingData: sandbox.stub(),
+      resetUserState: sandbox.stub(),
+      getUserProfileData: sandbox.stub(),
+      getUserPastSessions: sandbox.stub(),
+      setActiveSessionId: sandbox.stub(),
+      clearActiveSessionId: sandbox.stub(),
     };
     mockGoogleCalendar = {
-        findFreeSlots: sandbox.stub(),
-        createCalendarEvent: sandbox.stub(),
-        deleteCalendarEvent: sandbox.stub(),
+      findFreeSlots: sandbox.stub(),
+      createCalendarEvent: sandbox.stub(),
+      deleteCalendarEvent: sandbox.stub(),
     };
     mockTelegramNotifier = {
-        sendWaiverLink: sandbox.stub(),
-        sendTextMessage: sandbox.stub(),
+      sendWaiverLink: sandbox.stub(),
+      sendTextMessage: sandbox.stub(),
     };
-    mockLogger = { 
-        info: sandbox.stub(), 
-        error: sandbox.stub(), 
-        warn: sandbox.stub(), 
-        debug: sandbox.stub() 
+    mockLogger = {
+      info: sandbox.stub(),
+      error: sandbox.stub(),
+      warn: sandbox.stub(),
+      debug: sandbox.stub(),
     };
 
     // Initialize the REAL nodes module with the MOCKED external dependencies
     nodesIntegration.initializeNodes({
-        bookingAgent: mockAgent,
-        stateManager: mockStateManager,
-        googleCalendar: mockGoogleCalendar,
-        telegramNotifier: mockTelegramNotifier,
-        logger: mockLogger
+      bookingAgent: mockAgent,
+      stateManager: mockStateManager,
+      googleCalendar: mockGoogleCalendar,
+      telegramNotifier: mockTelegramNotifier,
+      logger: mockLogger,
     });
 
     // Initialize the graph with the mock-injected nodes and actual edges
@@ -128,6 +135,9 @@ describe("Booking Graph - Integration Tests (Flow)", () => {
   });
 
   it("should be an object with an invoke method", () => {
-    // ... rest of the code remains the same ...
+    expect(testBookingGraph).to.be.an("object");
+    expect(testBookingGraph.invoke).to.be.a("function");
   });
-}); // <<< Closing brace for the main describe block
+
+  // ... rest of the code remains the same ...
+});

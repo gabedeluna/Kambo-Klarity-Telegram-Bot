@@ -3,7 +3,7 @@ const sinon = require("sinon");
 const path = require("path");
 
 // Import the actual logger
-const logger = require('../../src/core/logger');
+const logger = require("../../src/core/logger");
 
 describe("Core Prisma Module", () => {
   let sandbox;
@@ -24,12 +24,12 @@ describe("Core Prisma Module", () => {
     processOnStub = sandbox.stub(process, "on");
 
     // Stub actual logger methods within the sandbox using sandbox.replace
-    sandbox.replace(logger, 'info', sandbox.stub());
-    sandbox.replace(logger, 'error', sandbox.stub());
-    sandbox.replace(logger, 'warn', sandbox.stub());
-    sandbox.replace(logger, 'debug', sandbox.stub());
-    sandbox.replace(logger, 'fatal', sandbox.stub());
-    sandbox.replace(logger, 'trace', sandbox.stub());
+    sandbox.replace(logger, "info", sandbox.stub());
+    sandbox.replace(logger, "error", sandbox.stub());
+    sandbox.replace(logger, "warn", sandbox.stub());
+    sandbox.replace(logger, "debug", sandbox.stub());
+    sandbox.replace(logger, "fatal", sandbox.stub());
+    sandbox.replace(logger, "trace", sandbox.stub());
     // If logger.child is used, stub it as well
     // sandbox.replace(logger, 'child', sandbox.stub().returnsThis());
   });
@@ -115,7 +115,8 @@ describe("Core Prisma Module", () => {
 
       // Require the module - this creates an instance with the stubbed prototype
       // and registers the beforeExit listener
-      const prismaInstance = require(
+      const _prismaInstance = require(
+        // Prefix with _ as it's required for side-effects but not used
         path.resolve(process.cwd(), "src/core/prisma.js"),
       );
 
@@ -141,8 +142,7 @@ describe("Core Prisma Module", () => {
       expect(disconnectStub.called, "$disconnect should be called").to.be.true;
 
       // Verify logger.error was called with the error object
-      expect(logger.error.called, "logger.error should be called").to.be
-        .true;
+      expect(logger.error.called, "logger.error should be called").to.be.true;
       expect(
         logger.error.firstCall.args[0],
         "First argument should be the error object",

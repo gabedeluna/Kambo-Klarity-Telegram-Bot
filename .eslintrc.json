@@ -1,0 +1,34 @@
+{
+  "env": {
+    "commonjs": true,
+    "es2021": true,
+    "node": true // Base environment for Node.js globals
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": "latest"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }]
+  },
+  "overrides": [
+    {
+      "files": [
+        "tests/**/*.js", // Include helpers if any
+        "tests/**/*.test.js" // Specific test files
+      ],
+      "globals": {
+        "describe": "readonly",
+        "it": "readonly",
+        "before": "readonly",
+        "after": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly"
+      }
+      // Add test-specific rules here if needed, e.g.:
+      // "rules": {
+      //   "no-unused-expressions": "off" // Often needed for chai assertions
+      // }
+    }
+  ]
+}

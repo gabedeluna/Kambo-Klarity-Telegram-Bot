@@ -1,5 +1,4 @@
 const sinon = require("sinon");
-const { expect } = require("chai");
 const app = require("../../src/app"); // Adjusted path
 
 // Create a logger mock that we'll use for all tests
@@ -29,8 +28,6 @@ require.cache[loggerPath] = {
 const serverModulePath = require.resolve("../../bin/server");
 
 describe("Server Startup Script (bin/server.js)", () => {
-  let listenStub;
-  let processExitStub;
   let mockServer;
 
   beforeEach(() => {
@@ -43,13 +40,13 @@ describe("Server Startup Script (bin/server.js)", () => {
     };
 
     // Stub app.listen BEFORE requiring the server module
-    listenStub = sinon.stub(app, "listen").returns(mockServer);
+    sinon.stub(app, "listen").returns(mockServer);
 
     // Reset logger mock stubs
     Object.values(loggerMock).forEach((stub) => stub.reset());
 
     // Stub process.exit to prevent tests from terminating
-    processExitStub = sinon.stub(process, "exit");
+    sinon.stub(process, "exit");
 
     // Clear cache to ensure the module runs its setup code
     delete require.cache[serverModulePath];

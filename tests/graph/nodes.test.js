@@ -701,8 +701,10 @@ describe("Graph Nodes", () => {
         telegramId: initialState.telegramId,
         text: agentOutput,
       });
-      expect(result).to.deep.equal({ lastToolResponse: 'Message sent.' });
-      expect(mockLogger.info).to.have.been.calledWithMatch(/Message sent successfully/);
+      expect(result).to.deep.equal({ lastToolResponse: "Message sent." });
+      expect(mockLogger.info).to.have.been.calledWithMatch(
+        /Message sent successfully/,
+      );
     });
 
     it("should return error when no text is available", async () => {
@@ -713,10 +715,10 @@ describe("Graph Nodes", () => {
       const result = await sendTextMessageNode(initialState);
 
       expect(mockTelegramNotifier.sendTextMessage).not.to.have.been.called;
-      expect(result).to.deep.equal({ error: 'Missing text to send' });
+      expect(result).to.deep.equal({ error: "Missing text to send" });
       expect(mockLogger.warn).to.have.been.calledWith(
         { state: initialState },
-        'No text found in state for sendTextMessageNode'
+        "No text found in state for sendTextMessageNode",
       );
     });
 
@@ -725,9 +727,9 @@ describe("Graph Nodes", () => {
       const initialState = getBaseState({
         agentOutcome: { output: agentOutput },
       });
-      mockTelegramNotifier.sendTextMessage.resolves({ 
-        success: false, 
-        error: "Telegram API error" 
+      mockTelegramNotifier.sendTextMessage.resolves({
+        success: false,
+        error: "Telegram API error",
       });
 
       const result = await sendTextMessageNode(initialState);
@@ -735,9 +737,11 @@ describe("Graph Nodes", () => {
       expect(mockTelegramNotifier.sendTextMessage).to.have.been.called;
       expect(result).to.deep.equal({
         error: "Telegram API error",
-        lastToolResponse: "Error sending message."
+        lastToolResponse: "Error sending message.",
       });
-      expect(mockLogger.error).to.have.been.calledWithMatch(/Failed to send message/);
+      expect(mockLogger.error).to.have.been.calledWithMatch(
+        /Failed to send message/,
+      );
     });
   });
 
@@ -758,7 +762,9 @@ describe("Graph Nodes", () => {
         lastToolResponse: "Calendar event deleted.",
         googleEventId: null, // Should clear the ID after deletion
       });
-      expect(mockLogger.info).to.have.been.calledWithMatch(/Event deleted successfully/);
+      expect(mockLogger.info).to.have.been.calledWithMatch(
+        /Event deleted successfully/,
+      );
     });
 
     it("should return error when no event ID is available", async () => {
@@ -769,10 +775,12 @@ describe("Graph Nodes", () => {
       const result = await deleteCalendarEventNode(initialState);
 
       expect(mockGoogleCalendar.deleteCalendarEvent).not.to.have.been.called;
-      expect(result).to.deep.equal({ error: 'Missing Google Event ID to delete' });
+      expect(result).to.deep.equal({
+        error: "Missing Google Event ID to delete",
+      });
       expect(mockLogger.error).to.have.been.calledWith(
         { state: initialState },
-        'No googleEventId found in state for deleteCalendarEventNode'
+        "No googleEventId found in state for deleteCalendarEventNode",
       );
     });
 
@@ -780,9 +788,9 @@ describe("Graph Nodes", () => {
       const initialState = getBaseState({
         googleEventId: "event123",
       });
-      mockGoogleCalendar.deleteCalendarEvent.resolves({ 
-        success: false, 
-        error: "Calendar API error" 
+      mockGoogleCalendar.deleteCalendarEvent.resolves({
+        success: false,
+        error: "Calendar API error",
       });
 
       const result = await deleteCalendarEventNode(initialState);
@@ -790,9 +798,11 @@ describe("Graph Nodes", () => {
       expect(mockGoogleCalendar.deleteCalendarEvent).to.have.been.called;
       expect(result).to.deep.equal({
         error: "Calendar API error",
-        lastToolResponse: "Error deleting calendar event."
+        lastToolResponse: "Error deleting calendar event.",
       });
-      expect(mockLogger.error).to.have.been.calledWithMatch(/Failed to delete event/);
+      expect(mockLogger.error).to.have.been.calledWithMatch(
+        /Failed to delete event/,
+      );
     });
   });
 }); // End of describe('Graph Nodes')

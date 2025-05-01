@@ -406,31 +406,38 @@ async function sendTextMessageNode(state) {
 
   const textToSend = state.agentOutcome?.output;
   if (!textToSend) {
-    logger.warn({ state }, 'No text found in state for sendTextMessageNode');
-    return { error: 'Missing text to send' };
+    logger.warn({ state }, "No text found in state for sendTextMessageNode");
+    return { error: "Missing text to send" };
   }
 
   try {
-    const result = await telegramNotifier.sendTextMessage({ 
-      telegramId, 
-      text: textToSend 
+    const result = await telegramNotifier.sendTextMessage({
+      telegramId,
+      text: textToSend,
     });
 
     if (result.success) {
-      logger.info(`[Send Text Node] Message sent successfully to user: ${telegramId}`);
-      return { lastToolResponse: 'Message sent.' };
+      logger.info(
+        `[Send Text Node] Message sent successfully to user: ${telegramId}`,
+      );
+      return { lastToolResponse: "Message sent." };
     } else {
-      logger.error(`[Send Text Node] Failed to send message to user: ${telegramId}. Error: ${result.error}`);
-      return { 
-        error: result.error || 'Failed to send message',
-        lastToolResponse: 'Error sending message.'
+      logger.error(
+        `[Send Text Node] Failed to send message to user: ${telegramId}. Error: ${result.error}`,
+      );
+      return {
+        error: result.error || "Failed to send message",
+        lastToolResponse: "Error sending message.",
       };
     }
   } catch (err) {
-    logger.error(`[Send Text Node] Unexpected error sending message to user: ${telegramId}.`, err);
+    logger.error(
+      `[Send Text Node] Unexpected error sending message to user: ${telegramId}.`,
+      err,
+    );
     return {
-      error: 'Unexpected error when sending message.',
-      lastToolResponse: 'Error sending message.'
+      error: "Unexpected error when sending message.",
+      lastToolResponse: "Error sending message.",
     };
   }
 }
@@ -442,37 +449,49 @@ async function sendTextMessageNode(state) {
  * @returns {Promise<Partial<BookingState>>} Update indicating deletion status or error.
  */
 async function deleteCalendarEventNode(state) {
-  logger.debug(`[Delete Calendar Event Node] Entering for user: ${state.telegramId}`);
+  logger.debug(
+    `[Delete Calendar Event Node] Entering for user: ${state.telegramId}`,
+  );
   const { telegramId, googleEventId } = state;
 
   if (!googleEventId) {
-    logger.error({ state }, 'No googleEventId found in state for deleteCalendarEventNode');
-    return { error: 'Missing Google Event ID to delete' };
+    logger.error(
+      { state },
+      "No googleEventId found in state for deleteCalendarEventNode",
+    );
+    return { error: "Missing Google Event ID to delete" };
   }
 
   try {
-    const result = await googleCalendar.deleteCalendarEvent({ 
-      eventId: googleEventId 
+    const result = await googleCalendar.deleteCalendarEvent({
+      eventId: googleEventId,
     });
 
     if (result.success) {
-      logger.info(`[Delete Calendar Event Node] Event deleted successfully for user: ${telegramId}`);
-      return { 
-        lastToolResponse: 'Calendar event deleted.',
-        googleEventId: null // Clear the event ID from state after deletion
+      logger.info(
+        `[Delete Calendar Event Node] Event deleted successfully for user: ${telegramId}`,
+      );
+      return {
+        lastToolResponse: "Calendar event deleted.",
+        googleEventId: null, // Clear the event ID from state after deletion
       };
     } else {
-      logger.error(`[Delete Calendar Event Node] Failed to delete event for user: ${telegramId}. Error: ${result.error}`);
-      return { 
-        error: result.error || 'Failed to delete GCal event',
-        lastToolResponse: 'Error deleting calendar event.'
+      logger.error(
+        `[Delete Calendar Event Node] Failed to delete event for user: ${telegramId}. Error: ${result.error}`,
+      );
+      return {
+        error: result.error || "Failed to delete GCal event",
+        lastToolResponse: "Error deleting calendar event.",
       };
     }
   } catch (err) {
-    logger.error(`[Delete Calendar Event Node] Unexpected error deleting event for user: ${telegramId}.`, err);
+    logger.error(
+      `[Delete Calendar Event Node] Unexpected error deleting event for user: ${telegramId}.`,
+      err,
+    );
     return {
-      error: 'Unexpected error when deleting calendar event.',
-      lastToolResponse: 'Error deleting calendar event.'
+      error: "Unexpected error when deleting calendar event.",
+      lastToolResponse: "Error deleting calendar event.",
     };
   }
 }
@@ -487,5 +506,5 @@ module.exports = {
   resetStateNode,
   handleErrorNode,
   sendTextMessageNode,
-  deleteCalendarEventNode
+  deleteCalendarEventNode,
 };

@@ -360,7 +360,9 @@ describe("Booking Agent - Integration Tests", () => {
 
         // Assert
         expect(result.success).to.be.false;
-        expect(result.error).to.equal(`Failed to get user profile: ${mockError.message}`);
+        expect(result.error).to.equal(
+          `Failed to get user profile: ${mockError.message}`,
+        );
         expect(mockLogger.error).to.have.been.called; // Just check if error was logged
         expect(mockAgentExecutor.invoke).to.not.have.been.called;
       });
@@ -371,9 +373,16 @@ describe("Booking Agent - Integration Tests", () => {
         // Ensure user profile/session setup succeeds
         mockStateManager.getUserProfileData.resolves({
           success: true,
-          data: { first_name: 'Test', telegram_id: '123', active_session_id: 'session-ok' }
+          data: {
+            first_name: "Test",
+            telegram_id: "123",
+            active_session_id: "session-ok",
+          },
         });
-        mockStateManager.getUserPastSessions.resolves({ success: true, data: [] });
+        mockStateManager.getUserPastSessions.resolves({
+          success: true,
+          data: [],
+        });
         // Make the executor invocation fail
         const mockError = new Error(agentErrorMessage);
         mockAgentExecutor.invoke.rejects(mockError);
@@ -386,12 +395,16 @@ describe("Booking Agent - Integration Tests", () => {
 
         // Assert
         expect(result.success).to.be.false;
-        expect(result.error).to.equal(`Agent execution failed: ${mockError.message}`);
+        expect(result.error).to.equal(
+          `Agent execution failed: ${mockError.message}`,
+        );
         // Check that error was logged with context object and specific message string
-        expect(mockLogger.error).to.have.been.calledWith(sinon.match.object, 'Error during agent execution');
+        expect(mockLogger.error).to.have.been.calledWith(
+          sinon.match.object,
+          "Error during agent execution",
+        );
         expect(mockAgentExecutor.invoke).to.have.been.calledOnce; // Should still be called once
       });
-
     }); // End describe for provider
   }); // End providers.forEach
 });

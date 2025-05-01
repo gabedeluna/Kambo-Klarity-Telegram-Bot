@@ -3,7 +3,7 @@ const fs = require("fs");
 const sinon = require("sinon");
 
 // Import the actual logger
-const logger = require('../../src/core/logger');
+const logger = require("../../src/core/logger");
 
 // Import specific functions including the loader
 const {
@@ -19,12 +19,12 @@ describe("Session Types Helper", () => {
     // Use a sandbox
     sandbox = sinon.createSandbox();
     // Use sandbox.replace for more robust stubbing across cache interactions
-    sandbox.replace(logger, 'info', sandbox.stub());
-    sandbox.replace(logger, 'error', sandbox.stub());
-    sandbox.replace(logger, 'warn', sandbox.stub());
-    sandbox.replace(logger, 'debug', sandbox.stub());
-    sandbox.replace(logger, 'fatal', sandbox.stub());
-    sandbox.replace(logger, 'trace', sandbox.stub());
+    sandbox.replace(logger, "info", sandbox.stub());
+    sandbox.replace(logger, "error", sandbox.stub());
+    sandbox.replace(logger, "warn", sandbox.stub());
+    sandbox.replace(logger, "debug", sandbox.stub());
+    sandbox.replace(logger, "fatal", sandbox.stub());
+    sandbox.replace(logger, "trace", sandbox.stub());
   });
 
   afterEach(() => {
@@ -119,9 +119,7 @@ describe("Session Types Helper", () => {
       expect(existsSyncStub.calledOnce).to.be.true;
       expect(readFileSyncStub.calledOnce).to.be.true;
       expect(logger.error.calledOnce).to.be.true;
-      expect(logger.error.firstCall.args[0]).to.include(
-        "Expected an array",
-      );
+      expect(logger.error.firstCall.args[0]).to.include("Expected an array");
     });
 
     it("should return empty array and log error if reading file fails", () => {

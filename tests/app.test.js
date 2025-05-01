@@ -1,7 +1,6 @@
 // tests/app.test.js
 const request = require("supertest");
 const { expect } = require("chai");
-const sinon = require('sinon');
 const app = require("../src/app"); // Import the Express app
 const botInstance = require("../src/core/bot"); // To get the secret path
 
@@ -23,7 +22,7 @@ describe("Express App", () => {
     expect(res.text).to.equal("OK");
   });
 
-  it("POST /<secretPath> should return 200 OK for basic requests", async function() {
+  it("POST /<secretPath> should return 200 OK for basic requests", async function () {
     this.timeout(5000); // Increase timeout to 5 seconds for this test
     // Telegraf's webhookCallback handles basic POSTs gracefully even without
     // a valid Telegram update payload, responding 200 OK to prevent retries.

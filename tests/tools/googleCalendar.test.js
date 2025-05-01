@@ -194,12 +194,9 @@ describe("Google Calendar Tool Class (Stubs)", () => {
       mockPinoFactory.destination = mockPinoDestination;
 
       // Use proxyquire to inject the mock pino
-      const ToolWithMockedPino = proxyquire(
-        "../../src/tools/googleCalendar",
-        {
-          pino: mockPinoFactory,
-        },
-      );
+      const ToolWithMockedPino = proxyquire("../../src/tools/googleCalendar", {
+        pino: mockPinoFactory,
+      });
       // ---------------------------------------- //
 
       // Construct without providing a logger, triggering fallback

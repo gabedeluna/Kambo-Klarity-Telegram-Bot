@@ -6,7 +6,7 @@
  * @module middleware/errorHandler
  */
 const logger = require("../core/logger");
-const AppError = require("../errors/AppError");
+// const AppError = require("../errors/AppError"); // Ensure type hint if needed
 
 /**
  * Express error handling middleware.
@@ -41,16 +41,14 @@ const errorHandler = (err, req, res, next) => {
 
   // Determine status code
   let statusCode = 500;
-  if (err.isOperational) { // Trust operational errors
+  if (err.isOperational) {
+    // Trust operational errors
     statusCode = err.statusCode || 500; // Use error's code, default 500 if missing
   }
   // Potentially handle specific built-in error types here too if needed
 
   // Determine response message
-  const message =
-    err.isOperational
-      ? err.message
-      : "Internal Server Error";
+  const message = err.isOperational ? err.message : "Internal Server Error";
 
   // Check if headers were already sent (e.g., by streaming response)
   if (res.headersSent) {

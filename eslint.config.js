@@ -35,7 +35,7 @@ module.exports = [
 
   // Configuration specifically for test files
   {
-    files: ["src/tests/**/*.test.js"],
+    files: ["tests/**/*.test.js"], // Correct path for test files
     languageOptions: {
       globals: {
         ...globals.mocha, // Includes Mocha globals like describe, it

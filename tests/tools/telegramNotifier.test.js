@@ -83,77 +83,32 @@ describe("Telegram Notifier Tool", () => {
     mockMarkup.Markup.inlineKeyboard.resetHistory();
     mockMarkup.Markup.button.webApp.resetHistory(); // Reset the webApp stub
 
-    // Define mocks needed within this scope
     const configMock = { FORM_URL: "dummy-form-url" };
 
-    // Use proxyquire with ALL necessary mocks and CORRECT paths
-    const notifierModule = proxyquire("../../src/tools/telegramNotifier", {
-      "../../core/bot": { bot: mockBot },
-      "../../core/logger": mockLogger,
-      "../../core/prisma": mockPrisma, // Provide prisma mock
-      "../../commands/registry": mockCommandRegistry,
-      telegraf: mockMarkup, // Mock telegraf/markup
-    });
-
-    // Initialize the notifier instance using 'this'
-    // Ensure initialize parameters match what the module expects
-    if (typeof notifierModule.initialize === "function") {
-      notifierModule.initialize({
-        bot: mockBot,
-        logger: mockLogger,
-        prisma: mockPrisma,
-        config: configMock,
-      });
-    }
-
-    // Assign the fully initialized instance to 'this.notifier'
-    this.notifier = notifierModule;
-
-    // Assign spy for convenience if needed, access via mockBot is also fine
-    this.setMyCommandsSpy = mockBot.telegram.setMyCommands;
-  });
-
-  // --- initialize Tests ---
-  describe("initialize", function () {
-    it("should throw an error if dependencies are missing", function () {
-      // Create a new instance of the module to avoid affecting other tests
-      const notifierModule = proxyquire("../../src/tools/telegramNotifier", {
+    // Use proxyquire HERE within beforeEach to get the factory
+    // This ensures mocks are correctly applied for each test
+    const { createTelegramNotifier } = proxyquire(
+      "../../src/tools/telegramNotifier",
+      {
         "../../core/bot": { bot: mockBot },
         "../../core/logger": mockLogger,
         "../../core/prisma": mockPrisma,
         "../../commands/registry": mockCommandRegistry,
         telegraf: mockMarkup,
-      });
+      },
+    );
 
-      // Test with missing dependencies
-      expect(() => notifierModule.initialize()).to.throw(
-        Error,
-        /Missing: dependencies object/,
-      );
-      expect(() => notifierModule.initialize({})).to.throw(
-        Error,
-        /Missing: bot, prisma, logger, config/,
-      );
-
-      // Test with missing bot
-      expect(() =>
-        notifierModule.initialize({
-          logger: mockLogger,
-          prisma: mockPrisma,
-          config: { FORM_URL: "test-url" },
-        }),
-      ).to.throw(Error, /Missing: bot/);
-
-      // Test with missing config.FORM_URL
-      expect(() =>
-        notifierModule.initialize({
-          bot: mockBot,
-          logger: mockLogger,
-          prisma: mockPrisma,
-          config: {},
-        }),
-      ).to.throw(Error, /Missing: config.FORM_URL/);
+    // Create the notifier instance using the factory and mocks
+    // Assign the fully initialized instance to 'this.notifier'
+    this.notifier = createTelegramNotifier({
+      bot: mockBot,
+      logger: mockLogger,
+      prisma: mockPrisma,
+      config: configMock,
     });
+
+    // Assign spy for convenience if needed, access via mockBot is also fine
+    this.setMyCommandsSpy = mockBot.telegram.setMyCommands;
   });
 
   // --- sendWaiverLink Tests ---
@@ -161,8 +116,6 @@ describe("Telegram Notifier Tool", () => {
     // Use function()
     const testTelegramId = "123456789";
     const testSessionType = "initial";
-
-    // REMOVED nested beforeEach
 
     it("should validate input using sendWaiverLinkSchema", function () {
       const validData = {
@@ -190,6 +143,7 @@ describe("Telegram Notifier Tool", () => {
 
       // Assert
       expect(result.success).to.be.true;
+      expect(result.messageId).to.equal(testMessageId);
       expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
       expect(mockPrisma.users.update.calledOnce).to.be.true;
       expect(mockPrisma.users.update.firstCall.args[0]).to.deep.equal({
@@ -240,29 +194,6 @@ describe("Telegram Notifier Tool", () => {
       expect(result.error).to.equal("Telegram API error");
       expect(mockLogger.error.calledOnce).to.be.true;
       expect(mockPrisma.users.update.called).to.be.false;
-    });
-
-    it("should return error when tool is not initialized", async function () {
-      // Create a new uninitalized instance of the module
-      const uninitializedNotifier = proxyquire("../../src/tools/telegramNotifier", {
-        "../../core/bot": { bot: null },
-        "../../core/logger": null,
-        "../../core/prisma": null,
-        "../../commands/registry": mockCommandRegistry,
-        telegraf: mockMarkup,
-      });
-
-      // Act
-      const result = await uninitializedNotifier.sendWaiverLink({
-        telegramId: testTelegramId,
-        sessionType: testSessionType,
-      });
-
-      // Assert
-      expect(result.success).to.be.false;
-      expect(result.error).to.equal(
-        "Internal server error: Notifier not initialized",
-      );
     });
 
     it("should handle database update errors gracefully", async function () {
@@ -340,8 +271,6 @@ describe("Telegram Notifier Tool", () => {
     const testTelegramId = "987654321";
     const testText = "This is a test message.";
 
-    // REMOVED nested beforeEach
-
     it("should validate input using sendTextMessageSchema", function () {
       const validData = { telegramId: testTelegramId, text: testText };
       const invalidData = { telegramId: testTelegramId }; // Missing text
@@ -376,27 +305,6 @@ describe("Telegram Notifier Tool", () => {
       expect(result.success).to.be.false;
       expect(result.error).to.equal("Missing or invalid parameters");
       expect(mockBot.telegram.sendMessage.called).to.be.false;
-    });
-
-    it("should return error when tool is not initialized", async function () {
-      // Create a new uninitalized instance of the module
-      const uninitializedNotifier = proxyquire("../../src/tools/telegramNotifier", {
-        "../../core/bot": { bot: null },
-        "../../core/logger": null,
-        "../../core/prisma": null,
-        "../../commands/registry": mockCommandRegistry,
-        telegraf: mockMarkup,
-      });
-
-      // Act
-      const result = await uninitializedNotifier.sendTextMessage({
-        telegramId: "123456789",
-        text: "Test message",
-      });
-
-      // Assert
-      expect(result.success).to.be.false;
-      expect(result.error).to.equal("Tool not initialized");
     });
 
     it("should return failure if text is missing", async function () {
@@ -447,8 +355,6 @@ describe("Telegram Notifier Tool", () => {
     const TEST_CLIENT_ID = "111";
     const TEST_ADMIN_ID = "222";
     const TEST_UNKNOWN_ID = "333";
-
-    // REMOVED nested beforeEach
 
     it("should call setMyCommands with correct scope and client command count for role 'client'", async function () {
       // Use spy from 'this'
@@ -528,44 +434,6 @@ describe("Telegram Notifier Tool", () => {
       });
       expect(mockLogger.error.calledOnce).to.be.true;
       expect(this.setMyCommandsSpy.called).to.be.false;
-    });
-
-    it("should return error when dependencies are missing", async function () {
-      // Reset any previous calls
-      mockLogger.error.resetHistory();
-
-      // Create a special version of the module where we can control the module-level variables
-      // This simulates a partially initialized module
-      const partialNotifier = {
-        // Export the function we want to test
-        setRoleSpecificCommands: async function ({ telegramId, role }) {
-          // This simulates the function running with missing dependencies
-          // but with a valid logger for error reporting
-          if (!mockLogger) {
-            return { success: false, error: "Logger missing" };
-          }
-
-          mockLogger.error(
-            "setRoleSpecificCommands: Missing or invalid dependencies",
-            {
-              telegramId,
-              role,
-            },
-          );
-          return { success: false, error: "Missing or invalid dependencies" };
-        },
-      };
-
-      // Act
-      const result = await partialNotifier.setRoleSpecificCommands({
-        telegramId: TEST_CLIENT_ID,
-        role: "client",
-      });
-
-      // Assert
-      expect(result.success).to.be.false;
-      expect(result.error).to.equal("Missing or invalid dependencies");
-      expect(mockLogger.error.calledOnce).to.be.true;
     });
 
     it("should handle falsy result from Telegram API", async function () {

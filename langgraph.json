@@ -1,8 +1,0 @@
-{
-    "name": "kambo-klarity-booking-graph",
-    "description": "Booking conversation graph for Kambo Klarity Telegram Bot",
-    "entry_point": "src/graph/bookingGraph.js",
-    "environment": {
-        "NODE_ENV": "development"
-    }
-}
