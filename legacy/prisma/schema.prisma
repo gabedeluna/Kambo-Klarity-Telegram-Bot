@@ -1,0 +1,535 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model annotation_tag_entity {
+  id                        String                      @id(map: "PK_69dfa041592c30bbc0d4b84aa00") @db.VarChar(16)
+  name                      String                      @unique(map: "IDX_ae51b54c4bb430cf92f48b623f") @db.VarChar(24)
+  createdAt                 DateTime                    @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt                 DateTime                    @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  execution_annotation_tags execution_annotation_tags[]
+  test_definition           test_definition[]
+}
+
+model auth_identity {
+  userId       String?  @db.Uuid
+  providerId   String   @db.VarChar(64)
+  providerType String   @db.VarChar(32)
+  createdAt    DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt    DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  user         user?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_5f0643f6717905a05164090dde7")
+
+  @@id([providerId, providerType])
+}
+
+model auth_provider_sync_history {
+  id           Int      @id @default(autoincrement())
+  providerType String   @db.VarChar(32)
+  runMode      String
+  status       String
+  startedAt    DateTime @default(now()) @db.Timestamptz(3)
+  endedAt      DateTime @default(now()) @db.Timestamptz(3)
+  scanned      Int
+  created      Int
+  updated      Int
+  disabled     Int
+  error        String?
+}
+
+model credentials_entity {
+  name               String               @db.VarChar(128)
+  data               String
+  type               String               @db.VarChar(128)
+  createdAt          DateTime             @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt          DateTime             @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  id                 String               @id @unique(map: "pk_credentials_entity_id") @db.VarChar(36)
+  isManaged          Boolean              @default(false)
+  shared_credentials shared_credentials[]
+
+  @@index([type], map: "idx_07fde106c0b471d8cc80a64fc8")
+}
+
+model event_destinations {
+  id          String   @id @db.Uuid
+  destination Json
+  createdAt   DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt   DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+}
+
+model execution_annotation_tags {
+  annotationId          Int
+  tagId                 String                @db.VarChar(24)
+  annotation_tag_entity annotation_tag_entity @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_a3697779b366e131b2bbdae2976")
+  execution_annotations execution_annotations @relation(fields: [annotationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_c1519757391996eb06064f0e7c8")
+
+  @@id([annotationId, tagId], map: "PK_979ec03d31294cca484be65d11f")
+  @@index([tagId], map: "IDX_a3697779b366e131b2bbdae297")
+  @@index([annotationId], map: "IDX_c1519757391996eb06064f0e7c")
+}
+
+model execution_annotations {
+  id                        Int                         @id(map: "PK_7afcf93ffa20c4252869a7c6a23") @default(autoincrement())
+  executionId               Int                         @unique(map: "IDX_97f863fa83c4786f1956508496")
+  vote                      String?                     @db.VarChar(6)
+  note                      String?
+  createdAt                 DateTime                    @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt                 DateTime                    @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  execution_annotation_tags execution_annotation_tags[]
+  execution_entity          execution_entity            @relation(fields: [executionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_97f863fa83c4786f19565084960")
+}
+
+model execution_data {
+  executionId      Int              @id
+  workflowData     Json             @db.Json
+  data             String
+  execution_entity execution_entity @relation(fields: [executionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "execution_data_fk")
+}
+
+model execution_entity {
+  id                                                                              Int                    @id(map: "pk_e3e63bbf986767844bbe1166d4e") @default(autoincrement())
+  finished                                                                        Boolean
+  mode                                                                            String                 @db.VarChar
+  retryOf                                                                         String?                @db.VarChar
+  retrySuccessId                                                                  String?                @db.VarChar
+  startedAt                                                                       DateTime?              @db.Timestamptz(3)
+  stoppedAt                                                                       DateTime?              @db.Timestamptz(3)
+  waitTill                                                                        DateTime?              @db.Timestamptz(3)
+  status                                                                          String                 @db.VarChar
+  workflowId                                                                      String                 @db.VarChar(36)
+  deletedAt                                                                       DateTime?              @db.Timestamptz(3)
+  createdAt                                                                       DateTime               @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  execution_annotations                                                           execution_annotations?
+  execution_data                                                                  execution_data?
+  workflow_entity                                                                 workflow_entity        @relation(fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_execution_entity_workflow_id")
+  execution_metadata                                                              execution_metadata[]
+  test_case_execution_test_case_execution_pastExecutionIdToexecution_entity       test_case_execution[]  @relation("test_case_execution_pastExecutionIdToexecution_entity")
+  test_case_execution_test_case_execution_evaluationExecutionIdToexecution_entity test_case_execution[]  @relation("test_case_execution_evaluationExecutionIdToexecution_entity")
+  test_case_execution_test_case_execution_executionIdToexecution_entity           test_case_execution[]  @relation("test_case_execution_executionIdToexecution_entity")
+
+  @@index([deletedAt], map: "IDX_execution_entity_deletedAt")
+}
+
+model execution_metadata {
+  id               Int              @id(map: "PK_17a0b6284f8d626aae88e1c16e4") @default(autoincrement())
+  executionId      Int
+  key              String           @db.VarChar(255)
+  value            String
+  execution_entity execution_entity @relation(fields: [executionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_31d0b4c93fb85ced26f6005cda3")
+
+  @@unique([executionId, key], map: "IDX_cec8eea3bf49551482ccb4933e")
+}
+
+model folder {
+  id              String            @id(map: "PK_6278a41a706740c94c02e288df8") @db.VarChar(36)
+  name            String            @db.VarChar(128)
+  parentFolderId  String?           @db.VarChar(36)
+  projectId       String            @db.VarChar(36)
+  createdAt       DateTime          @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt       DateTime          @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  folder          folder?           @relation("folderTofolder", fields: [parentFolderId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_804ea52f6729e3940498bd54d78")
+  other_folder    folder[]          @relation("folderTofolder")
+  project         project           @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_a8260b0b36939c6247f385b8221")
+  folder_tag      folder_tag[]
+  workflow_entity workflow_entity[]
+
+  @@unique([projectId, id], map: "IDX_14f68deffaf858465715995508")
+}
+
+model folder_tag {
+  folderId   String     @db.VarChar(36)
+  tagId      String     @db.VarChar(36)
+  folder     folder     @relation(fields: [folderId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_94a60854e06f2897b2e0d39edba")
+  tag_entity tag_entity @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_dc88164176283de80af47621746")
+
+  @@id([folderId, tagId], map: "PK_27e4e00852f6b06a925a4d83a3e")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model insights_by_period {
+  id                Int               @id(map: "PK_b606942249b90cc39b0265f0575") @default(autoincrement())
+  metaId            Int
+  type              Int
+  value             Int
+  periodUnit        Int
+  periodStart       DateTime?         @default(now()) @db.Timestamptz(0)
+  insights_metadata insights_metadata @relation(fields: [metaId], references: [metaId], onDelete: Cascade, onUpdate: NoAction, map: "FK_6414cfed98daabbfdd61a1cfbc0")
+
+  @@unique([periodStart, type, periodUnit, metaId], map: "IDX_60b6a84299eeb3f671dfec7693")
+}
+
+model insights_metadata {
+  metaId             Int                  @id(map: "PK_f448a94c35218b6208ce20cf5a1") @default(autoincrement())
+  workflowId         String?              @unique(map: "IDX_1d8ab99d5861c9388d2dc1cf73") @db.VarChar(16)
+  projectId          String?              @db.VarChar(36)
+  workflowName       String               @db.VarChar(128)
+  projectName        String               @db.VarChar(255)
+  insights_by_period insights_by_period[]
+  workflow_entity    workflow_entity?     @relation(fields: [workflowId], references: [id], onUpdate: NoAction, map: "FK_1d8ab99d5861c9388d2dc1cf733")
+  project            project?             @relation(fields: [projectId], references: [id], onUpdate: NoAction, map: "FK_2375a1eda085adb16b24615b69c")
+  insights_raw       insights_raw[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model insights_raw {
+  id                Int               @id(map: "PK_ec15125755151e3a7e00e00014f") @default(autoincrement())
+  metaId            Int
+  type              Int
+  value             Int
+  timestamp         DateTime          @default(now()) @db.Timestamptz(0)
+  insights_metadata insights_metadata @relation(fields: [metaId], references: [metaId], onDelete: Cascade, onUpdate: NoAction, map: "FK_6e2e33741adef2a7c5d66befa4e")
+}
+
+model installed_nodes {
+  name               String             @id(map: "PK_8ebd28194e4f792f96b5933423fc439df97d9689") @db.VarChar(200)
+  type               String             @db.VarChar(200)
+  latestVersion      Int                @default(1)
+  package            String             @db.VarChar(241)
+  installed_packages installed_packages @relation(fields: [package], references: [packageName], onDelete: Cascade, map: "FK_73f857fc5dce682cef8a99c11dbddbc969618951")
+}
+
+model installed_packages {
+  packageName      String            @id(map: "PK_08cc9197c39b028c1e9beca225940576fd1a5804") @db.VarChar(214)
+  installedVersion String            @db.VarChar(50)
+  authorName       String?           @db.VarChar(70)
+  authorEmail      String?           @db.VarChar(70)
+  createdAt        DateTime          @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt        DateTime          @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  installed_nodes  installed_nodes[]
+}
+
+model invalid_auth_token {
+  token     String   @id(map: "PK_5779069b7235b256d91f7af1a15") @db.VarChar(512)
+  expiresAt DateTime @db.Timestamptz(3)
+}
+
+model migrations {
+  id        Int    @id(map: "PK_8c82d7f526340ab734260ea46be") @default(autoincrement())
+  timestamp BigInt
+  name      String @db.VarChar
+}
+
+model n8n_chat_histories {
+  id         Int    @id @default(autoincrement())
+  session_id String @db.VarChar(255)
+  message    Json
+}
+
+model processed_data {
+  workflowId      String          @db.VarChar(36)
+  context         String          @db.VarChar(255)
+  createdAt       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  value           String
+  workflow_entity workflow_entity @relation(fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_06a69a7032c97a763c2c7599464")
+
+  @@id([workflowId, context], map: "PK_ca04b9d8dc72de268fe07a65773")
+}
+
+model project {
+  id                 String               @id(map: "PK_4d68b1358bb5b766d3e78f32f57") @db.VarChar(36)
+  name               String               @db.VarChar(255)
+  type               String               @db.VarChar(36)
+  createdAt          DateTime             @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt          DateTime             @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  icon               Json?                @db.Json
+  folder             folder[]
+  insights_metadata  insights_metadata[]
+  project_relation   project_relation[]
+  shared_credentials shared_credentials[]
+  shared_workflow    shared_workflow[]
+}
+
+model project_relation {
+  projectId String   @db.VarChar(36)
+  userId    String   @db.Uuid
+  role      String   @db.VarChar
+  createdAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_5f0643f6717905a05164090dde7")
+  project   project  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_61448d56d61802b5dfde5cdb002")
+
+  @@id([projectId, userId], map: "PK_1caaa312a5d7184a003be0f0cb6")
+  @@index([userId], map: "IDX_5f0643f6717905a05164090dde")
+  @@index([projectId], map: "IDX_61448d56d61802b5dfde5cdb00")
+}
+
+model role {
+  id        Int      @id(map: "PK_e853ce24e8200abe5721d2c6ac552b73") @default(autoincrement())
+  name      String   @db.VarChar(32)
+  scope     String   @db.VarChar(255)
+  createdAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+
+  @@unique([scope, name], map: "UQ_5b49d0f504f7ef31045a1fb2eb8")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model sessions {
+  first_name           String?   @db.VarChar
+  last_name            String?   @db.VarChar
+  telegram_id          BigInt?
+  appointment_datetime DateTime? @db.Timestamptz(6)
+  liability_form_data  Json?
+  session_notes        String?
+  session_status       String?   @db.VarChar
+  created_at           DateTime? @db.Timestamptz(6)
+  id                   Int       @id @default(autoincrement())
+}
+
+model settings {
+  key           String  @id(map: "PK_dc0fe14e6d9943f268e7b119f69ab8bd") @db.VarChar(255)
+  value         String
+  loadOnStartup Boolean @default(false)
+}
+
+model shared_credentials {
+  credentialsId      String             @db.VarChar(36)
+  projectId          String             @db.VarChar(36)
+  role               String
+  createdAt          DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt          DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  credentials_entity credentials_entity @relation(fields: [credentialsId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_416f66fc846c7c442970c094ccf")
+  project            project            @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_812c2852270da1247756e77f5a4")
+
+  @@id([credentialsId, projectId], map: "PK_8ef3a59796a228913f251779cff")
+}
+
+model shared_workflow {
+  workflowId      String          @db.VarChar(36)
+  projectId       String          @db.VarChar(36)
+  role            String
+  createdAt       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  project         project         @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_a45ea5f27bcfdc21af9b4188560")
+  workflow_entity workflow_entity @relation(fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_daa206a04983d47d0a9c34649ce")
+
+  @@id([workflowId, projectId], map: "PK_5ba87620386b847201c9531c58f")
+}
+
+model tag_entity {
+  name           String           @unique(map: "idx_812eb05f7451ca757fb98444ce") @db.VarChar(24)
+  createdAt      DateTime         @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt      DateTime         @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  id             String           @id @unique(map: "pk_tag_entity_id") @db.VarChar(36)
+  folder_tag     folder_tag[]
+  workflows_tags workflows_tags[]
+}
+
+model test_case_execution {
+  id                                                                           String            @id(map: "PK_90c121f77a78a6580e94b794bce") @db.VarChar(36)
+  testRunId                                                                    String            @db.VarChar(36)
+  pastExecutionId                                                              Int?
+  executionId                                                                  Int?
+  evaluationExecutionId                                                        Int?
+  status                                                                       String            @db.VarChar
+  runAt                                                                        DateTime?         @db.Timestamptz(3)
+  completedAt                                                                  DateTime?         @db.Timestamptz(3)
+  errorCode                                                                    String?           @db.VarChar
+  errorDetails                                                                 Json?             @db.Json
+  metrics                                                                      Json?             @db.Json
+  createdAt                                                                    DateTime          @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt                                                                    DateTime          @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  execution_entity_test_case_execution_pastExecutionIdToexecution_entity       execution_entity? @relation("test_case_execution_pastExecutionIdToexecution_entity", fields: [pastExecutionId], references: [id], onUpdate: NoAction, map: "FK_258d954733841d51edd826a562b")
+  test_run                                                                     test_run          @relation(fields: [testRunId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_8e4b4774db42f1e6dda3452b2af")
+  execution_entity_test_case_execution_evaluationExecutionIdToexecution_entity execution_entity? @relation("test_case_execution_evaluationExecutionIdToexecution_entity", fields: [evaluationExecutionId], references: [id], onUpdate: NoAction, map: "FK_dfbe194e3ebdfe49a87bc4692ca")
+  execution_entity_test_case_execution_executionIdToexecution_entity           execution_entity? @relation("test_case_execution_executionIdToexecution_entity", fields: [executionId], references: [id], onUpdate: NoAction, map: "FK_e48965fac35d0f5b9e7f51d8c44")
+
+  @@index([testRunId], map: "IDX_8e4b4774db42f1e6dda3452b2a")
+}
+
+model test_definition {
+  name                                                                  String                 @db.VarChar(255)
+  workflowId                                                            String                 @db.VarChar(36)
+  evaluationWorkflowId                                                  String?                @db.VarChar(36)
+  annotationTagId                                                       String?                @db.VarChar(16)
+  createdAt                                                             DateTime               @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt                                                             DateTime               @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  description                                                           String?
+  id                                                                    String                 @id @unique(map: "pk_test_definition_id") @db.VarChar(36)
+  mockedNodes                                                           Json                   @default("[]") @db.Json
+  workflow_entity_test_definition_evaluationWorkflowIdToworkflow_entity workflow_entity?       @relation("test_definition_evaluationWorkflowIdToworkflow_entity", fields: [evaluationWorkflowId], references: [id], onUpdate: NoAction, map: "FK_9ec1ce6fbf82305f489adb971d3")
+  workflow_entity_test_definition_workflowIdToworkflow_entity           workflow_entity        @relation("test_definition_workflowIdToworkflow_entity", fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_b0dd0087fe3da02b0ffa4b9c5bb")
+  annotation_tag_entity                                                 annotation_tag_entity? @relation(fields: [annotationTagId], references: [id], onUpdate: NoAction, map: "FK_d5d7ea64662dbc62f5e266fbeb0")
+  test_metric                                                           test_metric[]
+  test_run                                                              test_run[]
+
+  @@index([evaluationWorkflowId], map: "IDX_9ec1ce6fbf82305f489adb971d")
+  @@index([workflowId], map: "IDX_b0dd0087fe3da02b0ffa4b9c5b")
+}
+
+model test_metric {
+  id               String          @id(map: "PK_3e98b8e20acc19c5030a8644142") @db.VarChar(36)
+  name             String          @db.VarChar(255)
+  testDefinitionId String          @db.VarChar(36)
+  createdAt        DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt        DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  test_definition  test_definition @relation(fields: [testDefinitionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_3a4e9cf37111ac3270e2469b475")
+
+  @@index([testDefinitionId], map: "IDX_3a4e9cf37111ac3270e2469b47")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model test_run {
+  id                  String                @id(map: "PK_011c050f566e9db509a0fadb9b9") @db.VarChar(36)
+  testDefinitionId    String                @db.VarChar(36)
+  status              String                @db.VarChar
+  runAt               DateTime?             @db.Timestamptz(3)
+  completedAt         DateTime?             @db.Timestamptz(3)
+  metrics             Json?                 @db.Json
+  createdAt           DateTime              @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt           DateTime              @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  totalCases          Int?
+  passedCases         Int?
+  failedCases         Int?
+  errorCode           String?               @db.VarChar(255)
+  errorDetails        String?
+  test_case_execution test_case_execution[]
+  test_definition     test_definition       @relation(fields: [testDefinitionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_3a81713a76f2295b12b46cdfcab")
+
+  @@index([testDefinitionId], map: "IDX_3a81713a76f2295b12b46cdfca")
+}
+
+model user {
+  id                      String             @id(map: "PK_ea8f538c94b6e352418254ed6474a81f") @default(dbgenerated("uuid_in((OVERLAY(OVERLAY(md5((((random())::text || ':'::text) || (clock_timestamp())::text)) PLACING '4'::text FROM 13) PLACING to_hex((floor(((random() * (((11 - 8) + 1))::double precision) + (8)::double precision)))::integer) FROM 17))::cstring)")) @db.Uuid
+  email                   String?            @unique(map: "UQ_e12875dfb3b1d92d7d7c5377e2") @db.VarChar(255)
+  firstName               String?            @db.VarChar(32)
+  lastName                String?            @db.VarChar(32)
+  password                String?            @db.VarChar(255)
+  personalizationAnswers  Json?              @db.Json
+  createdAt               DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt               DateTime           @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  settings                Json?              @db.Json
+  disabled                Boolean            @default(false)
+  mfaEnabled              Boolean            @default(false)
+  mfaSecret               String?
+  mfaRecoveryCodes        String?
+  role                    String
+  is_veteran_or_responder Boolean?          @default(false)
+  active_session_id      String?
+  auth_identity          auth_identity[]
+  project_relation       project_relation[]
+  user_api_keys          user_api_keys[]
+}
+
+model user_api_keys {
+  id        String   @id(map: "PK_978fa5caa3468f463dac9d92e69") @db.VarChar(36)
+  userId    String   @db.Uuid
+  label     String   @db.VarChar(100)
+  apiKey    String   @unique(map: "IDX_1ef35bac35d20bdae979d917a3") @db.VarChar
+  createdAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_e131705cbbc8fb589889b02d457")
+
+  @@unique([userId, label], map: "IDX_63d7bbae72c767cf162d459fcc")
+}
+
+model users {
+  client_id               Int       @id(map: "client_users_pkey") @default(autoincrement())
+  telegram_id             BigInt    @unique(map: "client_users_telegram_id_key")
+  first_name              String?   @db.VarChar(255)
+  last_name               String?   @db.VarChar(255)
+  phone_number            String?   @db.VarChar(50)
+  email                   String?   @db.VarChar(255)
+  date_of_birth           DateTime? @db.Date
+  reason_for_seeking      String?
+  created_at              DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime? @default(now()) @db.Timestamptz(6)
+  state                   String?   @default("NONE") @db.VarChar
+  role                    String?   @default("client") @db.VarChar
+  session_type            String?   @db.VarChar
+  conversation_history    String?
+  booking_slot            String?   @db.VarChar(255)
+  em_first_name           String?   @db.VarChar
+  em_last_name            String?   @db.VarChar
+  em_phone_number         String?   @db.VarChar
+  edit_msg_id             Int?
+  is_veteran_or_responder Boolean   @default(false)
+}
+
+model variables {
+  key   String  @unique @db.VarChar(50)
+  type  String  @default("string") @db.VarChar(50)
+  value String? @db.VarChar(255)
+  id    String  @id @unique(map: "pk_variables_id") @db.VarChar(36)
+}
+
+model webhook_entity {
+  webhookPath     String          @db.VarChar
+  method          String          @db.VarChar
+  node            String          @db.VarChar
+  webhookId       String?         @db.VarChar
+  pathLength      Int?
+  workflowId      String          @db.VarChar(36)
+  workflow_entity workflow_entity @relation(fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_webhook_entity_workflow_id")
+
+  @@id([webhookPath, method], map: "PK_b21ace2e13596ccd87dc9bf4ea6")
+  @@index([webhookId, method, pathLength], map: "idx_16f4436789e804e3e1c9eeb240")
+}
+
+model workflow_entity {
+  name                                                                  String                @db.VarChar(128)
+  active                                                                Boolean
+  nodes                                                                 Json                  @db.Json
+  connections                                                           Json                  @db.Json
+  createdAt                                                             DateTime              @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt                                                             DateTime              @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  settings                                                              Json?                 @db.Json
+  staticData                                                            Json?                 @db.Json
+  pinData                                                               Json?                 @db.Json
+  versionId                                                             String?               @db.Char(36)
+  triggerCount                                                          Int                   @default(0)
+  id                                                                    String                @id @unique(map: "pk_workflow_entity_id") @db.VarChar(36)
+  meta                                                                  Json?                 @db.Json
+  parentFolderId                                                        String?               @db.VarChar(36)
+  execution_entity                                                      execution_entity[]
+  insights_metadata                                                     insights_metadata?
+  processed_data                                                        processed_data[]
+  shared_workflow                                                       shared_workflow[]
+  test_definition_test_definition_evaluationWorkflowIdToworkflow_entity test_definition[]     @relation("test_definition_evaluationWorkflowIdToworkflow_entity")
+  test_definition_test_definition_workflowIdToworkflow_entity           test_definition[]     @relation("test_definition_workflowIdToworkflow_entity")
+  webhook_entity                                                        webhook_entity[]
+  folder                                                                folder?               @relation(fields: [parentFolderId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_workflow_parent_folder")
+  workflow_history                                                      workflow_history[]
+  workflow_statistics                                                   workflow_statistics[]
+  workflows_tags                                                        workflows_tags[]
+
+  @@index([name], map: "IDX_workflow_entity_name")
+}
+
+model workflow_history {
+  versionId       String          @id(map: "PK_b6572dd6173e4cd06fe79937b58") @db.VarChar(36)
+  workflowId      String          @db.VarChar(36)
+  authors         String          @db.VarChar(255)
+  createdAt       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  updatedAt       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP(3)")) @db.Timestamptz(3)
+  nodes           Json            @db.Json
+  connections     Json            @db.Json
+  workflow_entity workflow_entity @relation(fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_1e31657f5fe46816c34be7c1b4b")
+
+  @@index([workflowId], map: "IDX_1e31657f5fe46816c34be7c1b4")
+}
+
+model workflow_statistics {
+  count           Int?            @default(0)
+  latestEvent     DateTime?       @db.Timestamptz(3)
+  name            String          @db.VarChar(128)
+  workflowId      String          @db.VarChar(36)
+  workflow_entity workflow_entity @relation(fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_workflow_statistics_workflow_id")
+
+  @@id([workflowId, name], map: "pk_workflow_statistics")
+}
+
+model workflows_tags {
+  workflowId      String          @db.VarChar(36)
+  tagId           String          @db.VarChar(36)
+  tag_entity      tag_entity      @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_workflows_tags_tag_id")
+  workflow_entity workflow_entity @relation(fields: [workflowId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_workflows_tags_workflow_id")
+
+  @@id([workflowId, tagId], map: "pk_workflows_tags")
+  @@index([workflowId], map: "idx_workflows_tags_workflow_id")
+}

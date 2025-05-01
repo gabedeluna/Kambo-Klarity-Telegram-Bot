@@ -1,57 +1,96 @@
 # Kambo Klarity Telegram Bot
 
-A Telegram bot for the Kambo Klarity project, built with Node.js, Telegraf, Express, and Prisma.
+A Telegram bot for Kambo Klarity that handles user registration and client workflows.
 
 ## Features
-- Receives and responds to Telegram messages via webhook
-- Remembers users with the `/rememberme` command (stores in database)
-- Echoes all text messages
+
+- User role-based workflows (admin, client, new client)
+- User registration via Telegram mini-app form
+- Database integration with PostgreSQL via Prisma
+- Command handling for various user interactions
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- PostgreSQL database
+- Telegram Bot Token (from BotFather)
+- Ngrok or similar for webhook development (optional)
 
 ## Setup
 
-### Prerequisites
-- Node.js (v16+ recommended)
-- npm
-- ngrok (for local webhook testing)
-- A PostgreSQL database (for Prisma)
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Create a `.env` file based on `.env.example`:
+   ```
+   TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+   DATABASE_URL=your-database-url
+   WEBHOOK_SECRET=your-webhook-secret
+   FORM_SERVER_PORT=3001
+   FORM_SERVER_URL=https://your-domain.com
+   ```
+4. Run Prisma migrations to set up the database:
+   ```
+   npx prisma migrate dev
+   ```
 
-### Environment Variables
-Copy `.env.example` to `.env` and fill in your secrets:
-```
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-DATABASE_URL=your-database-url
-WEBHOOK_SECRET=your-webhook-secret
-```
+## Running the Bot
 
-### Install dependencies
-```
-cd telegram-hello
-npm install
-```
+### Development Mode
 
-### Start ngrok
-```
-ngrok http 3000
-```
-Copy your forwarding address (e.g., `https://xxxx.ngrok-free.app`).
+Run both the bot and the registration form server:
 
-### Register the webhook with Telegram
 ```
-curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" -d "url=https://<your-ngrok-domain>/webhook/<WEBHOOK_SECRET>"
+npm run dev
 ```
 
-### Start the bot
+### Production Mode
+
+Run the bot and server separately:
+
 ```
-node index.js
+npm run start        # Start the bot
+npm run start:server # Start the registration form server
 ```
 
-## Endpoints
-- `/webhook/<WEBHOOK_SECRET>`: Receives Telegram updates (POST), testable with GET
-- `/`: Health check
+## Admin Setup
 
-## Security
-- Never commit your real `.env` file to git.
-- Use `.env.example` for sharing config structure.
+To set a user as an admin:
+
+1. Run the admin setup script:
+   ```
+   npm run set-admin
+   ```
+2. Send any message to the bot from the Telegram account you want to make an admin
+3. The script will automatically set that user as an admin and exit
+
+## Setting Bot Commands
+
+To set the default commands for the bot:
+
+```
+npm run set-commands
+```
+
+## Project Structure
+
+- `bot.js` - Main bot logic and webhook handling
+- `server.js` - Server for hosting the registration form
+- `registration-form.html` - Telegram mini-app form for user registration
+- `set_admin.js` - Script to set a user as an admin
+- `set_default_commands.js` - Script to set default bot commands
+- `prisma/schema.prisma` - Database schema definition
+
+## Workflow
+
+1. New users are prompted to fill out a registration form
+2. Upon form submission, user data is stored in the database
+3. Users are assigned the 'client' role by default
+4. Different message handlers process requests based on user role
+5. Commands provide specific functionality based on user role
 
 ## License
-MIT
+
+ISC

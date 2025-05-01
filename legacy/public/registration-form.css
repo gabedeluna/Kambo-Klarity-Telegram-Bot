@@ -1,0 +1,148 @@
+html, body {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Define fallback variables if Telegram doesn't provide them */
+:root {
+    --tg-theme-bg-color: #ffffff;
+    --tg-theme-text-color: #000000;
+    --tg-theme-hint-color: #999999;
+    --tg-theme-link-color: #2481cc;
+    --tg-theme-button-color: #5fb13d;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #f2f2f7; /* Example secondary background */
+    --error-color: #e53935;
+}
+
+/* Basic dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --tg-theme-bg-color: #1c1c1e; /* Dark mode background */
+        --tg-theme-text-color: #ffffff;
+        --tg-theme-hint-color: #8e8e93;
+        --tg-theme-link-color: #0a84ff;
+        --tg-theme-button-color: #34c759; /* Slightly adjusted green for dark mode */
+        --tg-theme-button-text-color: #ffffff;
+        --tg-theme-secondary-bg-color: #2c2c2e; /* Darker secondary */
+        --error-color: #ff453a;
+    }
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--tg-theme-bg-color);
+    color: var(--tg-theme-text-color);
+    margin: 0;
+    padding: 16px;
+    font-size: 16px;
+}
+
+.container {
+    max-width: 500px;
+    margin: 0 auto;
+    /* Increased padding-bottom to prevent content being hidden by keyboard */
+    padding-bottom: 50vh;
+}
+
+h1 {
+    font-size: 22px;
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--tg-theme-hint-color); /* Use hint color for border */
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: var(--tg-theme-secondary-bg-color); /* Use secondary bg for inputs */
+    color: var(--tg-theme-text-color);
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--tg-theme-link-color); /* Use link color for focus */
+    box-shadow: 0 0 0 2px rgba(var(--tg-theme-link-color-rgb, 36, 129, 204), 0.3); /* Use link color for focus shadow */
+}
+
+textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.hint {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color);
+    margin-top: 4px;
+}
+
+.button {
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    border: none;
+    border-radius: 8px;
+    padding: 14px 20px; /* Slightly larger padding */
+    font-size: 16px;
+    font-weight: 600; /* Bolder button text */
+    cursor: pointer;
+    width: 100%;
+    margin-top: 20px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.button:hover:not(:disabled) {
+    filter: brightness(1.1); /* Simple hover effect */
+}
+
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.error {
+    color: var(--error-color);
+    font-size: 14px;
+    margin-top: 4px;
+    display: none;
+    font-weight: 500;
+}
+
+.frog-emoji {
+    font-size: 40px;
+    text-align: center;
+    display: block;
+    margin-bottom: 10px;
+}
+
+/* Utility class for screen-reader only content */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}

@@ -1,3 +1,13 @@
-node_modules
-# Keep environment variables out of version control
+# Ignore .env file 
 .env
+
+# Ignore credential files
+legacy/config/*.json
+node_modules
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# LangGraph API
+.langgraph_api
