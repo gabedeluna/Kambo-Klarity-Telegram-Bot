@@ -1,11 +1,13 @@
 /**
  * @fileoverview Telegraf middleware for looking up users in the database.
- * 
+ *
  * This module follows the dependency injection pattern to allow for easier testing.
  * It requires a Prisma client and a logger to be initialized before use.
  */
 
-const { PrismaClient } = require('@prisma/client'); // Useful for JSDoc
+// PrismaClient might be needed for future type hints or specific imports
+// eslint-disable-next-line no-unused-vars
+const { PrismaClient } = require("@prisma/client");
 
 // Module-level variables for dependencies
 // These are intentionally not exported to prevent direct manipulation
@@ -24,17 +26,19 @@ let isInitialized = false;
 function initialize(deps) {
   if (!deps.prisma || !deps.logger) {
     // Use console.error for critical init failures before logger might be available
-    console.error("FATAL: userLookupMiddleware initialization failed. Missing dependencies (prisma, logger).");
+    console.error(
+      "FATAL: userLookupMiddleware initialization failed. Missing dependencies (prisma, logger).",
+    );
     process.exit(1); // Exit the process for critical initialization failure
   }
-  
+
   // Set module-level variables
   prisma = deps.prisma;
   logger = deps.logger;
   isInitialized = true;
-  
+
   // Avoid trying to log if logger is not properly initialized
-  if (logger && typeof logger.info === 'function') {
+  if (logger && typeof logger.info === "function") {
     logger.info("[userLookupMiddleware] Initialized successfully.");
   }
 }
@@ -59,7 +63,7 @@ async function userLookupMiddleware(ctx, next) {
     await next();
     return;
   }
-  
+
   ctx.state = ctx.state || {}; // Ensure ctx.state exists
 
   const telegramIdSource = ctx.from?.id;
@@ -77,7 +81,10 @@ async function userLookupMiddleware(ctx, next) {
   } catch (error) {
     // Log if the ID is not a valid number format for BigInt
     // Note: BigInt() throws SyntaxError for invalid strings
-    logger.error({ err: error, telegramIdSource }, "Failed to convert telegramIdSource to BigInt.");
+    logger.error(
+      { err: error, telegramIdSource },
+      "Failed to convert telegramIdSource to BigInt.",
+    );
     // Mark lookup as failed and continue processing
     ctx.state.user = undefined;
     ctx.state.isNewUser = undefined;
@@ -88,7 +95,8 @@ async function userLookupMiddleware(ctx, next) {
   try {
     const user = await prisma.users.findUnique({
       where: { telegram_id: telegramId },
-      select: { // Select only the fields needed downstream
+      select: {
+        // Select only the fields needed downstream
         client_id: true, // Primary Key
         telegram_id: true,
         role: true,
@@ -102,14 +110,20 @@ async function userLookupMiddleware(ctx, next) {
     if (user) {
       ctx.state.user = user;
       ctx.state.isNewUser = false;
-      logger.debug({ telegramId: user.telegram_id.toString(), role: user.role }, "User found.");
+      logger.debug(
+        { telegramId: user.telegram_id.toString(), role: user.role },
+        "User found.",
+      );
     } else {
       ctx.state.user = null;
       ctx.state.isNewUser = true;
       logger.info({ telegramId: telegramId.toString() }, "New user detected.");
     }
   } catch (dbError) {
-    logger.error({ err: dbError, telegramId: telegramId.toString() }, "Database error during user lookup.");
+    logger.error(
+      { err: dbError, telegramId: telegramId.toString() },
+      "Database error during user lookup.",
+    );
     // Mark lookup as failed due to DB error
     ctx.state.user = undefined;
     ctx.state.isNewUser = undefined;

@@ -101,7 +101,7 @@
 *   **PH2-D8 (PH2-01):** Improved test coverage by adding more test cases for the logger module, achieving 100% coverage.
 *   **PH2-D9 (PH2-02):** Implemented global Express error handler in middleware/errorHandler.js. Added basic AppError/NotFoundError classes. Registered middleware last in app.js.
 *   **PH2-D10 (PH2-02):** Used dependency injection via proxyquire for testing the error handler middleware, allowing tests to verify logger interactions without tight coupling.
-*   **PH2-D11 (PH2-03):** Ensured `src/tools/` directory exists. Used `--allow-empty` commit to mark task completion as the directory was likely created in a previous phase.
+*   **PH2-D11 (PH2-03):** Ensured `src/tools/` directory exists. Used `--allow-empty` commit to mark task completion as the directory was likely created in previous explorations.
 *   **PH2-D12 (PH2-04):** Created `stateManager.js` tool. Implemented `resetUserState` using Prisma. Used Sinon stubs via proxyquire for Prisma in unit tests. Added logger DI setter.
 *   **PH2-D13 (PH2-05):** Added generic `updateUserState` function to `stateManager.js`. Included handling for Prisma P2025 (RecordNotFound) error.
 *   **PH2-D14 (PH2-06):** Added dedicated `storeBookingData` function to `stateManager.js` for saving confirmed session/slot.
@@ -268,7 +268,7 @@
 | ID        | Task                                                                      | Why / Acceptance Criteria                                                                                                                                                           |
 | :-------- | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [X]**PH5‑01** | **Implement User Lookup Middleware (`middleware/userLookup.js`)**         | Refine/reimplement middleware (currently in legacy `bot.js`) to reliably fetch/attach `ctx.state.user` and `ctx.state.isNewUser` using core Prisma client.                             | *Pass*: Middleware created, uses core Prisma, attaches correct state, handles new/existing users, unit tests pass. |
-| [ ]**PH5‑02** | **Implement Core Update Router Middleware (`middleware/updateRouter.js`)**| Create the central router (as described in PLANNING.md 11.X) to direct incoming Telegram updates based on user state (`isNewUser`) and update type (command, message, callback).       | *Pass*: Middleware created, routes new users, delegates commands/messages/callbacks correctly. Unit tests pass (mocking downstream handlers). |
+| [X]**PH5‑02** | **Implement Core Update Router Middleware (`middleware/updateRouter.js`)**| Create the central router (as described in PLANNING.md 11.X) to direct incoming Telegram updates based on user state (`isNewUser`) and update type (command, message, callback).       | *Pass*: Middleware created, routes new users, delegates commands/messages/callbacks correctly. Unit tests pass (mocking downstream handlers). |
 | [ ]**PH5‑03** | **Integrate Graph with Update Router (Message Handling)**                 | Modify `updateRouter.js` so that regular text messages from *existing* users are routed to invoke the compiled `bookingGraph` (from PH4-04) with user input and context.          | *Pass*: Text messages invoke `bookingGraph.invoke()`, graph state initialized correctly, agent response sent back to user (via a node/tool). Integration test verifies basic flow. |
 | [ ]**PH5‑04** | **Refactor `app.js` to Use New Middleware**                               | Remove legacy dispatcher logic from `bot.js` / initial `app.js` setup. Register `userLookup` and `updateRouter` middleware in `src/app.js` *after* the webhook callback setup.         | *Pass*: `app.js` uses new middleware, legacy dispatcher removed. Basic bot interactions (e.g., sending a message) trigger the new router path. |
 | [ ]**PH5‑05** | **Implement Static File Serving (`app.js` / `routes/`)**                | Configure Express in `src/app.js` to serve static files (HTML, CSS, JS) from `public/`. Move `public/` directory if desired.                                                    | *Pass*: HTML forms (`registration-form.html`, `waiver-form.html`) are accessible via browser at expected URLs (e.g., `/registration-form.html`). |
@@ -296,4 +296,4 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-04-30 21:18
+**Last updated:** 2025-05-01 02:33

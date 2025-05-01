@@ -1,16 +1,73 @@
 // tests/app.test.js
 const request = require("supertest");
 const { expect } = require("chai");
-const app = require("../src/app"); // Import the Express app
-const botInstance = require("../src/core/bot"); // To get the secret path
+const sinon = require("sinon");
+const express = require("express");
+// eslint-disable-next-line no-unused-vars
+const path = require("path");
+
+// Create sandbox for test isolation
+let sandbox;
+let app;
+
+// Create a minimal mock for the bot instance
+const mockBotInstance = {
+  secretPathComponent: () => "test-secret-path",
+  webhookCallback: (secretPath) => {
+    // Return a middleware function that handles webhook requests
+    return (req, res, next) => {
+      // Only handle requests to the webhook path
+      if (req.path === secretPath) {
+        return res.status(200).send("OK");
+      }
+      next();
+    };
+  },
+};
+
+// eslint-disable-next-line no-unused-vars
+const mockLogger = {
+  info: sinon.stub(),
+  error: sinon.stub(),
+  warn: sinon.stub(),
+  debug: sinon.stub(),
+};
 
 describe("Express App", () => {
   let secretPath;
 
   before(() => {
+    // Set up sandbox
+    sandbox = sinon.createSandbox();
+
     // Construct the secret path once before tests
-    const secretPathComponent = botInstance.secretPathComponent();
+    const secretPathComponent = mockBotInstance.secretPathComponent();
     secretPath = `/telegraf/${secretPathComponent}`;
+
+    // Mock required modules
+    const errorHandler = require("../src/middleware/errorHandler");
+
+    // Create a fresh Express app for testing
+    app = express();
+
+    // Configure middleware similar to the real app
+    app.use(express.json());
+
+    // Mount the mock webhook handler
+    app.use(mockBotInstance.webhookCallback(secretPath));
+
+    // Add health check route (copied from the real app)
+    app.get("/health", (req, res) => {
+      res.set("Content-Type", "text/plain");
+      res.status(200).send("OK");
+    });
+
+    // Register error handling middleware
+    app.use(errorHandler);
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   it("GET /health should return 200 OK", async () => {

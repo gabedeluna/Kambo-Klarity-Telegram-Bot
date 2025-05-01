@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
 const path = require("path");
+const proxyquire = require("proxyquire");
 
 // Import the actual logger
 const logger = require("../../src/core/logger");
@@ -100,56 +101,64 @@ describe("Core Prisma Module", () => {
   });
 
   it("should log error if $disconnect fails during beforeExit", async () => {
-    // Import PrismaClient for prototype stubbing
-    const { PrismaClient } = require("@prisma/client");
+    // Create a mock error for the test
     const mockError = new Error("DB disconnect failed");
 
-    try {
-      // Stub the PrismaClient.$disconnect method using the existing sandbox
-      const disconnectStub = sandbox
-        .stub(PrismaClient.prototype, "$disconnect")
-        .rejects(mockError);
+    // Clear the require cache to ensure a fresh instance
+    delete require.cache[path.resolve(process.cwd(), "src/core/prisma.js")];
 
-      // Clear the require cache to ensure a fresh prisma instance
-      delete require.cache[path.resolve(process.cwd(), "src/core/prisma.js")];
+    // Directly stub the $disconnect method on the mock Prisma client
+    // This mock is already being used by the module due to the global test setup
+    const mockPrisma = require("../mocks/prisma.mock");
+    mockPrisma.$disconnect.rejects(mockError);
 
-      // Require the module - this creates an instance with the stubbed prototype
-      // and registers the beforeExit listener
-      const _prismaInstance = require(
-        // Prefix with _ as it's required for side-effects but not used
-        path.resolve(process.cwd(), "src/core/prisma.js"),
-      );
+    // Now require the module - this will use our mock Prisma client
+    require(path.resolve(process.cwd(), "src/core/prisma.js"));
 
-      // Set our logger mock directly on the prisma instance
-      // prismaInstance.setLogger(loggerMock);
+    // Find the registered listener from the processOnStub
+    const beforeExitCall = processOnStub
+      .getCalls()
+      .find((call) => call.args[0] === "beforeExit");
 
-      // Find the registered listener from the processOnStub
-      const beforeExitCall = processOnStub
-        .getCalls()
-        .find((call) => call.args[0] === "beforeExit");
+    expect(beforeExitCall, "beforeExit listener not found").to.exist;
+    const beforeExitListener = beforeExitCall.args[1];
+    expect(
+      beforeExitListener,
+      "beforeExit listener should be a function",
+    ).to.be.a("function");
 
-      expect(beforeExitCall, "beforeExit listener not found").to.exist;
-      const beforeExitListener = beforeExitCall.args[1];
-      expect(
-        beforeExitListener,
-        "beforeExit listener should be a function",
-      ).to.be.a("function");
+    // Invoke the listener - it should catch the rejection from $disconnect
+    await beforeExitListener();
 
-      // Invoke the listener - it should catch the rejection from $disconnect
-      await beforeExitListener();
+    // Verify the disconnect stub was called
+    expect(mockPrisma.$disconnect.called, "$disconnect should be called").to.be
+      .true;
 
-      // Verify the disconnect stub was called
-      expect(disconnectStub.called, "$disconnect should be called").to.be.true;
+    // Verify logger.error was called with the error object and a message
+    expect(logger.error.called, "logger.error should be called").to.be.true;
+    expect(
+      logger.error.calledWith(mockError, sinon.match.string),
+      "logger.error should be called with error object and message",
+    ).to.be.true;
+  });
 
-      // Verify logger.error was called with the error object
-      expect(logger.error.called, "logger.error should be called").to.be.true;
-      expect(
-        logger.error.firstCall.args[0],
-        "First argument should be the error object",
-      ).to.equal(mockError);
-    } finally {
-      // Remove manual stub restore - sandbox.restore() in afterEach handles it
-      // disconnectStub.restore();
-    }
+  it("should log an error if PRISMA_LOG_LEVEL is invalid", () => {
+    // Temporarily modify process.env for this test
+    process.env.PRISMA_LOG_LEVEL = "invalid_level";
+    const mockLogger = {
+      error: sandbox.stub(),
+    };
+    // Use proxyquire to load the module with the mock client
+    proxyquire("../../src/core/prisma", {
+      "@prisma/client": {
+        // Provide the mock constructor here
+        PrismaClient: class MockPrismaClient {}, // Ensure MockPrismaClient is defined in scope
+      },
+      "../core/logger": mockLogger, // Mock logger if needed for this test
+    });
+    // Assert on mockLogger.error if prisma instantiation should log an error
+    expect(mockLogger.error).to.have.been.calledWith(
+      sinon.match(/Invalid PRISMA_LOG_LEVEL/),
+    );
   });
 });

@@ -105,6 +105,12 @@ const getUserPastSessionsSchema = z
   })
   .describe("Input schema for retrieving dates of past completed sessions.");
 
+const sendSessionTypeSelectorSchema = z
+  .object({
+    telegramId: z.string().min(1),
+  })
+  .describe("Input schema for sending the session type selection buttons.");
+
 // --- Export all schemas ---
 module.exports = {
   resetUserStateSchema,
@@ -116,6 +122,7 @@ module.exports = {
   createCalendarEventSchema,
   setActiveSessionIdSchema,
   clearActiveSessionIdSchema,
-  getUserProfileDataSchema, // Added export
-  getUserPastSessionsSchema, // Added export
+  getUserProfileDataSchema,
+  getUserPastSessionsSchema,
+  sendSessionTypeSelectorSchema,
 };

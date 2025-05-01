@@ -7,10 +7,11 @@ const sinon = require("sinon");
 const proxyquire = require("proxyquire").noCallThru();
 const { z } = require("zod"); // Import Zod
 
-// Import schemas
+// Import real schemas for validation tests
 const {
   sendWaiverLinkSchema,
   sendTextMessageSchema,
+  sendSessionTypeSelectorSchema,
 } = require("../../src/tools/toolSchemas");
 
 // Mock dependencies - TOP LEVEL
@@ -41,6 +42,23 @@ const mockCommandRegistry = {
   },
   admin: {
     sessions: { descr: "Admin sessions" },
+  },
+};
+
+// Mock sessionTypes helper
+const mockSessionTypes = {
+  getAll: sinon.stub().returns([
+    { id: "type1", label: "Type 1" },
+    { id: "type2", label: "Type 2" },
+  ]),
+};
+
+// Create mock for toolSchemas
+const mockToolSchemas = {
+  toolSchemas: {
+    sendWaiverLinkSchema,
+    sendTextMessageSchema,
+    sendSessionTypeSelectorSchema,
   },
 };
 
@@ -94,6 +112,8 @@ describe("Telegram Notifier Tool", () => {
         "../../core/logger": mockLogger,
         "../../core/prisma": mockPrisma,
         "../../commands/registry": mockCommandRegistry,
+        "../../core/sessionTypes": mockSessionTypes,
+        "./toolSchemas": mockToolSchemas,
         telegraf: mockMarkup,
       },
     );
@@ -105,6 +125,7 @@ describe("Telegram Notifier Tool", () => {
       logger: mockLogger,
       prisma: mockPrisma,
       config: configMock,
+      sessionTypes: mockSessionTypes,
     });
 
     // Assign spy for convenience if needed, access via mockBot is also fine
@@ -476,6 +497,197 @@ describe("Telegram Notifier Tool", () => {
       expect(mockLogger.error.firstCall.args[1]).to.deep.equal({
         error: apiError,
       });
+    });
+  });
+
+  // --- sendSessionTypeSelector Tests ---
+  describe("sendSessionTypeSelector", function () {
+    const testTelegramId = "123456789";
+    const testMessageId = 54321;
+
+    beforeEach(function () {
+      // Reset stubs for this test suite
+      mockBot.telegram.sendMessage.resetHistory();
+      mockPrisma.users.update.resetHistory();
+      mockSessionTypes.getAll.resetHistory();
+      mockLogger.info.resetHistory();
+      mockLogger.error.resetHistory();
+      mockLogger.warn.resetHistory();
+      mockLogger.debug.resetHistory();
+      mockMarkup.Markup.inlineKeyboard.resetHistory();
+
+      // Set up default successful responses
+      mockBot.telegram.sendMessage.resolves({ message_id: testMessageId });
+      mockPrisma.users.update.resolves({
+        id: 1,
+        telegram_id: BigInt(testTelegramId),
+      });
+      mockSessionTypes.getAll.returns([
+        { id: "type1", label: "Type 1" },
+        { id: "type2", label: "Type 2" },
+      ]);
+    });
+
+    it("should validate input using sendSessionTypeSelectorSchema", function () {
+      const validData = { telegramId: testTelegramId };
+      const invalidData = { telegramId: "" }; // Empty telegramId
+
+      expect(() =>
+        sendSessionTypeSelectorSchema.parse(validData),
+      ).not.to.throw();
+      expect(() => sendSessionTypeSelectorSchema.parse(invalidData)).to.throw(
+        z.ZodError,
+      );
+    });
+
+    it("should send session type selector and store message ID successfully", async function () {
+      // Act
+      const result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      // Assert
+      expect(result).to.deep.equal({ success: true, messageId: testMessageId });
+
+      // Verify sessionTypes.getAll was called
+      expect(mockSessionTypes.getAll.calledOnce).to.be.true;
+
+      // Verify sendMessage was called with correct parameters
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
+      const sendMessageArgs = mockBot.telegram.sendMessage.firstCall.args;
+      expect(sendMessageArgs[0]).to.equal(testTelegramId);
+      expect(sendMessageArgs[1]).to.equal(
+        "Please choose your desired session type:",
+      );
+
+      // Verify keyboard structure was used
+      expect(mockMarkup.Markup.inlineKeyboard.calledOnce).to.be.true;
+
+      // Verify message_id was stored in database
+      expect(mockPrisma.users.update.calledOnce).to.be.true;
+      expect(mockPrisma.users.update.firstCall.args[0]).to.deep.equal({
+        where: { telegram_id: BigInt(testTelegramId) },
+        data: { edit_msg_id: testMessageId },
+      });
+
+      // Verify logger was used
+      expect(mockLogger.info.called).to.be.true;
+      expect(mockLogger.error.called).to.be.false;
+    });
+
+    it("should return error if no session types are available", async function () {
+      // Arrange - make getAll return empty array
+      mockSessionTypes.getAll.returns([]);
+
+      // Act
+      const result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      // Assert
+      expect(result.success).to.be.false;
+      expect(result.error).to.include("No session types available");
+      expect(mockBot.telegram.sendMessage.called).to.be.false;
+      expect(mockLogger.error.called).to.be.true;
+    });
+
+    it("should return error if getAll throws an error", async function () {
+      // Arrange - make getAll throw error
+      const sessionTypeError = new Error("Failed to get session types");
+      mockSessionTypes.getAll.throws(sessionTypeError);
+
+      // Act
+      const result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      // Assert
+      expect(result.success).to.be.false;
+      expect(result.error).to.include(
+        "Internal error retrieving session types",
+      );
+      expect(mockBot.telegram.sendMessage.called).to.be.false;
+      expect(mockLogger.error.called).to.be.true;
+    });
+
+    it("should return success with warning if message_id storage fails", async function () {
+      // Arrange - database update fails
+      const dbError = new Error("Database error");
+      mockPrisma.users.update.rejects(dbError);
+
+      // Act
+      const result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      // Assert - should still be successful because the message was sent
+      expect(result.success).to.be.true;
+      expect(result.messageId).to.equal(testMessageId);
+      expect(result.warning).to.include("Database error");
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
+      expect(mockPrisma.users.update.calledOnce).to.be.true;
+      expect(mockLogger.error.calledOnce).to.be.true;
+    });
+
+    it("should return success with warning if message_id is missing", async function () {
+      // Arrange - sendMessage succeeds but doesn't return message_id
+      mockBot.telegram.sendMessage.resolves({});
+
+      // Act
+      const result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      // Assert
+      expect(result.success).to.be.true;
+      expect(result.messageId).to.be.null;
+      expect(result.warning).to.include("no message_id received");
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
+      expect(mockPrisma.users.update.called).to.be.false;
+      expect(mockLogger.warn.called).to.be.true;
+    });
+
+    it("should return error if sendMessage fails", async function () {
+      // Arrange - sendMessage fails
+      const telegramError = new Error("Telegram API error");
+      mockBot.telegram.sendMessage.rejects(telegramError);
+
+      // Act
+      const result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      // Assert
+      expect(result.success).to.be.false;
+      expect(result.error).to.include("Telegram API error");
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
+      expect(mockPrisma.users.update.called).to.be.false;
+      expect(mockLogger.error.called).to.be.true;
+    });
+
+    it("should handle specific Telegram API error codes", async function () {
+      // Test 400 error
+      mockBot.telegram.sendMessage.rejects({ response: { error_code: 400 } });
+
+      let result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      expect(result.success).to.be.false;
+      expect(result.error).to.include("Invalid request");
+
+      // Reset for next test
+      mockBot.telegram.sendMessage.resetHistory();
+
+      // Test 403 error
+      mockBot.telegram.sendMessage.rejects({ response: { error_code: 403 } });
+
+      result = await this.notifier.sendSessionTypeSelector({
+        telegramId: testTelegramId,
+      });
+
+      expect(result.success).to.be.false;
+      expect(result.error).to.include("Bot was blocked");
     });
   });
 });

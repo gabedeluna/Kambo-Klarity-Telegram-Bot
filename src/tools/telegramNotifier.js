@@ -1,5 +1,6 @@
 const { Markup } = require("telegraf");
 const commandRegistry = require("../commands/registry"); // Added registry require
+const { toolSchemas } = require("./toolSchemas"); // Import toolSchemas for validation
 
 /**
  * Factory function to create a telegramNotifier instance.
@@ -8,6 +9,7 @@ const commandRegistry = require("../commands/registry"); // Added registry requi
  * @param {import('@prisma/client').PrismaClient} dependencies.prisma - The Prisma client instance.
  * @param {object} dependencies.logger - The Pino logger instance.
  * @param {object} dependencies.config - The environment config object (needs FORM_URL).
+ * @param {object} dependencies.sessionTypes - Session types helper.
  * @returns {object} An object with the notifier functions.
  * @throws {Error} If dependencies or config.FORM_URL are missing.
  */
@@ -19,7 +21,8 @@ function createTelegramNotifier(dependencies) {
     !dependencies.prisma ||
     !dependencies.logger ||
     !dependencies.config ||
-    !dependencies.config.FORM_URL
+    !dependencies.config.FORM_URL ||
+    !dependencies.sessionTypes
   ) {
     const missing = [];
     if (!dependencies) missing.push("dependencies object");
@@ -31,6 +34,7 @@ function createTelegramNotifier(dependencies) {
       // Only check for FORM_URL if config itself exists
       if (dependencies.config && !dependencies.config.FORM_URL)
         missing.push("config.FORM_URL");
+      if (!dependencies.sessionTypes) missing.push("sessionTypes");
     }
     const errorMsg = `FATAL: telegramNotifier initialization failed. Missing: ${missing.join(", ")}.`;
     // Use console.error as logger might not be initialized
@@ -43,6 +47,7 @@ function createTelegramNotifier(dependencies) {
   const prisma = dependencies.prisma;
   const logger = dependencies.logger;
   const config = dependencies.config;
+  const sessionTypes = dependencies.sessionTypes;
 
   logger.info("[telegramNotifier] Instance created successfully.");
 
@@ -203,6 +208,116 @@ function createTelegramNotifier(dependencies) {
   }
 
   /**
+   * Sends a message with session type selection buttons to a Telegram user.
+   *
+   * @param {object} params - The parameters for sending the selector.
+   * @param {string} params.telegramId - The Telegram ID of the recipient.
+   * @returns {Promise<object>} An object indicating success, failure, and messageId if successful.
+   */
+  async function sendSessionTypeSelector({ telegramId }) {
+    // Validate input using Zod schema (defined in toolSchemas.js)
+    try {
+      toolSchemas.sendSessionTypeSelectorSchema.parse({ telegramId });
+    } catch (error) {
+      logger.error(
+        { error: error.errors, telegramId },
+        "Invalid input for sendSessionTypeSelector",
+      );
+      return { success: false, error: "Invalid input", details: error.errors };
+    }
+
+    logger.info({ telegramId }, `Attempting to send session type selector...`);
+
+    let types;
+    try {
+      types = sessionTypes.getAll();
+      if (!types || types.length === 0) {
+        logger.error("No session types found/configured.");
+        return {
+          success: false,
+          error: "Internal configuration error: No session types available.",
+        };
+      }
+    } catch (error) {
+      logger.error({ err: error }, "Error retrieving session types.");
+      return {
+        success: false,
+        error: "Internal error retrieving session types.",
+      };
+    }
+
+    const buttons = types.map(
+      (type) => Markup.button.callback(type.label, `book_session:${type.id}`), // Use type.id
+    );
+    // Arrange buttons (one per row for clarity)
+    const keyboard = Markup.inlineKeyboard(buttons.map((btn) => [btn]));
+
+    const messageText = "Please choose your desired session type:";
+    let sentMessage;
+
+    try {
+      sentMessage = await bot.telegram.sendMessage(
+        telegramId,
+        messageText,
+        keyboard,
+      );
+      logger.info(
+        { telegramId, messageId: sentMessage?.message_id },
+        `Session type selector sent successfully.`,
+      );
+
+      if (sentMessage && sentMessage.message_id) {
+        // Store the message ID for potential future edits (e.g., after selection)
+        try {
+          await prisma.users.update({
+            where: { telegram_id: BigInt(telegramId) },
+            data: { edit_msg_id: sentMessage.message_id },
+          });
+          logger.debug(
+            { telegramId, messageId: sentMessage.message_id },
+            "Stored message_id for edits.",
+          );
+          return { success: true, messageId: sentMessage.message_id };
+        } catch (dbError) {
+          logger.error(
+            { err: dbError, telegramId, messageId: sentMessage.message_id },
+            "Database error storing message_id",
+          );
+          // Return success true because the message was sent, but warn about DB issue
+          return {
+            success: true,
+            messageId: sentMessage.message_id,
+            warning: "Database error storing message_id",
+          };
+        }
+      } else {
+        logger.warn(
+          { telegramId },
+          "Telegram did not return a message_id after sending selector.",
+        );
+        return {
+          success: true,
+          messageId: null,
+          warning: "Message sent, but no message_id received.",
+        };
+      }
+    } catch (error) {
+      logger.error(
+        { err: error, telegramId },
+        `Failed to send session type selector`,
+      );
+      let userMessage = "Telegram API error";
+      if (error.response && error.response.error_code === 400) {
+        userMessage =
+          "Failed to send selector: Invalid request (e.g., bad chat ID).";
+      } else if (error.response && error.response.error_code === 403) {
+        userMessage = "Failed to send selector: Bot was blocked by the user.";
+      }
+      return { success: false, error: userMessage };
+    }
+  }
+
+  /**
    * Sets the appropriate Telegram command menu (/command) for a specific user based on their role ('client' or 'admin').
    * This ensures users see only the commands relevant to them.
    * Call this after identifying or updating a user's role (e.g., upon first interaction or role change).
@@ -288,6 +403,7 @@ function createTelegramNotifier(dependencies) {
   return {
     sendWaiverLink,
     sendTextMessage,
+    sendSessionTypeSelector,
     setRoleSpecificCommands,
   };
 }

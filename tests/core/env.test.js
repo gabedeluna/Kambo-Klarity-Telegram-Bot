@@ -90,7 +90,7 @@ describe("core/env Module", () => {
     expect(config.tgToken).to.equal("mock_token");
     expect(config.databaseUrl).to.equal("mock_db_url");
     expect(config.formUrl).to.equal("mock_form_url");
-    expect(config.port).to.equal("5432");
+    expect(config.port).to.equal(5432);
 
     expect(Object.isFrozen(config)).to.be.true;
     expect(() => {
@@ -165,6 +165,6 @@ describe("core/env Module", () => {
     process.env.PORT = "8080";
 
     const config = require("../../src/core/env");
-    expect(config.port).to.equal("8080");
+    expect(config.port).to.equal(8080);
   });
 });
