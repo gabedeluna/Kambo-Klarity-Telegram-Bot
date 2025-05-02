@@ -24,6 +24,7 @@ describe("Booking Agent - Integration Tests", () => {
         mockPromptInstance,
         mockOutputParser,
         mockAgentExecutorInstance;
+      let bookingAgent; // Declare bookingAgent here
 
       // Add mocks for application-specific dependencies used by the agent or its tools
       let mockLogger,
@@ -121,7 +122,8 @@ describe("Booking Agent - Integration Tests", () => {
         };
 
         // --- Mocking Dependencies ---
-        const bookingAgent = proxyquire("../../src/agents/bookingAgent", {
+        // Assign to the outer variable
+        bookingAgent = proxyquire("../../src/agents/bookingAgent", {
           "@langchain/openai": {
             ChatOpenAI: sandbox.stub().returns(mockLLMInstance),
           },

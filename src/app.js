@@ -30,6 +30,8 @@ function initializeApp(deps) {
     userLookupMiddleware,
     updateRouter, // Module with initialize and routeUpdate
     errorHandlerMiddleware,
+    apiRoutes,
+    formRoutes,
   } = deps;
 
   // --- Validate Core Dependencies ---
@@ -51,7 +53,9 @@ function initializeApp(deps) {
     !initUserLookup ||
     !userLookupMiddleware ||
     !updateRouter ||
-    !errorHandlerMiddleware
+    !errorHandlerMiddleware ||
+    !apiRoutes ||
+    !formRoutes
   ) {
     console.error("CRITICAL: Missing core dependencies for initializeApp.");
     throw new Error("Missing core dependencies for initializeApp.");
@@ -71,10 +75,16 @@ function initializeApp(deps) {
   });
   console.log(">>> /health route added.");
 
-  // --- Static File Serving ---
-  const publicDirectoryPath = path.join(__dirname, "../public");
-  logger.info(`Serving static files from: ${publicDirectoryPath}`);
-  app.use(express.static(publicDirectoryPath));
+  // Serve static files (HTML, CSS, JS for forms/admin)
+  // Must come *before* API/Form routes if they share base paths
+  const publicPath = path.join(__dirname, "..", "public");
+  app.use(express.static(publicPath));
+  logger.info(`Serving static files from: ${publicPath}`);
+
+  // --- Mount API & Form Routers ---
+  app.use("/api", apiRoutes); // All routes in api.js will be prefixed with /api
+  app.use("/", formRoutes); // Routes in forms.js mounted at the root
+  logger.info("API and Form routers mounted.");
 
   // --- Initialization Logic (Moved inside) ---
   try {

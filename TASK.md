@@ -275,7 +275,7 @@
 | [X]**PH5‑03** | **Integrate Graph with Update Router (Message Handling)**                 | Modify `updateRouter.js` so that regular text messages from *existing* users are routed to invoke the compiled `bookingGraph` (from PH4-04) with user input and context.          | *Pass*: Text messages invoke `bookingGraph.invoke()`, graph state initialized correctly, agent response sent back to user (via a node/tool). Integration test verifies basic flow. |
 | [X]**PH5‑04** | **Refactor `app.js` to Use New Middleware**                             | Update `app.js` to initialize and register `userLookup`, `updateRouter`, `errorHandler` middleware. Remove old `bot.on` dispatching.                                                    | *Pass*: `app.js` initializes modules, registers middleware in order. Legacy dispatch removed. `/health` still works. | // 2025-05-01
 | [X]**PH5‑05** | **Consolidate Express Server**                                          | Merge `legacy/server.js` features (static file serving, `/`) into `src/app.js`.                                                                                                     | *Pass*: `app.js` serves `public/index.html` at `/`. Legacy server code can be removed later. |
-| [ ]**PH5‑06** | **Implement Static File Serving (`app.js` / `routes/`)**                | Configure Express in `src/app.js` to serve static files (HTML, CSS, JS) from `public/`. Move `public/` directory if desired.                                                    | *Pass*: HTML forms (`registration-form.html`, `waiver-form.html`) are accessible via browser at expected URLs (e.g., `/registration-form.html`). |
+| [X]**PH5‑06** | **Implement Static File Serving (`app.js` / `routes/`)**                | Configure Express in `src/app.js` to serve static files (HTML, CSS, JS) from `public/`. Move `public/` directory if desired.                                                    | *Pass*: HTML forms (`registration-form.html`, `waiver-form.html`) are accessible via browser at expected URLs (e.g., `/registration-form.html`). |
 | [ ]**PH5‑07** | **Implement Form Routes & Handlers (`routes/forms.js`, `routes/api.js`)** | Re-implement routes from legacy `server.js` within the main app (`src/app.js`): `/registration` (GET), `/booking-form.html` (GET), `/api/user-data` (GET), `/api/submit-waiver` (POST), `/submit-registration` (POST). Use `express.Router`. | *Pass*: Routes defined, mounted in `app.js`. Basic integration tests (Supertest) verify routes exist and return expected status codes. |
 | [ ]**PH5‑08** | **Implement `/submit-registration` Handler Logic**                      | Create handler function for the POST `/submit-registration` route. Use core `prisma` to save user, `telegramNotifier` to welcome client & notify admin. Connect to route from PH5-06. | *Pass*: Handler saves user via mock Prisma, calls mock notifier functions. Integration test POSTs data and verifies success response/mock calls. |
 | [ ]**PH5‑09** | **Implement `/api/user-data` Handler Logic**                            | Create handler for GET `/api/user-data`. Use core `prisma` to fetch user details (like legacy version). Format data for form pre-filling. Connect to route.                     | *Pass*: Handler fetches user data via mock Prisma, formats correctly. Integration test GETs data and verifies structure. |
@@ -303,6 +303,18 @@
 *   Moved `public/` directory to project root.
 *   Added `express.static` middleware in `app.js` to serve files from `public/`.
 *   Added integration tests verifying HTML/CSS files are served correctly.
+*   **PH5-D1 (PH5-06):** Added `serve-static` types (`@types/serve-static`) for better type checking in `app.js`.
+*   **PH5-D2 (PH5-06):** Refactored `initializeApp` slightly to improve dependency injection clarity.
+*   **PH5-D3 (PH5-06):** Created `public/` directory for static assets.
+*   **PH5-D4 (PH5-06):** Added basic HTML structure, CSS styling (simple), and placeholder JS for forms.
+*   **PH5-D5 (PH5-06):** Realized middleware needs access to `Telegraf` instance to update commands dynamically.
+*   **PH5-D6 (PH5-06):** Created `src/middleware/updateRouter.js` and corresponding test file.
+*   **PH5-D7 (PH5-06):** Injected `updateRouter` into `initializeApp` dependencies.
+*   **PH5-D8 (PH5-06):** Added basic tests for the route update middleware.
+*   **PH5-D9 (PH5-06):** Created `src/routes/api.js` and `src/routes/forms.js` using `express.Router`.
+*   **PH5-D10 (PH5-06):** Defined placeholder handlers returning 501.
+*   **PH5-D11 (PH5-06):** Mounted routers in `src/app.js`.
+*   **PH5-D12 (PH5-06):** Added basic integration tests verifying route existence and placeholder response.
 
 ### 💡 Insights & Decisions
 *(Explain routing logic, middleware design, server consolidation benefits/challenges, form handler implementation details, etc.)*
@@ -310,6 +322,12 @@
 *   Consolidated static file serving into the main Express app using `express.static`, a key step in merging server responsibilities and removing legacy server.
 *   Using `express.static` is the standard and simplest way for this app.
 *   Serving from a dedicated `/public` directory keeps static assets organized.
+*   **PH5-06:** Implemented form routes and placeholder handlers. Added discovery notes for PH5-06.
+*   **PH5-06:** Added notes on serving static files from `public/` directory.
+*   **PH5-06:** Added notes on using `express.Router` for organizing API and form routes.
+*   **PH5-06:** Added notes on defining placeholder handlers for routes.
+*   **PH5-06:** Added notes on mounting routers in `app.js`.
+*   **PH5-06:** Added notes on adding basic integration tests for route existence and placeholder response.
 
 ### 🧪 Quick‑Run Commands
 
