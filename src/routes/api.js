@@ -5,46 +5,66 @@
  */
 
 const express = require("express");
-const router = express.Router();
+const apiHandler = require("../handlers/apiHandler"); // Import the handler
 
-// Placeholder Handlers
-
-/**
- * Handles GET requests for user-specific data.
- * Placeholder: Returns 501 Not Implemented.
- * @param {express.Request} req - The Express request object.
- * @param {express.Response} res - The Express response object.
- */
-const getUserDataApi = (req, res) =>
-  res.status(501).json({ message: "GET /api/user-data Not Implemented Yet" });
+let prisma, logger; // Removed unused 'agentExecutor', 'notifier' for now
+// let agentExecutor, notifier; // Keep these commented out if planned for future use
 
 /**
- * Handles POST requests to submit waiver data via API.
- * Placeholder: Returns 501 Not Implemented.
- * @param {express.Request} req - The Express request object.
- * @param {express.Response} res - The Express response object.
+ * Initializes the API router module with required dependencies.
+ * @param {object} deps - An object containing the dependencies.
+ * @param {object} deps.prisma - The Prisma client instance.
+ * @param {object} deps.logger - The logger instance.
+ * @param {object} [deps.agentExecutor] - The agent executor instance (optional).
+ * @param {object} [deps.notifier] - The notifier instance (optional).
+ * @throws {Error} If required dependencies are missing.
  */
-const submitWaiverApi = (req, res) =>
-  res
-    .status(501)
-    .json({ message: "POST /api/submit-waiver Not Implemented Yet" });
+function initialize(deps) {
+  prisma = deps.prisma;
+  logger = deps.logger;
+
+  // Store optional dependencies if provided
+  // agentExecutor = deps.agentExecutor;
+  // notifier = deps.notifier;
+
+  // Initialize the specific handler needed by this router
+  apiHandler.initialize({ prisma, logger });
+}
 
 /**
- * Handles POST requests from the waiver service upon completion.
- * Placeholder: Returns 501 Not Implemented.
- * @param {express.Request} req - The Express request object.
- * @param {express.Response} res - The Express response object.
+ * Returns the configured Express router.
+ * @returns {express.Router} The configured Express router.
  */
-const waiverCompleted = (req, res) =>
-  res
-    .status(501)
-    .json({ message: "POST /waiver-completed Not Implemented Yet" });
+function getRouter() {
+  // Define the router inside the function where it's used
+  const router = express.Router();
 
-// Define Routes
-router.get("/user-data", getUserDataApi);
-router.post("/submit-waiver", submitWaiverApi);
-// Note: The waiver completion webhook might eventually be handled differently,
-// but is grouped here for now as an 'API-like' interaction.
-router.post("/waiver-completed", waiverCompleted);
+  // Route to get user data for pre-filling forms
+  router.get("/user-data", apiHandler.getUserDataApi);
 
-module.exports = router;
+  // Route to handle form submissions (placeholder)
+  router.post("/submit-waiver", (req, res) =>
+    res
+      .status(501)
+      .json({
+        success: false,
+        message: "POST /api/submit-waiver Not Implemented Yet",
+      }),
+  );
+
+  // Route to handle waiver completion webhook (placeholder)
+  router.post("/waiver-completed", (req, res) => {
+    logger.warn("Received POST /waiver-completed - Not Implemented Yet.");
+    res
+      .status(501)
+      .json({
+        success: false,
+        message: "POST /waiver-completed Not Implemented Yet",
+      });
+  });
+
+  return router;
+}
+
+// Export the initialize function and the getter for the router.
+module.exports = { initialize, getRouter };

@@ -356,3 +356,4 @@ node bin/server   # local server
  
 ## Discovered During Work
 *   Persistent ESLint `no-undef` error on line 300 of `tests/agents/bookingAgent.test.js` despite commenting out and using `eslint-disable-next-line`. Needs investigation.
+```
