@@ -7,28 +7,35 @@
 const express = require("express");
 const apiHandler = require("../handlers/apiHandler"); // Import the handler
 
-let prisma, logger; // Removed unused 'agentExecutor', 'notifier' for now
-// let agentExecutor, notifier; // Keep these commented out if planned for future use
+let prisma, logger, telegramNotifier; // Added telegramNotifier
+// let agentExecutor; // Keep commented out if planned for future use
 
 /**
  * Initializes the API router module with required dependencies.
  * @param {object} deps - An object containing the dependencies.
  * @param {object} deps.prisma - The Prisma client instance.
  * @param {object} deps.logger - The logger instance.
+ * @param {object} deps.telegramNotifier - The Telegram Notifier instance.
  * @param {object} [deps.agentExecutor] - The agent executor instance (optional).
- * @param {object} [deps.notifier] - The notifier instance (optional).
  * @throws {Error} If required dependencies are missing.
  */
 function initialize(deps) {
   prisma = deps.prisma;
   logger = deps.logger;
+  telegramNotifier = deps.telegramNotifier; // Store telegramNotifier
 
   // Store optional dependencies if provided
   // agentExecutor = deps.agentExecutor;
-  // notifier = deps.notifier;
 
-  // Initialize the specific handler needed by this router
-  apiHandler.initialize({ prisma, logger });
+  // Check required dependencies for the router itself (none specific for now)
+  if (!prisma || !logger || !telegramNotifier) {
+    throw new Error(
+      "API Router Initialization Error: Missing required dependencies (prisma, logger, telegramNotifier).",
+    );
+  }
+
+  // Initialize the specific handler needed by this router, passing all required deps
+  apiHandler.initialize({ prisma, logger, telegramNotifier });
 }
 
 /**
@@ -42,27 +49,13 @@ function getRouter() {
   // Route to get user data for pre-filling forms
   router.get("/user-data", apiHandler.getUserDataApi);
 
-  // Route to handle form submissions (placeholder)
-  router.post("/submit-waiver", (req, res) =>
-    res
-      .status(501)
-      .json({
-        success: false,
-        message: "POST /api/submit-waiver Not Implemented Yet",
-      }),
-  );
+  // Route to handle waiver form submissions
+  router.post("/submit-waiver", apiHandler.submitWaiverApi); // Use the actual handler
 
-  // Route to handle waiver completion webhook (placeholder)
-  router.post("/waiver-completed", (req, res) => {
-    logger.warn("Received POST /waiver-completed - Not Implemented Yet.");
-    res
-      .status(501)
-      .json({
-        success: false,
-        message: "POST /waiver-completed Not Implemented Yet",
-      });
-  });
+  // Webhook route for waiver completion
+  router.post("/waiver-completed", apiHandler.waiverCompletedWebhook); // Use the actual handler
 
+  logger.info("API routes configured.");
   return router;
 }
 
