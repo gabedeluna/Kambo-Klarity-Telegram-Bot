@@ -68,7 +68,12 @@ const mockWebAppButton = {
   web_app: { url: "mock-url" },
 };
 const mockReplyMarkup = {
-  reply_markup: { inline_keyboard: [[mockWebAppButton]] },
+  reply_markup: { inline_keyboard: [[]] }, // Adjust later if needed per test
+};
+// Define a mock callback button structure
+const mockCallbackButton = {
+  text: "Mock Callback Btn",
+  callback_data: "mock:cb",
 };
 
 const mockMarkup = {
@@ -78,6 +83,8 @@ const mockMarkup = {
     button: {
       // webApp stub just needs to return the button part for the inlineKeyboard stub to use
       webApp: sinon.stub().returns(mockWebAppButton),
+      // Add the missing callback stub
+      callback: sinon.stub().returns(mockCallbackButton),
     },
   },
 };
@@ -100,8 +107,9 @@ describe("Telegram Notifier Tool", () => {
     // Reset Markup stubs
     mockMarkup.Markup.inlineKeyboard.resetHistory();
     mockMarkup.Markup.button.webApp.resetHistory(); // Reset the webApp stub
+    mockMarkup.Markup.button.callback.resetHistory(); // Reset the callback stub
 
-    const configMock = { FORM_URL: "dummy-form-url" };
+    const configMock = { formUrl: "dummy-form-url" }; // Use correct key 'formUrl'
 
     // Use proxyquire HERE within beforeEach to get the factory
     // This ensures mocks are correctly applied for each test
@@ -114,7 +122,8 @@ describe("Telegram Notifier Tool", () => {
         "../../commands/registry": mockCommandRegistry,
         "../../core/sessionTypes": mockSessionTypes,
         "./toolSchemas": mockToolSchemas,
-        telegraf: mockMarkup,
+        // Correctly mock 'telegraf' module exporting the 'Markup' object
+        telegraf: { Markup: mockMarkup.Markup },
       },
     );
 

@@ -4,7 +4,7 @@
   "description": "",
   "main": "bot.js",
   "scripts": {
-    "test": "cross-env NODE_ENV=test nyc mocha \"tests/**/*.test.js\" --allow-empty --exit",
+    "test": "cross-env NODE_ENV=test GOOGLE_API_KEY=test-key nyc mocha \"tests/**/*.test.js\" --allow-empty --exit",
     "lint": "eslint . --ext .js",
     "format": "prettier --write \"**/*.js\"",
     "start": "node bot.js",

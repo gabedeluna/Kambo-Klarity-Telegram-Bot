@@ -111,18 +111,42 @@ const sendSessionTypeSelectorSchema = z
   })
   .describe("Input schema for sending the session type selection buttons.");
 
+const bookAppointmentSchema = z
+  .object({
+    date: z
+      .string()
+      .datetime({
+        offset: true,
+        message: "Valid ISO 8601 date string required for 'date'",
+      }),
+    service: z.string().min(1, { message: "Service type cannot be empty" }),
+  })
+  .describe(
+    "Schema for booking an appointment. Requires date (ISO 8601) and service name.",
+  );
+
+const cancelBookingSchema = z
+  .object({
+    bookingId: z
+      .string()
+      .min(1, { message: "Booking ID is required to cancel" }),
+  })
+  .describe("Schema for cancelling an existing booking using its ID.");
+
 // --- Export all schemas ---
 module.exports = {
   resetUserStateSchema,
   updateUserStateSchema,
   storeBookingDataSchema,
+  setActiveSessionIdSchema,
+  clearActiveSessionIdSchema,
   sendWaiverLinkSchema,
   sendTextMessageSchema,
   findFreeSlotsSchema,
   createCalendarEventSchema,
-  setActiveSessionIdSchema,
-  clearActiveSessionIdSchema,
   getUserProfileDataSchema,
   getUserPastSessionsSchema,
   sendSessionTypeSelectorSchema,
+  bookAppointmentSchema,
+  cancelBookingSchema,
 };

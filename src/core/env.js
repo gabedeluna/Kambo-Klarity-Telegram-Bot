@@ -53,6 +53,9 @@ const config = Object.freeze({
   openaiApiKey: process.env.OPENAI_API_KEY, // Include even if not selected, might be used elsewhere
   googleApiKey: process.env.GOOGLE_API_KEY, // Include even if not selected
   aiProvider: provider,
+  nodeEnv: process.env.NODE_ENV || "development", // Default to development
+  ngrokUrl: process.env.NGROK_URL, // For dev webhook
+  appUrl: process.env.APP_URL, // For prod webhook
 });
 
 module.exports = config;

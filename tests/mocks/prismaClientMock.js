@@ -15,5 +15,5 @@ const PrismaClientMock = function () {
 };
 
 module.exports = {
-  PrismaClientMock,
+  PrismaClient: PrismaClientMock, // Rename the key to match the original module
 };

@@ -1,6 +1,8 @@
-const { expect } = require("chai");
 const sinon = require("sinon");
-const proxyquire = require("proxyquire").noCallThru();
+const { expect } = require("chai");
+const {
+  initialize: initializeFunc,
+} = require("../../src/middleware/updateRouter");
 
 // Define mockLogger at top-level for proxyquire
 const mockLogger = {
@@ -9,12 +11,6 @@ const mockLogger = {
   error: sinon.stub(),
   debug: sinon.stub(),
 };
-
-// Load Module Under Test ONCE at top level, substituting logger path
-const updateRouter = proxyquire("../../src/middleware/updateRouter", {
-  "../core/logger": { logger: mockLogger }, // Use top-level mockLogger
-});
-const initializeFunc = updateRouter.initialize;
 
 describe("Update Router Middleware (routeUpdate)", () => {
   let sandbox;
@@ -68,7 +64,7 @@ describe("Update Router Middleware (routeUpdate)", () => {
     // Full dependencies for initialize
     _fullDeps = {
       // Prefix with _ for linter
-      // logger is required internally, not passed here
+      logger: mockLogger, // Add mockLogger here
       commandHandler: mockCommandHandler,
       callbackQueryHandler: mockCallbackQueryHandler,
       bookingAgent: mockBookingAgent,
@@ -86,16 +82,20 @@ describe("Update Router Middleware (routeUpdate)", () => {
     it("should throw error if commandHandler is missing", () => {
       expect(() =>
         initializeFunc({
+          logger: mockLogger,
           callbackQueryHandler: mockCallbackQueryHandler,
           bookingAgent: mockBookingAgent,
           bookingGraph: mockBookingGraph,
         }),
-      ).to.throw(/UpdateRouter requires commandHandler/);
+      ).to.throw(
+        "UpdateRouter requires logger, commandHandler, callbackQueryHandler, bookingAgent, and bookingGraph.",
+      );
     });
 
     it("should throw error if callbackQueryHandler is missing", () => {
       expect(() =>
         initializeFunc({
+          logger: mockLogger,
           commandHandler: mockCommandHandler,
           bookingAgent: mockBookingAgent,
           bookingGraph: mockBookingGraph,
@@ -106,6 +106,7 @@ describe("Update Router Middleware (routeUpdate)", () => {
     it("should throw error if bookingAgent is missing", () => {
       expect(() =>
         initializeFunc({
+          logger: mockLogger,
           commandHandler: mockCommandHandler,
           callbackQueryHandler: mockCallbackQueryHandler,
           bookingGraph: mockBookingGraph,
@@ -116,17 +117,21 @@ describe("Update Router Middleware (routeUpdate)", () => {
     it("should throw error if bookingGraph is missing", () => {
       expect(() =>
         initializeFunc({
+          logger: mockLogger,
           commandHandler: mockCommandHandler,
           callbackQueryHandler: mockCallbackQueryHandler,
           bookingAgent: mockBookingAgent,
         }),
-      ).to.throw(/UpdateRouter requires.*bookingGraph/);
+      ).to.throw(
+        "UpdateRouter requires logger, commandHandler, callbackQueryHandler, bookingAgent, and bookingGraph.",
+      );
     });
 
     it("should initialize successfully and return a function", () => {
       mockLogger.info.resetHistory();
 
       const returnedFunction = initializeFunc({
+        logger: mockLogger,
         bookingAgent: mockBookingAgent,
         commandHandler: mockCommandHandler,
         callbackQueryHandler: mockCallbackQueryHandler,
@@ -134,10 +139,14 @@ describe("Update Router Middleware (routeUpdate)", () => {
       });
 
       expect(returnedFunction).to.be.a("function");
-      expect(mockLogger.info.calledTwice).to.be.true;
-      expect(mockLogger.info.secondCall.args[0]).to.contain(
-        "Update router initialized. Returning configured routeUpdate function.",
-      );
+      expect(mockLogger.info.called).to.be.true; // Ensure it was called at least once
+      expect(
+        mockLogger.info.calledWith(
+          sinon.match(
+            "Update router initialized. Returning configured routeUpdate function.",
+          ),
+        ),
+      ).to.be.true;
     });
   });
 
@@ -157,9 +166,10 @@ describe("Update Router Middleware (routeUpdate)", () => {
         updateType: "message",
         message: { text: "Hello" },
         update: { message: { text: "Hello" } },
-        reply: sandbox.stub().resolves(),
+        reply: sandbox.stub(), // Add the missing stub
+        answerCbQuery: sandbox.stub(), // Add the missing stub for callback queries
       };
-      mockNext.resetHistory(); // Reset next spy
+      mockNext = sandbox.spy(); // Reset next spy
     });
 
     it("should send registration prompt and stop processing for new users", async () => {

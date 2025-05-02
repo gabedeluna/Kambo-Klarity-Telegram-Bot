@@ -7,6 +7,15 @@ const pluginImport = require("eslint-plugin-import");
 const eslintConfigPrettier = require("eslint-config-prettier");
 
 module.exports = [
+  // Global ignores
+  {
+    ignores: [
+      "public/pristine.min.js", // Ignore the minified library
+      "node_modules/**",
+      "dist/**",
+      "coverage/**",
+    ],
+  },
   // Apply recommended rules globally
   js.configs.recommended,
 

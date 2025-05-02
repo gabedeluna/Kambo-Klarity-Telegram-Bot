@@ -449,6 +449,7 @@ model users {
   em_phone_number         String?   @db.VarChar
   edit_msg_id             Int?
   is_veteran_or_responder Boolean   @default(false)
+  active_session_id       String?   @unique(map: "client_users_active_session_id_key")
 }
 
 model variables {

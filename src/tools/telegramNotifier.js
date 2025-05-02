@@ -8,20 +8,20 @@ const { toolSchemas } = require("./toolSchemas"); // Import toolSchemas for vali
  * @param {import('telegraf').Telegraf} dependencies.bot - The Telegraf bot instance.
  * @param {import('@prisma/client').PrismaClient} dependencies.prisma - The Prisma client instance.
  * @param {object} dependencies.logger - The Pino logger instance.
- * @param {object} dependencies.config - The environment config object (needs FORM_URL).
+ * @param {object} dependencies.config - The environment config object (needs formUrl).
  * @param {object} dependencies.sessionTypes - Session types helper.
  * @returns {object} An object with the notifier functions.
- * @throws {Error} If dependencies or config.FORM_URL are missing.
+ * @throws {Error} If dependencies or config.formUrl are missing.
  */
 function createTelegramNotifier(dependencies) {
-  // Check for all required dependencies, including config.FORM_URL
+  // Check for all required dependencies, including config.formUrl
   if (
     !dependencies ||
     !dependencies.bot ||
     !dependencies.prisma ||
     !dependencies.logger ||
     !dependencies.config ||
-    !dependencies.config.FORM_URL ||
+    !dependencies.config.formUrl ||
     !dependencies.sessionTypes
   ) {
     const missing = [];
@@ -31,9 +31,9 @@ function createTelegramNotifier(dependencies) {
       if (!dependencies.prisma) missing.push("prisma");
       if (!dependencies.logger) missing.push("logger");
       if (!dependencies.config) missing.push("config");
-      // Only check for FORM_URL if config itself exists
-      if (dependencies.config && !dependencies.config.FORM_URL)
-        missing.push("config.FORM_URL");
+      // Only check for formUrl if config itself exists
+      if (dependencies.config && !dependencies.config.formUrl)
+        missing.push("config.formUrl");
       if (!dependencies.sessionTypes) missing.push("sessionTypes");
     }
     const errorMsg = `FATAL: telegramNotifier initialization failed. Missing: ${missing.join(", ")}.`;
@@ -80,15 +80,14 @@ function createTelegramNotifier(dependencies) {
     // Construct Message
     const message =
       messageText ||
-      `Great! Let's get you scheduled for your ${sessionType} session 🐸`;
-
+      `Great! Let's get you scheduled for your ${sessionType} session `;
     // Construct URL
     // Ensure telegramId is a string for the URL and API calls
     const telegramIdStr = String(telegramId);
-    const formUrl = `${config.FORM_URL}/booking-form.html?telegramId=${telegramIdStr}&sessionType=${encodeURIComponent(sessionType)}`;
+    const waiverUrl = `${config.formUrl}?telegramId=${telegramIdStr}&sessionType=${encodeURIComponent(sessionType)}`;
     logger.debug(
-      { telegramId: telegramIdStr, formUrl },
-      "[sendWaiverLink] Constructed form URL.",
+      { telegramId: telegramIdStr, waiverUrl },
+      "[sendWaiverLink] Constructed waiver URL.",
     );
 
     let sentMessage;
@@ -98,7 +97,7 @@ function createTelegramNotifier(dependencies) {
         telegramIdStr, // Use string ID for Telegram API
         message,
         Markup.inlineKeyboard([
-          Markup.button.webApp("📝 Complete Waiver & Book", formUrl),
+          Markup.button.webApp(" Complete Waiver & Book", waiverUrl),
         ]),
       );
       logger.info(

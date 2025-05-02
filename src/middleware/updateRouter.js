@@ -7,25 +7,32 @@
  * @param {object} deps.callbackQueryHandler - Handler for callback queries.
  * @param {object} deps.bookingAgent - The booking agent instance.
  * @param {object} deps.bookingGraph - The compiled booking graph instance.
+ * @param {object} deps.logger - The logger instance.
  * @returns {Function} The configured routeUpdate middleware function.
  */
 function initialize(deps) {
-  const { logger: depLogger } = require("../core/logger");
-  const logger = depLogger; // Use the logger obtained via require
-
   // --- Validate Dependencies ---
   const {
+    logger,
     commandHandler,
     callbackQueryHandler,
     bookingAgent,
-    // bookingGraph, // Currently unused?
+    bookingGraph,
   } = deps || {};
 
-  if (!commandHandler || !callbackQueryHandler || !bookingAgent) {
+  if (
+    !logger ||
+    !commandHandler ||
+    !callbackQueryHandler ||
+    !bookingAgent ||
+    !bookingGraph
+  ) {
     const missing = [
+      !logger && "logger",
       !commandHandler && "commandHandler",
       !callbackQueryHandler && "callbackQueryHandler",
       !bookingAgent && "bookingAgent",
+      !bookingGraph && "bookingGraph",
     ]
       .filter(Boolean)
       .join(", ");
@@ -34,7 +41,7 @@ function initialize(deps) {
       `UpdateRouter initialization failed. Missing: ${missing}`,
     );
     throw new Error(
-      `UpdateRouter requires commandHandler, callbackQueryHandler, and bookingAgent.`,
+      `UpdateRouter requires logger, commandHandler, callbackQueryHandler, bookingAgent, and bookingGraph.`,
     );
   }
 
