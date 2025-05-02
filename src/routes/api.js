@@ -7,7 +7,7 @@
 const express = require("express");
 const apiHandler = require("../handlers/apiHandler"); // Import the handler
 
-let prisma, logger, telegramNotifier; // Added telegramNotifier
+let prisma, logger, telegramNotifier, bot; // Added bot
 // let agentExecutor; // Keep commented out if planned for future use
 
 /**
@@ -16,6 +16,7 @@ let prisma, logger, telegramNotifier; // Added telegramNotifier
  * @param {object} deps.prisma - The Prisma client instance.
  * @param {object} deps.logger - The logger instance.
  * @param {object} deps.telegramNotifier - The Telegram Notifier instance.
+ * @param {object} deps.bot - The Telegraf bot instance.
  * @param {object} [deps.agentExecutor] - The agent executor instance (optional).
  * @throws {Error} If required dependencies are missing.
  */
@@ -23,19 +24,22 @@ function initialize(deps) {
   prisma = deps.prisma;
   logger = deps.logger;
   telegramNotifier = deps.telegramNotifier; // Store telegramNotifier
+  bot = deps.bot; // Store bot
 
   // Store optional dependencies if provided
   // agentExecutor = deps.agentExecutor;
 
   // Check required dependencies for the router itself (none specific for now)
-  if (!prisma || !logger || !telegramNotifier) {
+  // And check dependencies needed for the handler
+  if (!prisma || !logger || !telegramNotifier || !bot) {
+    // Added bot check
     throw new Error(
-      "API Router Initialization Error: Missing required dependencies (prisma, logger, telegramNotifier).",
+      "API Router Initialization Error: Missing required dependencies (prisma, logger, telegramNotifier, bot).", // Added bot to message
     );
   }
 
   // Initialize the specific handler needed by this router, passing all required deps
-  apiHandler.initialize({ prisma, logger, telegramNotifier });
+  apiHandler.initialize({ prisma, logger, telegramNotifier, bot }); // Pass bot
 }
 
 /**

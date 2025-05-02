@@ -1,323 +1,486 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kambo Klarity Registration</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="/registration-form.css">
-</head>
-<body>
+    <link rel="stylesheet" href="/registration-form.css" />
+  </head>
+  <body>
     <div class="container">
-        <span class="frog-emoji">🐸</span>
-        <h1>Kambo Klarity Registration</h1>
-        
-        <form id="registrationForm" action="/submit-registration" method="POST">
-            <!-- Hidden field to store Telegram User ID -->
-            <input type="hidden" id="telegramId" name="telegramId">
+      <span class="frog-emoji">🐸</span>
+      <h1>Kambo Klarity Registration</h1>
 
-            <div class="form-group">
-                <label for="firstName">First Name</label>
-                <input type="text" id="firstName" name="firstName" required aria-required="true">
-                <div class="error" id="firstNameError">Please enter your first name</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="lastName">Last Name</label>
-                <input type="text" id="lastName" name="lastName" required aria-required="true">
-                <div class="error" id="lastNameError">Please enter your last name</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required aria-required="true">
-                <div class="error" id="emailError">Please enter a valid email address</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="phoneNumber">Phone Number</label>
-                <input type="tel" id="phoneNumber" name="phoneNumber" required aria-required="true">
-                <div class="error" id="phoneNumberError">Please enter a valid phone number</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="dateOfBirth">Date of Birth</label>
-                <input type="date" id="dateOfBirth" name="dateOfBirth" required aria-required="true">
-                <div class="error" id="dateOfBirthError">Please enter your date of birth</div>
-                <div class="hint">Must be at least 18 years old</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="reasonForSeeking">Reason for Seeking Kambo</label>
-                <textarea id="reasonForSeeking" name="reasonForSeeking" required aria-required="true" rows="4"></textarea>
-                <div class="error" id="reasonForSeekingError">Please share your reason for seeking Kambo</div>
-                <div class="hint">Please share any health concerns or goals you have for your Kambo journey</div>
-            </div>
+      <form id="registrationForm" action="/submit-registration" method="POST">
+        <!-- Hidden field to store Telegram User ID -->
+        <input type="hidden" id="telegramId" name="telegramId" />
 
-            <div class="form-group">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="isVeteranOrResponder" name="is_veteran_or_responder" value="true">
-                    <label class="form-check-label" for="isVeteranOrResponder">
-                        I identify as a Military Veteran or First Responder. (Optional)
-                    </label>
-                </div>
-                <div class="hint">Checking this box helps us tailor potential future programs and offers.</div>
-            </div>
+        <div class="form-group">
+          <label for="firstName">First Name</label>
+          <input
+            type="text"
+            id="firstName"
+            name="firstName"
+            required
+            aria-required="true"
+          />
+          <div class="error" id="firstNameError">
+            Please enter your first name
+          </div>
+        </div>
 
-            <button type="submit" class="button" id="submitButton">Submit Registration</button>
-        </form>
+        <div class="form-group">
+          <label for="lastName">Last Name</label>
+          <input
+            type="text"
+            id="lastName"
+            name="lastName"
+            required
+            aria-required="true"
+          />
+          <div class="error" id="lastNameError">
+            Please enter your last name
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            aria-required="true"
+          />
+          <div class="error" id="emailError">
+            Please enter a valid email address
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="phoneNumber">Phone Number</label>
+          <input
+            type="tel"
+            id="phoneNumber"
+            name="phoneNumber"
+            required
+            aria-required="true"
+          />
+          <div class="error" id="phoneNumberError">
+            Please enter a valid phone number
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="dateOfBirth">Date of Birth</label>
+          <input
+            type="date"
+            id="dateOfBirth"
+            name="dateOfBirth"
+            required
+            aria-required="true"
+          />
+          <div class="error" id="dateOfBirthError">
+            Please enter your date of birth
+          </div>
+          <div class="hint">Must be at least 18 years old</div>
+        </div>
+
+        <div class="form-group">
+          <label for="reasonForSeeking">Reason for Seeking Kambo</label>
+          <textarea
+            id="reasonForSeeking"
+            name="reasonForSeeking"
+            required
+            aria-required="true"
+            rows="4"
+          ></textarea>
+          <div class="error" id="reasonForSeekingError">
+            Please share your reason for seeking Kambo
+          </div>
+          <div class="hint">
+            Please share any health concerns or goals you have for your Kambo
+            journey
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="isVeteranOrResponder"
+              name="is_veteran_or_responder"
+              value="true"
+            />
+            <label class="form-check-label" for="isVeteranOrResponder">
+              I identify as a Military Veteran or First Responder. (Optional)
+            </label>
+          </div>
+          <div class="hint">
+            Checking this box helps us tailor potential future programs and
+            offers.
+          </div>
+        </div>
+
+        <button type="submit" class="button" id="submitButton">
+          Submit Registration
+        </button>
+      </form>
     </div>
 
     <script>
-        // [INIT NODE] Initialize Telegram WebApp
-        console.log('[INIT NODE] Starting Telegram WebApp initialization...');
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-        console.log('[INIT NODE] Telegram WebApp initialized successfully');
+      // [INIT NODE] Initialize Telegram WebApp
+      console.log("[INIT NODE] Starting Telegram WebApp initialization...");
+      const tg = window.Telegram.WebApp;
+      tg.expand();
+      tg.enableClosingConfirmation();
+      console.log("[INIT NODE] Telegram WebApp initialized successfully");
 
-        // [INIT NODE] Populate hidden telegramId field
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
-            document.getElementById('telegramId').value = tg.initDataUnsafe.user.id;
-            console.log('[INIT NODE] Populated telegramId:', tg.initDataUnsafe.user.id);
-        }
+      // [INIT NODE] Populate hidden telegramId field
+      if (
+        tg.initDataUnsafe &&
+        tg.initDataUnsafe.user &&
+        tg.initDataUnsafe.user.id
+      ) {
+        document.getElementById("telegramId").value = tg.initDataUnsafe.user.id;
+        console.log(
+          "[INIT NODE] Populated telegramId:",
+          tg.initDataUnsafe.user.id,
+        );
+      }
 
-        // [THEME NODE] Apply Telegram theme variables dynamically
-        console.log('[THEME NODE] Applying theme variables...');
-        const root = document.documentElement;
-        if (tg.themeParams) {
-            root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
-            root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
-            root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
-            root.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#2481cc');
-            root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#5fb13d');
-            root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-            root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || (tg.colorScheme === 'dark' ? '#2c2c2e' : '#f2f2f7'));
-            console.log('[THEME NODE] Theme variables applied from Telegram params');
+      // [THEME NODE] Apply Telegram theme variables dynamically
+      console.log("[THEME NODE] Applying theme variables...");
+      const root = document.documentElement;
+      if (tg.themeParams) {
+        root.style.setProperty(
+          "--tg-theme-bg-color",
+          tg.themeParams.bg_color || "#ffffff",
+        );
+        root.style.setProperty(
+          "--tg-theme-text-color",
+          tg.themeParams.text_color || "#000000",
+        );
+        root.style.setProperty(
+          "--tg-theme-hint-color",
+          tg.themeParams.hint_color || "#999999",
+        );
+        root.style.setProperty(
+          "--tg-theme-link-color",
+          tg.themeParams.link_color || "#2481cc",
+        );
+        root.style.setProperty(
+          "--tg-theme-button-color",
+          tg.themeParams.button_color || "#5fb13d",
+        );
+        root.style.setProperty(
+          "--tg-theme-button-text-color",
+          tg.themeParams.button_text_color || "#ffffff",
+        );
+        root.style.setProperty(
+          "--tg-theme-secondary-bg-color",
+          tg.themeParams.secondary_bg_color ||
+            (tg.colorScheme === "dark" ? "#2c2c2e" : "#f2f2f7"),
+        );
+        console.log(
+          "[THEME NODE] Theme variables applied from Telegram params",
+        );
+      } else {
+        console.log(
+          "[THEME NODE] No Telegram theme params available, using defaults",
+        );
+      }
+
+      // [FORM NODE] Form validation and submission
+      console.log("[FORM NODE] Setting up form validation and submission...");
+      const form = document.getElementById("registrationForm");
+      const submitButton = document.getElementById("submitButton");
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        console.log("[FORM NODE] Form submission initiated");
+
+        if (validateForm()) {
+          console.log("[FORM NODE] Form validation successful, preparing data");
+          submitButton.disabled = true;
+          submitButton.textContent = "Submitting...";
+
+          const formData = {
+            firstName: document.getElementById("firstName").value,
+            lastName: document.getElementById("lastName").value,
+            email: document.getElementById("email").value,
+            phoneNumber: document.getElementById("phoneNumber").value,
+            dateOfBirth: document.getElementById("dateOfBirth").value,
+            reasonForSeeking: document.getElementById("reasonForSeeking").value,
+          };
+
+          console.log("[FORM NODE] Sending data to server");
+          // Add the telegramId to the formData before submission
+          formData.telegramId = document.getElementById("telegramId").value;
+
+          // ---> Use the botServerUrl from the query parameter <--- //
+          function getQueryParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+          }
+          const botServerUrl = getQueryParam("botServerUrl");
+          const submitUrl = `${botServerUrl}/submit-registration`;
+          console.log(`[FORM NODE] Submitting to absolute URL: ${submitUrl}`);
+
+          fetch(submitUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log("[FORM NODE] Form submission response:", data);
+              if (data.success) {
+                tg.close(); // Close WebApp on successful submission
+              } else {
+                alert("Submission failed: " + data.message);
+                submitButton.disabled = false;
+                submitButton.textContent = "Submit Registration";
+              }
+            })
+            .catch((error) => {
+              console.error("[FORM NODE] Error submitting form:", error);
+              submitButton.disabled = false; // Re-enable button on error
+              submitButton.textContent = "Submit Registration";
+              // Display an error message to the user within the form
+              alert(
+                "Failed to submit registration. Please try again. Error: " +
+                  error.message,
+              );
+            });
         } else {
-            console.log('[THEME NODE] No Telegram theme params available, using defaults');
+          console.log("[FORM NODE] Form validation failed");
+        }
+      });
+
+      function validateForm() {
+        console.log("[VALIDATION NODE] Starting form validation");
+        let isValid = true;
+
+        // Function to show/hide error with proper accessibility attributes
+        function toggleError(input, errorElement, isInvalid, message) {
+          if (isInvalid) {
+            errorElement.textContent = message;
+            errorElement.style.display = "block";
+            input.setAttribute("aria-invalid", "true");
+            input.setAttribute("aria-describedby", errorElement.id);
+            isValid = false;
+          } else {
+            errorElement.style.display = "none";
+            input.setAttribute("aria-invalid", "false");
+            input.removeAttribute("aria-describedby");
+          }
         }
 
-        // [FORM NODE] Form validation and submission
-        console.log('[FORM NODE] Setting up form validation and submission...');
-        const form = document.getElementById('registrationForm');
-        const submitButton = document.getElementById('submitButton');
+        // First Name validation
+        const firstName = document.getElementById("firstName");
+        const firstNameError = document.getElementById("firstNameError");
+        toggleError(
+          firstName,
+          firstNameError,
+          !firstName.value.trim(),
+          "Please enter your first name",
+        );
 
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
-            console.log('[FORM NODE] Form submission initiated');
-            
-            if (validateForm()) {
-                console.log('[FORM NODE] Form validation successful, preparing data');
-                submitButton.disabled = true;
-                submitButton.textContent = 'Submitting...';
+        // Last Name validation
+        const lastName = document.getElementById("lastName");
+        const lastNameError = document.getElementById("lastNameError");
+        toggleError(
+          lastName,
+          lastNameError,
+          !lastName.value.trim(),
+          "Please enter your last name",
+        );
 
-                const formData = {
-                    firstName: document.getElementById('firstName').value,
-                    lastName: document.getElementById('lastName').value,
-                    email: document.getElementById('email').value,
-                    phoneNumber: document.getElementById('phoneNumber').value,
-                    dateOfBirth: document.getElementById('dateOfBirth').value,
-                    reasonForSeeking: document.getElementById('reasonForSeeking').value
-                };
+        // Email validation
+        const email = document.getElementById("email");
+        const emailError = document.getElementById("emailError");
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        toggleError(
+          email,
+          emailError,
+          !emailRegex.test(email.value),
+          "Please enter a valid email address",
+        );
 
-                console.log('[FORM NODE] Sending data to server');
-                // Add the telegramId to the formData before submission
-                formData.telegramId = document.getElementById('telegramId').value;
+        // Phone validation
+        const phoneNumber = document.getElementById("phoneNumber");
+        const phoneNumberError = document.getElementById("phoneNumberError");
+        toggleError(
+          phoneNumber,
+          phoneNumberError,
+          !phoneNumber.value.trim(),
+          "Please enter a valid phone number",
+        );
 
-                // ---> Use the botServerUrl from the query parameter <--- //
-                function getQueryParam(name) {
-                    const url = new URL(window.location.href);
-                    return url.searchParams.get(name);
-                }
-                const botServerUrl = getQueryParam('botServerUrl');
-                const submitUrl = `${botServerUrl}/submit-registration`;
-                console.log(`[FORM NODE] Submitting to absolute URL: ${submitUrl}`);
+        // Date of Birth validation
+        const dateOfBirth = document.getElementById("dateOfBirth");
+        const dateOfBirthError = document.getElementById("dateOfBirthError");
 
-                fetch(submitUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('[FORM NODE] Form submission response:', data);
-                    if (data.success) {
-                        tg.close(); // Close WebApp on successful submission
-                    } else {
-                        alert('Submission failed: ' + data.message);
-                        submitButton.disabled = false;
-                        submitButton.textContent = 'Submit Registration';
-                    }
-                })
-                .catch((error) => {
-                    console.error('[FORM NODE] Error submitting form:', error);
-                    submitButton.disabled = false; // Re-enable button on error
-                    submitButton.textContent = 'Submit Registration';
-                    // Display an error message to the user within the form
-                    alert('Failed to submit registration. Please try again. Error: ' + error.message);
-                });
-            } else {
-                console.log('[FORM NODE] Form validation failed');
-            }
-        });
-
-        function validateForm() {
-            console.log('[VALIDATION NODE] Starting form validation');
-            let isValid = true;
-            
-            // Function to show/hide error with proper accessibility attributes
-            function toggleError(input, errorElement, isInvalid, message) {
-                if (isInvalid) {
-                    errorElement.textContent = message;
-                    errorElement.style.display = 'block';
-                    input.setAttribute('aria-invalid', 'true');
-                    input.setAttribute('aria-describedby', errorElement.id);
-                    isValid = false;
-                } else {
-                    errorElement.style.display = 'none';
-                    input.setAttribute('aria-invalid', 'false');
-                    input.removeAttribute('aria-describedby');
-                }
-            }
-            
-            // First Name validation
-            const firstName = document.getElementById('firstName');
-            const firstNameError = document.getElementById('firstNameError');
-            toggleError(firstName, firstNameError, !firstName.value.trim(), 'Please enter your first name');
-            
-            // Last Name validation
-            const lastName = document.getElementById('lastName');
-            const lastNameError = document.getElementById('lastNameError');
-            toggleError(lastName, lastNameError, !lastName.value.trim(), 'Please enter your last name');
-            
-            // Email validation
-            const email = document.getElementById('email');
-            const emailError = document.getElementById('emailError');
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            toggleError(email, emailError, !emailRegex.test(email.value), 'Please enter a valid email address');
-            
-            // Phone validation
-            const phoneNumber = document.getElementById('phoneNumber');
-            const phoneNumberError = document.getElementById('phoneNumberError');
-            toggleError(phoneNumber, phoneNumberError, !phoneNumber.value.trim(), 'Please enter a valid phone number');
-            
-            // Date of Birth validation
-            const dateOfBirth = document.getElementById('dateOfBirth');
-            const dateOfBirthError = document.getElementById('dateOfBirthError');
-            
-            if (!dateOfBirth.value) {
-                toggleError(dateOfBirth, dateOfBirthError, true, 'Please enter your date of birth');
-            } else {
-                // Check if user is at least 18 years old
-                const birthDate = new Date(dateOfBirth.value);
-                const today = new Date();
-                let age = today.getFullYear() - birthDate.getFullYear();
-                const monthDiff = today.getMonth() - birthDate.getMonth();
-                
-                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                    age--;
-                }
-                
-                toggleError(dateOfBirth, dateOfBirthError, age < 18, 'You must be at least 18 years old');
-            }
-            
-            // Reason validation
-            const reasonForSeeking = document.getElementById('reasonForSeeking');
-            const reasonForSeekingError = document.getElementById('reasonForSeekingError');
-            toggleError(reasonForSeeking, reasonForSeekingError, !reasonForSeeking.value.trim(), 'Please share your reason for seeking Kambo');
-            
-            console.log('[VALIDATION NODE] Form validation complete, isValid:', isValid);
-            return isValid;
-        }
-
-        // [USER DATA NODE] Pre-fill form with user data if available
-        console.log('[USER DATA NODE] Checking for user data to pre-fill form');
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            const user = tg.initDataUnsafe.user;
-            console.log('[USER DATA NODE] User data found, pre-filling form fields');
-            // Pre-fill Telegram ID
-            const telegramIdInput = document.getElementById('telegramId');
-            if (telegramIdInput) {
-                telegramIdInput.value = user.id;
-                console.log('[USER DATA NODE] Set hidden telegramId field:', user.id);
-            } else {
-                console.error('[USER DATA NODE] Could not find hidden telegramId input field!');
-            }
-
-            if (user.first_name) {
-                document.getElementById('firstName').value = user.first_name;
-                console.log('[USER DATA NODE] Pre-filled first name:', user.first_name);
-            }
-            if (user.last_name) {
-                document.getElementById('lastName').value = user.last_name;
-                console.log('[USER DATA NODE] Pre-filled last name:', user.last_name);
-            }
+        if (!dateOfBirth.value) {
+          toggleError(
+            dateOfBirth,
+            dateOfBirthError,
+            true,
+            "Please enter your date of birth",
+          );
         } else {
-            console.log('[USER DATA NODE] No user data available for pre-filling');
+          // Check if user is at least 18 years old
+          const birthDate = new Date(dateOfBirth.value);
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+
+          if (
+            monthDiff < 0 ||
+            (monthDiff === 0 && today.getDate() < birthDate.getDate())
+          ) {
+            age--;
+          }
+
+          toggleError(
+            dateOfBirth,
+            dateOfBirthError,
+            age < 18,
+            "You must be at least 18 years old",
+          );
         }
+
+        // Reason validation
+        const reasonForSeeking = document.getElementById("reasonForSeeking");
+        const reasonForSeekingError = document.getElementById(
+          "reasonForSeekingError",
+        );
+        toggleError(
+          reasonForSeeking,
+          reasonForSeekingError,
+          !reasonForSeeking.value.trim(),
+          "Please share your reason for seeking Kambo",
+        );
+
+        console.log(
+          "[VALIDATION NODE] Form validation complete, isValid:",
+          isValid,
+        );
+        return isValid;
+      }
+
+      // [USER DATA NODE] Pre-fill form with user data if available
+      console.log("[USER DATA NODE] Checking for user data to pre-fill form");
+      if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        const user = tg.initDataUnsafe.user;
+        console.log(
+          "[USER DATA NODE] User data found, pre-filling form fields",
+        );
+        // Pre-fill Telegram ID
+        const telegramIdInput = document.getElementById("telegramId");
+        if (telegramIdInput) {
+          telegramIdInput.value = user.id;
+          console.log("[USER DATA NODE] Set hidden telegramId field:", user.id);
+        } else {
+          console.error(
+            "[USER DATA NODE] Could not find hidden telegramId input field!",
+          );
+        }
+
+        if (user.first_name) {
+          document.getElementById("firstName").value = user.first_name;
+          console.log(
+            "[USER DATA NODE] Pre-filled first name:",
+            user.first_name,
+          );
+        }
+        if (user.last_name) {
+          document.getElementById("lastName").value = user.last_name;
+          console.log("[USER DATA NODE] Pre-filled last name:", user.last_name);
+        }
+      } else {
+        console.log("[USER DATA NODE] No user data available for pre-filling");
+      }
     </script>
     <script>
-        // ======================================================================
-        // [NODE_TYPE: FORM_INIT_NODE]
-        // ======================================================================
-        // Purpose: Initialize form and handle Telegram ID validation
-        // Input: DOM elements
-        // Output: Validated form state
-        (function() {
-            console.log('[FORM_INIT_NODE] Starting form initialization...');
-            // Ensure Telegram ID is set before allowing submission
-            const form = document.getElementById('registrationForm');
-            const submitButton = document.getElementById('submitButton');
-            const telegramIdInput = document.getElementById('telegramId');
+      // ======================================================================
+      // [NODE_TYPE: FORM_INIT_NODE]
+      // ======================================================================
+      // Purpose: Initialize form and handle Telegram ID validation
+      // Input: DOM elements
+      // Output: Validated form state
+      (function () {
+        console.log("[FORM_INIT_NODE] Starting form initialization...");
+        // Ensure Telegram ID is set before allowing submission
+        const form = document.getElementById("registrationForm");
+        const submitButton = document.getElementById("submitButton");
+        const telegramIdInput = document.getElementById("telegramId");
 
-            if (!telegramIdInput || !telegramIdInput.value) {
-                console.warn('[FORM_INIT_NODE] Telegram ID not pre-filled. Disabling submit until ID is available.');
-                if(submitButton) submitButton.disabled = true;
-                // Potentially show a message to the user
-            }
-            console.log('[FORM_INIT_NODE] Form initialization complete');
-        })();
+        if (!telegramIdInput || !telegramIdInput.value) {
+          console.warn(
+            "[FORM_INIT_NODE] Telegram ID not pre-filled. Disabling submit until ID is available.",
+          );
+          if (submitButton) submitButton.disabled = true;
+          // Potentially show a message to the user
+        }
+        console.log("[FORM_INIT_NODE] Form initialization complete");
+      })();
 
-        // ======================================================================
-        // [NODE_TYPE: KEYBOARD_CONTROL_NODE]
-        // ======================================================================
-        // Purpose: Handle keyboard dismissal using modern web APIs
-        // Input: Touch events, VisualViewport events
-        // Output: Keyboard visibility control
-        (function() {
-            console.log('[KEYBOARD_CONTROL_NODE] Setting up keyboard dismissal behavior...');
-            
-            // 1. Blur any focused field on downward scroll so the keyboard collapses
-            let lastY = 0;
-            window.addEventListener('touchstart', e => {
-                console.log('[KEYBOARD_CONTROL_NODE] Touch start detected');
-                lastY = e.touches[0].clientY;
-            });
-            
-            window.addEventListener('touchmove', e => {
-                if (e.touches[0].clientY > lastY + 12) {   // dragging down
-                    console.log('[KEYBOARD_CONTROL_NODE] Downward drag detected, blurring active element');
-                    document.activeElement?.blur();          // hides KB on both iOS/Android
-                }
-            });
+      // ======================================================================
+      // [NODE_TYPE: KEYBOARD_CONTROL_NODE]
+      // ======================================================================
+      // Purpose: Handle keyboard dismissal using modern web APIs
+      // Input: Touch events, VisualViewport events
+      // Output: Keyboard visibility control
+      (function () {
+        console.log(
+          "[KEYBOARD_CONTROL_NODE] Setting up keyboard dismissal behavior...",
+        );
 
-            // 2. Use VisualViewport to adjust UI when the KB is visible
-            if (window.visualViewport) {
-                console.log('[KEYBOARD_CONTROL_NODE] VisualViewport API available, setting up resize listener');
-                visualViewport.addEventListener('resize', () => {
-                    const kbHeight = window.innerHeight - visualViewport.height;
-                    document.body.style.setProperty('--kb', kbHeight + 'px');
-                    console.log(`[KEYBOARD_CONTROL_NODE] Keyboard height: ${kbHeight}px`);
-                });
-            } else {
-                console.log('[KEYBOARD_CONTROL_NODE] VisualViewport API not available');
-            }
-            
-            console.log('[KEYBOARD_CONTROL_NODE] Keyboard dismissal setup complete');
-        })();
+        // 1. Blur any focused field on downward scroll so the keyboard collapses
+        let lastY = 0;
+        window.addEventListener("touchstart", (e) => {
+          console.log("[KEYBOARD_CONTROL_NODE] Touch start detected");
+          lastY = e.touches[0].clientY;
+        });
+
+        window.addEventListener("touchmove", (e) => {
+          if (e.touches[0].clientY > lastY + 12) {
+            // dragging down
+            console.log(
+              "[KEYBOARD_CONTROL_NODE] Downward drag detected, blurring active element",
+            );
+            document.activeElement?.blur(); // hides KB on both iOS/Android
+          }
+        });
+
+        // 2. Use VisualViewport to adjust UI when the KB is visible
+        if (window.visualViewport) {
+          console.log(
+            "[KEYBOARD_CONTROL_NODE] VisualViewport API available, setting up resize listener",
+          );
+          visualViewport.addEventListener("resize", () => {
+            const kbHeight = window.innerHeight - visualViewport.height;
+            document.body.style.setProperty("--kb", kbHeight + "px");
+            console.log(
+              `[KEYBOARD_CONTROL_NODE] Keyboard height: ${kbHeight}px`,
+            );
+          });
+        } else {
+          console.log(
+            "[KEYBOARD_CONTROL_NODE] VisualViewport API not available",
+          );
+        }
+
+        console.log(
+          "[KEYBOARD_CONTROL_NODE] Keyboard dismissal setup complete",
+        );
+      })();
     </script>
-</body>
+  </body>
 </html>

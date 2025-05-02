@@ -387,12 +387,10 @@ async function waiverCompletedWebhook(req, res) {
       { body: req.body },
       "Missing or invalid telegramId/sessionId in /waiver-completed request.",
     );
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Missing or invalid telegramId or sessionId.",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "Missing or invalid telegramId or sessionId.",
+    });
   }
 
   const telegramId = BigInt(telegramIdString);
@@ -511,12 +509,10 @@ async function waiverCompletedWebhook(req, res) {
       "Error processing waiver completion webhook.",
     );
     // Avoid sending detailed internal errors to the client
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Internal server error processing waiver completion.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error processing waiver completion.",
+    });
   }
 }
 

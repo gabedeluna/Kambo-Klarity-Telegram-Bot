@@ -14,7 +14,9 @@ Creates a clean separation between new, structured code and the old codebase. En
 Creation of `src/` and sub-folders (`core/`, `tools/`, `graph/`, `routes/`, `tests/`). Existing files moved into a new `legacy/` directory.
 
 **Definitions:**
+
 #### Key Terms
+
 - **Source Tree:** The main directory structure containing the application's source code.
 - **Legacy Code:** The original codebase before the refactoring process began.
 
@@ -30,7 +32,9 @@ Establishes a universal toolchain for maintaining code quality, consistency, and
 Updates to `package.json`'s devDependencies. Addition of test, lint, format scripts in `package.json`. Initial configuration files for these tools might be created.
 
 **Definitions:**
+
 #### Key Terms
+
 - **Dev Dependencies:** Packages needed for development and testing but not required for the application to run in production.
 - **npm Scripts:** Custom commands defined in `package.json` that can be run using `npm run <script_name>`.
 - **Linter (ESLint):** A tool that analyzes code for potential errors, style issues, and anti-patterns.
@@ -46,9 +50,11 @@ Updates to `package.json`'s devDependencies. Addition of test, lint, format scri
 ### PH1-03: `core/env.js` - Environment Configuration
 
 **Goal:**
+
 - Create a module to load environment variables from a `.env` file, validate the presence of essential variables, and export a secure configuration object.
 
 **Why:**
+
 - Centralizes environment variable loading and validation.
 - Prevents runtime errors caused by missing configuration.
 - Ensures configuration is loaded consistently across the application.
@@ -56,6 +62,7 @@ Updates to `package.json`'s devDependencies. Addition of test, lint, format scri
 - Implements P-1 (Single Source of Truth) for environment config.
 
 **What to Expect:**
+
 - Creation of `src/core/env.js`.
 - Uses `dotenv` package.
 - Checks for `TG_TOKEN`, `DATABASE_URL`, `FORM_URL`.
@@ -63,7 +70,9 @@ Updates to `package.json`'s devDependencies. Addition of test, lint, format scri
 - Exports a frozen JavaScript object containing the loaded variables.
 
 **Definitions:**
+
 #### Key Terms
+
 - **Environment Variables:** Variables set outside the application code (e.g., in a .env file or system environment) used for configuration (API keys, database URLs, ports).
 - **.env file:** A standard file (usually ignored by Git) to store environment variables locally during development.
 - **dotenv package:** An npm package that loads variables from a .env file into process.env.
@@ -81,6 +90,7 @@ Enforces P-1 (Single Source of Truth) for database connections, ensuring the app
 Creation of `src/core/prisma.js`. Imports `PrismaClient`. Creates one instance. Registers a `process.on('beforeExit', ...)` handler to call `prisma.$disconnect()`. Exports the instance.
 
 **Definitions:**
+
 - **Prisma Client:** An auto-generated, type-safe database client provided by the Prisma ORM.
 - **Singleton:** A design pattern ensuring only one instance of a class (here, PrismaClient) exists.
 - **Connection Pool:** A cache of database connections maintained so that connections can be reused, improving performance.
@@ -88,6 +98,7 @@ Creation of `src/core/prisma.js`. Imports `PrismaClient`. Creates one instance. 
 - **`process.on('beforeExit', ...)`:** A Node.js event listener that triggers just before the Node.js process exits naturally.
 
 ---
+
 ### PH1-05: `core/bot.js` - Telegraf Instance Singleton
 
 **Goal:**  
@@ -100,12 +111,14 @@ Enforces P-1 (Single Source of Truth) for the Telegram bot instance. Ensures con
 Creation of `src/core/bot.js`. Imports `Telegraf` and `core/env.js`. Creates one Telegraf instance using `config.TG_TOKEN`. Exports the instance. Does not set up webhooks or launch the bot.
 
 **Definitions:**
+
 - **Telegraf:** A popular Node.js framework for building Telegram bots.
 - **Bot Token:** A secret credential provided by Telegram's BotFather used to authenticate API requests for a specific bot.
 - **Singleton:** Ensuring only one Telegraf instance is created.
 - **Dependency Injection (Implicit):** Making the bot instance available for other modules to require.
 
 ---
+
 ### PH1-06: `app.js` - Core Express App
 
 **Goal:**  
@@ -118,6 +131,7 @@ Implements P-1 (Single Server) by creating the central Express application. Prov
 Creation of `src/app.js`. Imports `express` and `core/bot.js`. Creates an Express app instance. Uses `express.json()` middleware. Uses `bot.webhookCallback()` with a secret path. Adds a `/health` GET route. Exports the app instance.
 
 **Definitions:**
+
 - **Express:** Node.js web framework.
 - **Middleware:** Functions executing during the Express request-response cycle.
 - **Webhook:** An HTTP endpoint called by an external service (Telegram) to send updates.
@@ -127,6 +141,7 @@ Creation of `src/app.js`. Imports `express` and `core/bot.js`. Creates an Expres
 - **Supertest:** Library for testing HTTP servers without needing a live network port.
 
 ---
+
 ### PH1-07: `bin/server.js` - Server Startup Script
 
 **Goal:**  
@@ -139,10 +154,12 @@ Separates the concerns of defining the application (`app.js`) from running it. T
 Creation of `bin/server.js`. Imports app from `src/app.js` and config from `src/core/env.js`. Determines the `PORT` (from `config.PORT` or default 3000). Calls `app.listen(PORT, ...)`. Includes basic error handling for port conflicts (`EADDRINUSE`, `EACCES`).
 
 **Definitions:**
+
 - **`app.listen(PORT, callback)`:** Express function to start the HTTP server.
 - **`process.env.PORT`:** Standard environment variable for hosting platforms to specify the listening port.
 
 ---
+
 ### PH1-08: `commands/registry.js` - Command Registry Scaffolding
 
 **Goal:**  
@@ -155,11 +172,13 @@ Implements the Command Registry pattern (`PLANNING.md` Section 7.1) for better o
 Creation of `src/commands/registry.js`. Exports an object with `client` and `admin` keys. Each key holds command definitions (e.g., help, book, sessions) containing a `descr` string and a handler function (initially stubs like `(ctx) => ctx.reply('stub')`).
 
 **Definitions:**
+
 - **Command Registry:** Central definition point for bot commands, metadata, and handlers.
 - **Stub Function:** Placeholder function with minimal logic used during development.
 - **Scaffolding:** Creating the basic structure without full implementation.
 
 ---
+
 ### PH1-09: `config/sessionTypes.json` & `core/sessionTypes.js`
 
 **Goal:**  
@@ -172,6 +191,7 @@ Externalizes session type data (`PLANNING.md` Section 7.2, although planned to m
 Creation of `src/config/sessionTypes.json` with an array of session objects (id, label, duration, description). Creation of `src/core/sessionTypes.js` using `fs` and `path` to read the JSON. Exports `getAll()` and `getById(id)` functions.
 
 **Definitions:**
+
 - **JSON:** Standard data interchange format.
 - **Schema:** The expected structure of the data (e.g., required keys and types in session objects).
 - **Helper Module:** Provides utility functions related to specific data/functionality.
@@ -179,6 +199,7 @@ Creation of `src/config/sessionTypes.json` with an array of session objects (id,
 - **path module:** Node.js module for handling file paths.
 
 ---
+
 ### PH1-10: Initial Test Suite & Coverage
 
 **Goal:**  
@@ -191,6 +212,7 @@ Implements P-3 (Test Early, Test Often). Verifies Phase 1 code correctness. Crea
 Creation/updating of test files in `src/tests/` mirroring the `src/` structure (`health.test.js`, `env.test.js`, `prisma.test.js`, etc.). Uses `chai`, `sinon`, `supertest`. Running `npm test` executes tests via Mocha and calculates coverage via NYC, aiming for ≥ 90% on Phase 1 code.
 
 **Definitions:**
+
 - **Unit Test:** Tests isolated code pieces (uses mocking).
 - **Integration Test:** Tests interactions between components (e.g., Supertest hitting Express routes).
 - **Test Coverage:** Percentage of code executed by tests.
@@ -198,6 +220,7 @@ Creation/updating of test files in `src/tests/` mirroring the `src/` structure (
 - **nyc:** Command-line tool for Istanbul code coverage.
 
 ---
+
 ### PH1-11: Husky Pre-Commit Hook Setup
 
 **Goal:**  
@@ -210,6 +233,7 @@ Automates quality checks, enforcing standards (P-3, lint/format rules) on every 
 Use `npx husky hook add ...` (or similar) to create/update `.husky/pre-commit` script containing `npm test && npm run lint && npm run format`. Verification involves testing successful and failing commit attempts.
 
 **Definitions:**
+
 - **Git Hooks:** Scripts run automatically by Git on specific events.
 - **Pre-Commit Hook:** Runs before a commit is finalized. Aborts commit on failure.
 - **Husky:** Tool to manage Git hooks easily.
@@ -217,6 +241,7 @@ Use `npx husky hook add ...` (or similar) to create/update `.husky/pre-commit` s
 - **&& (Shell Operator):** Logical AND; runs next command only if previous succeeds.
 
 ---
+
 ### PH1-12: Update Architecture Document
 
 **Goal:**  
@@ -229,10 +254,12 @@ Keeps documentation (📚 Documentation & Explainability) synchronized with the 
 Editing `docs/architecture.md`. Updating the folder layout diagram to match the current structure (`src/`, `bin/`, `legacy/`, etc.). Adding a status note confirming Phase 1 completion.
 
 **Definitions:**
+
 - **Markdown:** Lightweight markup language for documentation.
 - **Architecture Diagram:** Visual representation of system structure.
 
 ---
+
 ### PH1-13: Final Phase 1 Review in `TASK.md`
 
 **Goal:**  
@@ -245,9 +272,11 @@ Ensures completeness of the phase tracking. Captures important learnings and dec
 Manually reviewing and editing `TASK.md`. Checking all Phase 1 boxes (`[X]`). Ensuring "Discovered During Work" and "Insights & Decisions" sections are complete and accurate. Updating the "Last updated" timestamp.
 
 **Definitions:**
+
 - **Meta Task:** A task about the project management process itself.
 
 ---
+
 ## Phase 2: LangChain Tools & Core Enhancements
 
 ### PH2-01: Setup Structured Logging (`core/logger.js`)
@@ -262,12 +291,14 @@ Implements P-7. Structured logs (JSON) are filterable and machine-readable, vast
 Install `pino`, `pino-pretty`. Create `src/core/logger.js` exporting a configured Pino instance (singleton), using `pino-pretty` in development. Update `console.log/error` calls in core files to use `logger.info/error`. Add unit tests for the logger.
 
 **Definitions:**
+
 - **Structured Logging:** Logging events as structured data (JSON).
 - **Pino:** Fast Node.js JSON logger.
 - **pino-pretty:** Development utility to format Pino JSON logs readably.
 - **Log Levels:** Standard severity indicators (info, error, etc.).
 
 ---
+
 ### PH2-02: Setup Centralized Error Handling (`middleware/errorHandler.js`)
 
 **Goal:**  
@@ -280,10 +311,12 @@ Implements P-7. Provides a safety net for unexpected errors. Ensures consistent,
 Create `src/middleware/errorHandler.js` exporting middleware (`err, req, res, next`). Middleware logs error details using `core/logger`. Sends standardized JSON response (e.g., 500 Internal Server Error, or uses `err.statusCode` if available). Optionally create custom error classes (`src/errors/`). Register middleware last in `src/app.js`. Add integration tests.
 
 **Definitions:**
+
 - **Express Error Handling Middleware:** Specific signature (`err, req, res, next`) to catch errors passed via `next(err)` or uncaught exceptions.
 - **Custom Error Class:** User-defined error types extending `Error` to add properties like `statusCode` or `isOperational`.
 
 ---
+
 ### PH2-03: Create `src/tools/` directory
 
 **Goal:**  
@@ -299,6 +332,7 @@ Creation of the `src/tools/` directory.
 N/A (Directory creation).
 
 ---
+
 ### PH2-04: Tool: `src/tools/stateManager.js` - `resetUserState` function
 
 **Goal:**  
@@ -311,6 +345,7 @@ Provides a reusable, testable function for cleaning up user state after workflow
 Creation of `src/tools/stateManager.js`. Imports `prisma`, `logger`. Exports async function `resetUserState(telegramId)`. Function validates input, calls `prisma.users.update` setting specific fields to null/defaults. Includes try/catch and logging. Unit tests mock Prisma using Sinon to verify correct arguments.
 
 **Definitions:**
+
 - **Tool Function:** Function designed to be called by AI/Graph to perform an action.
 - **State Reset:** Returning specific DB fields to a default/neutral state.
 - **Prisma update:** Method to modify existing DB records.
@@ -332,7 +367,7 @@ Return a success/failure indicator.
 Update src/tests/tools/stateManager.test.js to add unit tests for updateUserState.
 The tests will use proxyquire (as per our updated convention) to inject mock logger and mock prisma (with a stubbed users.update method). Tests will verify that prisma.users.update is called with the correct telegramId and the exact dataToUpdate object provided to the function. Error handling will also be tested.
 Definitions:
-Generic Update: Modifying arbitrary fields in a record based on provided input, as opposed to a fixed reset operation. 
+Generic Update: Modifying arbitrary fields in a record based on provided input, as opposed to a fixed reset operation.
 
 Task Expansion: PH2-06 - State Manager Tool: storeBookingData
 Goal: Add a dedicated function storeBookingData to stateManager.js specifically for saving the session type and the confirmed booking slot (timestamp) identified during the AI conversation to the user's record in Prisma.
@@ -488,7 +523,7 @@ It will analyze the nyc coverage report (either from the console summary or the 
 It will specifically check the coverage percentages for the Phase 2 files:
 src/core/logger.js
 src/middleware/errorHandler.js
-src/errors/*.js (if they exist)
+src/errors/\*.js (if they exist)
 src/tools/stateManager.js
 src/tools/telegramNotifier.js
 src/tools/googleCalendar.js

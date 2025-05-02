@@ -200,9 +200,18 @@ function createTelegramNotifier(dependencies) {
       );
       return { success: true, messageId: result.message_id };
     } catch (error) {
-      // TODO: Consider adding specific error handling (e.g., for 403 Forbidden, 400 Bad Request)
-      logger.error("Error sending Telegram message:", error);
-      return { success: false, error: "Failed to send Telegram message" };
+      logger.error({ err: error, telegramId }, `Failed to send text message`);
+      // Add specific error handling based on Telegram API error codes
+      let userMessage = "Failed to send Telegram message"; // Default message
+      if (error.response && error.response.error_code === 400) {
+        userMessage = "Invalid request (e.g., bad chat ID).";
+      } else if (error.response && error.response.error_code === 403) {
+        userMessage = "Bot was blocked by the user.";
+      } else if (error.message) {
+        // Use error.message if available and no specific code matched
+        userMessage = error.message;
+      }
+      return { success: false, error: userMessage };
     }
   }
 
@@ -317,6 +326,112 @@ function createTelegramNotifier(dependencies) {
   }
 
   /**
+   * Sends a notification message to all registered administrators.
+   * Finds users with the 'admin' role via Prisma and sends them the provided text message.
+   * Use this for system alerts, new user registrations, or other events requiring admin attention.
+   *
+   * @param {object} params - The parameters for the notification.
+   * @param {string} params.text - The text message content to send to admins.
+   * @returns {Promise<{success: boolean, errors: Array<{adminId: number, error: string}>}>}
+   *          - success: true if notifications were attempted for all found admins (even if some failed).
+   *          - errors: An array of objects detailing any failures for specific admins.
+   */
+  async function sendAdminNotification({ text }) {
+    const errors = [];
+    if (!text) {
+      logger.error("sendAdminNotification: Missing required 'text' parameter.");
+      return {
+        success: false,
+        errors: [{ adminId: -1, error: "Missing text parameter" }],
+      };
+    }
+
+    let adminUsers;
+    try {
+      adminUsers = await prisma.users.findMany({
+        where: { role: "admin" },
+        select: { telegram_id: true }, // Only select the telegram_id
+      });
+      logger.info(`Found ${adminUsers.length} admin users to notify.`);
+
+      if (!adminUsers || adminUsers.length === 0) {
+        logger.warn(
+          "sendAdminNotification: No admin users found in the database.",
+        );
+        return { success: true, errors: [] }; // Not an error, just no one to notify
+      }
+    } catch (dbError) {
+      logger.error(
+        { err: dbError },
+        "Error fetching admin users from database.",
+      );
+      return {
+        success: false,
+        errors: [{ adminId: -1, error: "Database error fetching admins" }],
+      };
+    }
+
+    // Use Promise.allSettled to send messages concurrently and collect results
+    const notificationPromises = adminUsers.map((admin) => {
+      const telegramIdString = String(admin.telegram_id);
+      logger.debug(
+        `Attempting to send admin notification to ${telegramIdString}`,
+      );
+      // Call the existing sendTextMessage function
+      return sendTextMessage({ telegramId: telegramIdString, text })
+        .then((result) => ({ ...result, adminId: telegramIdString })) // Add adminId for tracking
+        .catch((err) => ({
+          success: false,
+          error: err.message || "Unknown send error",
+          adminId: telegramIdString,
+        })); // Catch errors in sendTextMessage itself
+    });
+
+    const results = await Promise.allSettled(notificationPromises);
+
+    results.forEach((result) => {
+      if (result.status === "fulfilled") {
+        const { success, error, adminId } = result.value;
+        if (!success) {
+          logger.warn(
+            { adminId, error },
+            `Failed to send notification to admin.`,
+          );
+          errors.push({
+            adminId: adminId,
+            error: error || "Failed via sendTextMessage",
+          });
+        }
+      } else {
+        // This usually indicates an error *before* sendTextMessage finished (e.g., within the .then/.catch)
+        logger.error(
+          { reason: result.reason },
+          `Unexpected error processing admin notification promise.`,
+        );
+        // We might not have adminId reliably here depending on where the error occurred
+        errors.push({
+          adminId: result.reason?.adminId || "unknown",
+          error: result.reason?.message || "Promise rejected unexpectedly",
+        });
+      }
+    });
+
+    if (errors.length > 0) {
+      logger.warn(
+        `sendAdminNotification completed with ${errors.length} failures.`,
+      );
+    } else {
+      logger.info(
+        `sendAdminNotification completed successfully for all ${adminUsers.length} admins.`,
+      );
+    }
+
+    // Return success true even if individual sends failed, as the overall operation was attempted
+    // The 'errors' array provides details on specific failures.
+    return { success: true, errors };
+  }
+
+  /**
    * Sets the appropriate Telegram command menu (/command) for a specific user based on their role ('client' or 'admin').
    * This ensures users see only the commands relevant to them.
    * Call this after identifying or updating a user's role (e.g., upon first interaction or role change).
@@ -404,6 +519,7 @@ function createTelegramNotifier(dependencies) {
     sendTextMessage,
     sendSessionTypeSelector,
     setRoleSpecificCommands,
+    sendAdminNotification, // <-- Add the new function here
   };
 }
 

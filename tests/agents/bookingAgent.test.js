@@ -1,7 +1,7 @@
 const chai = require("chai");
 const sinon = require("sinon");
 const { StructuredTool } = require("@langchain/core/tools");
-const proxyquire = require("proxyquire").noCallThru();
+const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
 const sinonChai = require("sinon-chai");
 
 // Handle potential default export

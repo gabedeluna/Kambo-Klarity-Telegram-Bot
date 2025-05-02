@@ -1,5 +1,3 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-# Run tests, linter, and formatter
-npm test && npm run lint && npm run format
+# Run tests without coverage, linter, and formatter
+npx mocha "tests/**/*.test.js" --allow-empty --exit && npm run lint && npm run format

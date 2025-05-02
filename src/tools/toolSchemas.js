@@ -113,12 +113,10 @@ const sendSessionTypeSelectorSchema = z
 
 const bookAppointmentSchema = z
   .object({
-    date: z
-      .string()
-      .datetime({
-        offset: true,
-        message: "Valid ISO 8601 date string required for 'date'",
-      }),
+    date: z.string().datetime({
+      offset: true,
+      message: "Valid ISO 8601 date string required for 'date'",
+    }),
     service: z.string().min(1, { message: "Service type cannot be empty" }),
   })
   .describe(
@@ -132,6 +130,13 @@ const cancelBookingSchema = z
       .min(1, { message: "Booking ID is required to cancel" }),
   })
   .describe("Schema for cancelling an existing booking using its ID.");
+
+// Schema for sending notifications to all admins
+const sendAdminNotificationSchema = z
+  .object({
+    text: z.string().min(1, { message: "Notification text cannot be empty" }),
+  })
+  .describe("Input schema for sending a notification message to all admins.");
 
 // --- Export all schemas ---
 module.exports = {
@@ -149,4 +154,5 @@ module.exports = {
   sendSessionTypeSelectorSchema,
   bookAppointmentSchema,
   cancelBookingSchema,
+  sendAdminNotificationSchema,
 };

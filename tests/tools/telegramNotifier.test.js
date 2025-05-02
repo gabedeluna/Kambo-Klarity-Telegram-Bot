@@ -12,6 +12,7 @@ const {
   sendWaiverLinkSchema,
   sendTextMessageSchema,
   sendSessionTypeSelectorSchema,
+  sendAdminNotificationSchema, // <-- Import the new schema
 } = require("../../src/tools/toolSchemas");
 
 // Mock dependencies - TOP LEVEL
@@ -32,6 +33,7 @@ const mockBot = {
 const mockPrisma = {
   users: {
     update: sinon.stub(),
+    findMany: sinon.stub(), // <-- Add findMany stub for admin lookup
   },
 };
 
@@ -59,6 +61,7 @@ const mockToolSchemas = {
     sendWaiverLinkSchema,
     sendTextMessageSchema,
     sendSessionTypeSelectorSchema,
+    sendAdminNotificationSchema, // <-- Add schema to mock
   },
 };
 
@@ -104,6 +107,7 @@ describe("Telegram Notifier Tool", () => {
     mockBot.telegram.sendMessage.resetHistory();
     mockBot.telegram.setMyCommands.resetHistory();
     mockPrisma.users.update.resetHistory();
+    mockPrisma.users.findMany.resetHistory(); // <-- Reset findMany stub
     // Reset Markup stubs
     mockMarkup.Markup.inlineKeyboard.resetHistory();
     mockMarkup.Markup.button.webApp.resetHistory(); // Reset the webApp stub
@@ -359,8 +363,9 @@ describe("Telegram Notifier Tool", () => {
 
       // Assert
       expect(result.success).to.be.false;
-      expect(result.error).to.equal("Failed to send Telegram message"); // Fix: Match actual error message
+      expect(result.error).to.equal("Telegram API Error"); // Expect the specific error message simulated in this test
       expect(mockLogger.error.calledOnce).to.be.true;
+      expect(mockBot.telegram.sendMessage.calledOnce).to.be.true;
     });
 
     it("should return success with warning if message_id is missing from response", async function () {
@@ -697,6 +702,178 @@ describe("Telegram Notifier Tool", () => {
 
       expect(result.success).to.be.false;
       expect(result.error).to.include("Bot was blocked");
+    });
+  });
+
+  // --- sendAdminNotification Tests --- //
+  describe("sendAdminNotification", function () {
+    const testNotificationText = "🚨 System Alert: Maintenance soon!";
+    const adminUsersMock = [
+      { telegram_id: BigInt("111111") },
+      { telegram_id: BigInt("222222") },
+    ];
+
+    it("should validate input using sendAdminNotificationSchema", function () {
+      const validData = { text: testNotificationText };
+      const invalidData = { text: "" }; // Empty text
+      const missingData = {}; // Missing text
+
+      expect(() => sendAdminNotificationSchema.parse(validData)).not.to.throw();
+      expect(() => sendAdminNotificationSchema.parse(invalidData)).to.throw(
+        z.ZodError,
+      );
+      expect(() => sendAdminNotificationSchema.parse(missingData)).to.throw(
+        z.ZodError,
+      );
+    });
+
+    it("should fetch admin users and send a message to each", async function () {
+      // Arrange
+      mockPrisma.users.findMany.resolves(adminUsersMock);
+      // Mock sendTextMessage to succeed for simplicity in this test
+      mockBot.telegram.sendMessage.resolves({ message_id: 123 });
+
+      // Act
+      const result = await this.notifier.sendAdminNotification({
+        text: testNotificationText,
+      });
+
+      // Assert
+      expect(result.success).to.be.true;
+      expect(result.errors).to.be.an("array").that.is.empty;
+      expect(
+        mockPrisma.users.findMany.calledOnceWith({
+          where: { role: "admin" },
+          select: { telegram_id: true },
+        }),
+      ).to.be.true;
+      // Check sendTextMessage was called for each admin
+      expect(mockBot.telegram.sendMessage.callCount).to.equal(
+        adminUsersMock.length,
+      );
+      expect(mockBot.telegram.sendMessage.firstCall.args[0]).to.equal(
+        String(adminUsersMock[0].telegram_id),
+      );
+      expect(mockBot.telegram.sendMessage.firstCall.args[1]).to.equal(
+        testNotificationText,
+      );
+      expect(mockBot.telegram.sendMessage.secondCall.args[0]).to.equal(
+        String(adminUsersMock[1].telegram_id),
+      );
+      expect(mockBot.telegram.sendMessage.secondCall.args[1]).to.equal(
+        testNotificationText,
+      );
+      expect(
+        mockLogger.info.calledWith(
+          `Found ${adminUsersMock.length} admin users to notify.`,
+        ),
+      ).to.be.true;
+      expect(
+        mockLogger.info.calledWith(
+          `sendAdminNotification completed successfully for all ${adminUsersMock.length} admins.`,
+        ),
+      ).to.be.true;
+    });
+
+    it("should return success true with an empty errors array if no admin users are found", async function () {
+      // Arrange
+      mockPrisma.users.findMany.resolves([]); // No admins found
+
+      // Act
+      const result = await this.notifier.sendAdminNotification({
+        text: testNotificationText,
+      });
+
+      // Assert
+      expect(result.success).to.be.true;
+      expect(result.errors).to.be.an("array").that.is.empty;
+      expect(mockPrisma.users.findMany.calledOnce).to.be.true;
+      expect(mockBot.telegram.sendMessage.called).to.be.false; // No messages sent
+      expect(
+        mockLogger.warn.calledWith(
+          "sendAdminNotification: No admin users found in the database.",
+        ),
+      ).to.be.true;
+    });
+
+    it("should return success false if fetching admin users fails", async function () {
+      // Arrange
+      const dbError = new Error("Database connection error");
+      mockPrisma.users.findMany.rejects(dbError);
+
+      // Act
+      const result = await this.notifier.sendAdminNotification({
+        text: testNotificationText,
+      });
+
+      // Assert
+      expect(result.success).to.be.false;
+      expect(result.errors).to.be.an("array").with.lengthOf(1);
+      expect(result.errors[0].error).to.include(
+        "Database error fetching admins",
+      );
+      expect(
+        mockLogger.error.calledWith(
+          { err: dbError },
+          "Error fetching admin users from database.",
+        ),
+      ).to.be.true;
+      expect(mockBot.telegram.sendMessage.called).to.be.false;
+    });
+
+    it("should return success true but populate errors array if some messages fail to send", async function () {
+      // Arrange
+      mockPrisma.users.findMany.resolves(adminUsersMock);
+      // Simulate a realistic Telegram 403 error object
+      const sendError = {
+        response: {
+          error_code: 403,
+          description: "Forbidden: bot was blocked by the user",
+        },
+        message: "Forbidden: bot was blocked by the user", // Often included too
+      };
+      // Make the first send succeed, the second fail with the simulated 403 error
+      mockBot.telegram.sendMessage.onFirstCall().resolves({ message_id: 123 });
+      mockBot.telegram.sendMessage.onSecondCall().rejects(sendError);
+
+      // Act
+      const result = await this.notifier.sendAdminNotification({
+        text: testNotificationText,
+      });
+
+      // Assert
+      expect(result.success).to.be.true; // Overall operation attempted = success
+      expect(result.errors).to.be.an("array").with.lengthOf(1);
+      expect(result.errors[0].adminId).to.equal(
+        String(adminUsersMock[1].telegram_id),
+      );
+      // Assert against the specific message returned by sendTextMessage for 403
+      expect(result.errors[0].error).to.equal("Bot was blocked by the user.");
+      expect(mockBot.telegram.sendMessage.callCount).to.equal(
+        adminUsersMock.length,
+      );
+      expect(
+        mockLogger.warn.calledWith(
+          `sendAdminNotification completed with 1 failures.`,
+        ),
+      ).to.be.true;
+    });
+
+    it("should return success false with error if text parameter is missing", async function () {
+      // Act
+      const result = await this.notifier.sendAdminNotification({}); // Missing text
+
+      // Assert
+      expect(result.success).to.be.false;
+      expect(result.errors).to.be.an("array").with.lengthOf(1);
+      expect(result.errors[0].error).to.equal("Missing text parameter");
+      expect(
+        mockLogger.error.calledWith(
+          "sendAdminNotification: Missing required 'text' parameter.",
+        ),
+      ).to.be.true;
+      expect(mockPrisma.users.findMany.called).to.be.false;
+      expect(mockBot.telegram.sendMessage.called).to.be.false;
     });
   });
 });

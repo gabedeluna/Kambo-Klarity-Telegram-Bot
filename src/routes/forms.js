@@ -6,22 +6,50 @@
 const express = require("express");
 const router = express.Router();
 
-// Placeholder Handler
+let logger; // Module-level logger variable
+let regHandler; // Module-level registration handler variable
 
 /**
- * Handles POST requests for user registration form submissions.
- * Placeholder: Returns 501 Not Implemented.
- * @param {express.Request} req - The Express request object.
- * @param {express.Response} res - The Express response object.
+ * Initializes the forms router with dependencies.
+ * @param {object} deps - Dependencies object.
+ * @param {object} deps.logger - Logger instance.
+ * @param {object} deps.registrationHandler - Registration handler instance.
  */
-const submitRegistration = (req, res) =>
-  res
-    .status(501)
-    .json({ message: "POST /submit-registration Not Implemented Yet" });
+function initialize(deps) {
+  if (!deps.logger || !deps.registrationHandler) {
+    // Check for registrationHandler
+    console.error(
+      "FATAL: formsRouter initialization failed. Missing dependencies.",
+      {
+        logger: !!deps.logger,
+        registrationHandler: !!deps.registrationHandler,
+      },
+    );
+    throw new Error("Missing dependencies for formsRouter");
+  }
+  logger = deps.logger;
+  regHandler = deps.registrationHandler; // Assign handler
+  logger.info("[formsRouter] Initialized successfully.");
+}
 
 // Define Routes
 // GET routes for serving HTML form pages (e.g., /register.html) are handled
 // by the express.static middleware in app.js, so they don't need to be defined here.
-router.post("/submit-registration", submitRegistration);
+router.post("/submit-registration", (req, res, next) => {
+  // Ensure regHandler is initialized before calling its method
+  if (
+    !regHandler ||
+    typeof regHandler.handleRegistrationSubmit !== "function"
+  ) {
+    logger.error(
+      "Registration handler or submit method not initialized or not a function.",
+    );
+    return res
+      .status(500)
+      .send("Internal Server Error: Registration handler not ready.");
+  }
+  // Delegate to the initialized handler's method
+  regHandler.handleRegistrationSubmit(req, res, next);
+});
 
-module.exports = router;
+module.exports = { initialize, router };
