@@ -31,36 +31,51 @@ function initializeApp(deps) {
     updateRouter, // Module with initialize and routeUpdate
     errorHandlerMiddleware,
     apiRoutes,
-    formRoutes,
+    formsRouter, // Correct import
+    registrationHandler, // Correct import
   } = deps;
 
-  // --- Validate Core Dependencies ---
-  if (
-    !logger ||
-    !prisma ||
-    !bot ||
-    !config ||
-    !sessionTypes ||
-    !stateManager ||
-    !createTelegramNotifier ||
-    !GoogleCalendarTool ||
-    !bookingAgent ||
-    !graphNodes ||
-    !initializeGraph ||
-    !graphEdges ||
-    !commandHandler ||
-    !callbackHandler ||
-    !initUserLookup ||
-    !userLookupMiddleware ||
-    !updateRouter ||
-    !errorHandlerMiddleware ||
-    !apiRoutes ||
-    !formRoutes
-  ) {
-    console.error("CRITICAL: Missing core dependencies for initializeApp.");
-    throw new Error("Missing core dependencies for initializeApp.");
-    // Optionally list missing deps
+  // --- Validate Core Dependencies --- (Improved Logging)
+  const requiredDeps = {
+    logger,
+    prisma,
+    bot,
+    config,
+    sessionTypes,
+    stateManager,
+    createTelegramNotifier,
+    GoogleCalendarTool,
+    bookingAgent,
+    graphNodes,
+    initializeGraph,
+    graphEdges,
+    commandHandler,
+    callbackHandler,
+    initUserLookup,
+    userLookupMiddleware,
+    updateRouter,
+    errorHandlerMiddleware,
+    apiRoutes,
+    formsRouter,
+    registrationHandler,
+  };
+
+  const missing = Object.entries(requiredDeps)
+    .filter(([, value]) => !value) // Find entries where the value is falsy
+    .map(([key]) => key); // Get the keys (names) of missing dependencies
+
+  if (missing.length > 0) {
+    const missingList = missing.join(", ");
+    console.error(
+      `CRITICAL: Missing core dependencies for initializeApp: [${missingList}]`,
+    );
+    // Log the keys of the received deps object for easier comparison
+    console.error("Received dependency keys:", Object.keys(deps));
+    throw new Error(
+      `Missing core dependencies for initializeApp: ${missingList}`,
+    );
   }
+  // --- End Improved Validation ---
 
   // --- Create Express App ---
   const app = express();
@@ -83,7 +98,7 @@ function initializeApp(deps) {
 
   // --- Mount API & Form Routers ---
   app.use("/api", apiRoutes); // All routes in api.js will be prefixed with /api
-  app.use("/", formRoutes); // Routes in forms.js mounted at the root
+  app.use("/", formsRouter); // Use the router function directly
   logger.info("API and Form routers mounted.");
 
   // --- Initialization Logic (Moved inside) ---
@@ -164,6 +179,15 @@ function initializeApp(deps) {
     );
     // errorHandlerMiddleware should be ready to use when passed in
 
+    console.log(">>> Initializing registrationHandler...");
+    registrationHandler.initialize({
+      logger,
+      prisma,
+      bot,
+      telegramNotifier: notifierInstance,
+    });
+    console.log(">>> registrationHandler initialized.");
+
     console.log("Dependency initialization completed successfully.");
   } catch (initError) {
     console.error(
@@ -234,7 +258,9 @@ function initializeApp(deps) {
   console.log("Express global error handler registered.");
 
   console.log("initializeApp function finished.");
-  return app; // Return the configured Express app
+
+  // --- Return the initialized app and potentially other core components ---
+  return { app }; // Make sure to return the app instance!
 }
 
 // --- Export the initialization function ---

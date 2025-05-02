@@ -1,92 +1,117 @@
 const request = require("supertest");
 const sinon = require("sinon");
+const { expect } = require("chai");
 const { initializeApp } = require("../src/app"); // Import the function
 
-// --- Mocks Setup --- (Simplified version based on app.test.js)
-let app;
+// --- Mocks Setup (using let, declared outside) ---
 let sandbox;
-let mockLogger, mockConfig, mockErrorHandlerMiddleware;
-// Add other mocks IF initializeApp strictly requires them even for /health
-// For now, assume these are enough for the health check setup part.
-let mockPrisma = {}; // Basic mock
-let mockBot = {}; // Basic mock
-let mockUpdateRouter = { routeUpdate: () => {} }; // Basic mock
-let mockUserLookupMiddleware = () => {}; // Basic mock
-let mockStateManager = {};
-let mockCreateTelegramNotifier = () => ({});
-let mockGoogleCalendarTool = () => ({});
-let mockBookingAgent = {};
-let mockCommandHandler = {};
-let mockCallbackHandler = {};
-let mockGraphNodes = {};
-let mockInitializeGraph = () => ({});
-let mockInitUserLookup = () => {};
-let mockSessionTypes = {};
-let mockGraphEdges = {};
-// --- End Mocks ---
+let app;
+let mockLogger;
+let mockPrisma;
+let mockBotInstance;
+let mockSessionTypes;
+let mockCreateTelegramNotifier;
+let mockTelegramNotifierInstance;
+let mockCallbackHandler;
+let mockRegistrationHandler;
+let mockExpressRouter;
+let mockErrorHandlerMiddleware;
+let mockStateManager;
+let mockGoogleCalendarTool;
+let mockBookingAgent;
+let mockGraphNodes;
+let mockInitializeGraph;
+let mockGraphEdges;
+let mockCommandHandler;
+let mockInitUserLookup;
+let mockUserLookupMiddleware;
+let mockUpdateRouter;
+let mockApiRoutes;
 
 describe("Health Check Endpoint", () => {
-  before((done) => {
-    // Use 'before' to initialize app once for the suite
+  before(async () => {
     sandbox = sinon.createSandbox();
 
-    // Mock basic dependencies needed by initializeApp
+    // --- Re-initialize mocks inside before hook ---
     mockLogger = {
       info: sandbox.stub(),
       error: sandbox.stub(),
       warn: sandbox.stub(),
       debug: sandbox.stub(),
-      child: sandbox.stub().returnsThis(),
     };
-    mockConfig = {
-      nodeEnv: "test",
-      appUrl: "http://test.health.app", // Unique URL for test
-      ngrokUrl: null,
-      // Add other required config fields if needed by initializeApp
-      telegramBotToken: "fake-token",
-      webhookSecretPath: "test-secret-path",
-    };
-    mockErrorHandlerMiddleware = sandbox.stub();
-
-    // Refine other mocks if necessary
     mockPrisma = {
-      $connect: sandbox.stub(),
-      $disconnect: sandbox.stub(),
-      setLogger: sandbox.stub(),
+      $connect: sandbox.stub().resolves(),
+      $disconnect: sandbox.stub().resolves(),
+      sessionType: { findMany: sandbox.stub().resolves([]) },
+      users: { findUnique: sandbox.stub() },
     };
-    mockBot = {
-      telegram: { setWebhook: sandbox.stub().resolves(true) },
-      options: {},
-      catch: sandbox.stub(),
+    mockBotInstance = {
+      telegram: {
+        setMyCommands: sandbox.stub().resolves(true),
+        setWebhook: sandbox.stub().resolves(true),
+      },
+      secretPathComponent: sandbox.stub().returns("test-secret-path"),
       use: sandbox.stub(),
-      secretPathComponent: sandbox.stub().returns(mockConfig.webhookSecretPath), // Add missing stub
+      on: sandbox.stub(),
+      catch: sandbox.stub(),
+      launch: sandbox.stub().resolves(),
     };
-    mockUpdateRouter = {
-      initialize: sandbox.stub().returns(sinon.stub()),
-      routeUpdate: sinon.stub(),
-    }; // Mock initialize too
-    mockUserLookupMiddleware = sandbox.stub();
-    mockStateManager = { setLogger: sandbox.stub() };
+    mockSessionTypes = { getAll: sandbox.stub().returns({}) };
+    mockTelegramNotifierInstance = {
+      /* basic notifier stubs */
+    };
     mockCreateTelegramNotifier = sandbox
       .stub()
-      .returns({ initialize: sandbox.stub() });
-    mockGoogleCalendarTool = sandbox.stub().returns({});
-    mockBookingAgent = { initializeAgent: sandbox.stub() };
-    mockCommandHandler = { initialize: sandbox.stub() };
-    mockCallbackHandler = { initialize: sandbox.stub() };
-    mockGraphNodes = { initializeNodes: sandbox.stub().returns({}) };
-    mockInitializeGraph = sandbox
+      .returns(mockTelegramNotifierInstance);
+    mockCallbackHandler = {
+      initialize: sandbox.stub(),
+      handleCallbackQuery: sandbox.stub(),
+    };
+    mockRegistrationHandler = {
+      initialize: sandbox.stub(),
+      handleRegistration: sandbox.stub(),
+    };
+    mockExpressRouter = sandbox.stub().callsFake((req, res, next) => next());
+    mockErrorHandlerMiddleware = sandbox
       .stub()
-      .returns({ compile: sandbox.stub().returns({}) });
-    mockInitUserLookup = sandbox.stub().returns(mockUserLookupMiddleware);
-    mockSessionTypes = { getAll: sandbox.stub().returns([]) };
+      .callsFake((err, req, res, _next) => {
+        res.status(500).send("Error");
+      });
+    mockStateManager = {
+      initialize:
+        sandbox.stub() /* Add other methods if needed by health test context */,
+    };
+    mockGoogleCalendarTool = class MockGoogleCalendarTool {
+      constructor() {}
+    };
+    mockGoogleCalendarTool.prototype.initialize = sandbox.stub();
+    mockBookingAgent = { initializeAgent: sandbox.stub() };
+    mockGraphNodes = { initializeNodes: sandbox.stub() };
+    mockInitializeGraph = sandbox.stub().returns({
+      compile: sandbox.stub().returns({
+        /* compiled graph */
+      }),
+    });
+    mockGraphEdges = {
+      /* minimal mock, likely ok */
+    };
+    mockCommandHandler = { initialize: sandbox.stub() };
+    mockInitUserLookup = sandbox.stub();
+    mockUserLookupMiddleware = sandbox
+      .stub()
+      .callsFake((req, res, next) => next());
+    mockUpdateRouter = {
+      initialize: sandbox.stub(),
+      middleware: sandbox.stub().callsFake((ctx, next) => next()),
+    };
+    mockApiRoutes = mockExpressRouter;
 
-    // Define the dependencies object using mocks
+    // Assemble the COMPLETE dependencies object for initializeApp
     const mockDependencies = {
       logger: mockLogger,
       prisma: mockPrisma,
-      bot: mockBot,
-      config: mockConfig,
+      bot: mockBotInstance,
+      config: { nodeEnv: "test" },
       sessionTypes: mockSessionTypes,
       stateManager: mockStateManager,
       createTelegramNotifier: mockCreateTelegramNotifier,
@@ -98,25 +123,35 @@ describe("Health Check Endpoint", () => {
       commandHandler: mockCommandHandler,
       callbackHandler: mockCallbackHandler,
       initUserLookup: mockInitUserLookup,
-      userLookupMiddleware: mockUserLookupMiddleware, // Pass the middleware itself
+      userLookupMiddleware: mockUserLookupMiddleware,
       updateRouter: mockUpdateRouter,
       errorHandlerMiddleware: mockErrorHandlerMiddleware,
+      apiRoutes: mockApiRoutes,
+      formsRouter: mockExpressRouter,
+      registrationHandler: mockRegistrationHandler,
     };
 
+    // Initialize the app
     try {
-      // Initialize the app
-      app = initializeApp(mockDependencies);
-      done(); // Signal completion
-    } catch (err) {
-      done(err); // Signal error
+      const result = await initializeApp(mockDependencies);
+      app = result.app;
+    } catch (error) {
+      console.error(
+        "Error during initializeApp in health.test.js before hook:",
+        error,
+      );
+      throw error;
     }
   });
 
-  after(() => {
-    sandbox.restore(); // Clean up sandbox
+  after((done) => {
+    sandbox.restore();
+    done();
   });
 
-  it("GET /health should return 200 OK", (done) => {
-    request(app).get("/health").expect(200, "OK", done);
+  it("GET /health should return 200 OK", async () => {
+    const res = await request(app).get("/health");
+    expect(res.statusCode).to.equal(200);
+    expect(res.text).to.equal("OK");
   });
 });

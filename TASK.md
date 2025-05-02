@@ -276,8 +276,8 @@
 | [X]**PH5‑04** | **Refactor `app.js` to Use New Middleware**                             | Update `app.js` to initialize and register `userLookup`, `updateRouter`, `errorHandler` middleware. Remove old `bot.on` dispatching.                                                    | *Pass*: `app.js` initializes modules, registers middleware in order. Legacy dispatch removed. `/health` still works. | // 2025-05-01
 | [X]**PH5‑05** | **Consolidate Express Server**                                          | Merge `legacy/server.js` features (static file serving, `/`) into `src/app.js`.                                                                                                     | *Pass*: `app.js` serves `public/index.html` at `/`. Legacy server code can be removed later. |
 | [X]**PH5‑06** | **Implement Static File Serving (`app.js` / `routes/`)**                | Configure Express in `src/app.js` to serve static files (HTML, CSS, JS) from `public/`. Move `public/` directory if desired.                                                    | *Pass*: HTML forms (`registration-form.html`, `waiver-form.html`) are accessible via browser at expected URLs (e.g., `/registration-form.html`). |
-| [ ]**PH5‑07** | **Implement Form Routes & Handlers (`routes/forms.js`, `routes/api.js`)** | Re-implement routes from legacy `server.js` within the main app (`src/app.js`): `/registration` (GET), `/booking-form.html` (GET), `/api/user-data` (GET), `/api/submit-waiver` (POST), `/submit-registration` (POST). Use `express.Router`. | *Pass*: Routes defined, mounted in `app.js`. Basic integration tests (Supertest) verify routes exist and return expected status codes. |
-| [ ]**PH5‑08** | **Implement `/submit-registration` Handler Logic**                      | Create handler function for the POST `/submit-registration` route. Use core `prisma` to save user, `telegramNotifier` to welcome client & notify admin. Connect to route from PH5-06. | *Pass*: Handler saves user via mock Prisma, calls mock notifier functions. Integration test POSTs data and verifies success response/mock calls. |
+| [X]**PH5‑07** | **Implement Form Routes & Handlers (`routes/forms.js`, `routes/api.js`)** | Re-implement routes from legacy `server.js` within the main app (`src/app.js`): `/registration` (GET), `/booking-form.html` (GET), `/api/user-data` (GET), `/api/submit-waiver` (POST), `/submit-registration` (POST). Use `express.Router`. | *Pass*: Routes defined, mounted in `app.js`. Basic integration tests (Supertest) verify routes exist and return expected status codes. |
+| [X]**PH5‑08** | **Implement `/submit-registration` Handler Logic**                      | Create handler function for the POST `/submit-registration` route. Use core `prisma` to save user, `telegramNotifier` to welcome client & notify admin. Connect to route from PH5-06. | *Pass*: Handler saves user via mock Prisma, calls mock notifier functions. Integration test POSTs data and verifies success response/mock calls. |
 | [ ]**PH5‑09** | **Implement `/api/user-data` Handler Logic**                            | Create handler for GET `/api/user-data`. Use core `prisma` to fetch user details (like legacy version). Format data for form pre-filling. Connect to route.                     | *Pass*: Handler fetches user data via mock Prisma, formats correctly. Integration test GETs data and verifies structure. |
 | [ ]**PH5‑10** | **Implement `/api/submit-waiver` Handler Logic**                        | Create handler for POST `/api/submit-waiver`. Use core `prisma` to create `Session`, update `User`. **Crucially: Notify admin.** Connect to route. *(Waiver completion webhook handled separately)* | *Pass*: Handler saves session/user via mock Prisma, calls mock notifier. Integration test POSTs data and verifies response/mock calls. |
 | [ ]**PH5‑11** | **Implement `/waiver-completed` Webhook Handler**                       | Re-implement the POST `/waiver-completed` route handler in the main app. Use core `bot` and `prisma` to update the original Telegram message (using `edit_msg_id`) status to confirmed. | *Pass*: Handler finds user/message ID via mock Prisma, calls mock `bot.telegram.editMessageText`. Integration test POSTs data and verifies response/mocks. |
@@ -315,6 +315,13 @@
 *   **PH5-D10 (PH5-06):** Defined placeholder handlers returning 501.
 *   **PH5-D11 (PH5-06):** Mounted routers in `src/app.js`.
 *   **PH5-D12 (PH5-06):** Added basic integration tests verifying route existence and placeholder response.
+*   **(PH5-08):** Implemented `/submit-registration` handler (`registrationHandler.js`) to process form data, save user via Prisma, and notify admin/client via Telegram.
+*   **(PH5-08):** Injected `bot` instance into `registrationHandler` to enable editing the original registration message.
+*   **(PH5-08):** Removed separate client welcome notification; registration confirmation is now handled by editing the original message.
+*   **(PH5-08):** Enhanced admin notification in `registrationHandler` to include more user details.
+*   **(PH5-07):** Injected `registrationHandler` dependency into `forms.js` router.
+*   Fixed numerous lint errors related to unused variables (`no-unused-vars`) and undefined variables (`no-undef`) across various files, particularly in `tests/health.test.js`.
+*   Refactored `tests/health.test.js` to correctly define mocks outside `describe` and use `async before`.
 
 ### 💡 Insights & Decisions
 *(Explain routing logic, middleware design, server consolidation benefits/challenges, form handler implementation details, etc.)*
@@ -328,6 +335,9 @@
 *   **PH5-06:** Added notes on defining placeholder handlers for routes.
 *   **PH5-06:** Added notes on mounting routers in `app.js`.
 *   **PH5-06:** Added notes on adding basic integration tests for route existence and placeholder response.
+*   **(PH5-08):** Editing the original registration message (`edit_msg_id`) provides a cleaner user experience compared to sending a separate welcome message after form submission.
+*   **(PH5-07):** Dependency injection pattern used for `registrationHandler` in `forms.js` router facilitates testing.
+*   **(PH5-08):** Improved UX by editing the original registration message instead of sending a separate welcome message.
 
 ### 🧪 Quick‑Run Commands
 
@@ -337,7 +347,7 @@ npm run format    # prettier write
 node bin/server   # local server
 
 ---
-**Last updated:** 2025-05-01 02:33
+**Last updated:** 2025-05-02 03:02
 
 # Task List
 
