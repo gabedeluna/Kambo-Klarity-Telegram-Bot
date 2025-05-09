@@ -4,7 +4,7 @@
 
 ---
 
-## Current Phase 1 – Skeleton & Baseline
+## 📅 Current Phase 1 – Skeleton & Baseline
 
 | ID            | Task                                                                                                                                                                      | Why / Acceptance Criteria                                                                                    |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------ | -------------------------------- |
@@ -55,9 +55,7 @@ _Add new subtasks here, e.g. `PH1‑D1`._
 
 ### Insights & Decisions
 
-*Explain architectural choices or hurdles encountered.*
-
-- **(PH1-05):** Skipped advanced unit test using Sinon to mock `process.exit` for missing token in `core/bot.js` due to potential complexity; noted as future enhancement.
+\*Explain architectural choices or hurdles encountered.\*\* **(PH1-05):** Skipped advanced unit test using Sinon to mock `process.exit` for missing token in `core/bot.js` due to potential complexity; noted as future enhancement.
 
 - **(PH1-05):** Tests for `core/bot.js` pass, but pre-existing tests in `core/env.test.js` are failing due to reliance on specific test values not present when loading real secrets from `.env`. These need separate investigation (new task?).
 - **(PH1-06):** Exporting the configured Express `app` instance from `app.js` allows it to be easily imported for both server startup (`bin/server.js`) and integration testing (`tests/app.test.js`), promoting separation of concerns.
@@ -300,10 +298,10 @@ _(Explain graph state design, node/edge implementation choices, LangGraph Studio
 | [X]**PH5‑09**  | **Implement `/api/user-data` Handler Logic**                                                                                                    | Create handler for GET `/api/user-data`. Use core `prisma` to fetch user details (like legacy version). Format data for form pre-filling. Connect to route.                                                                                  | _Pass_: Handler fetches user data via mock Prisma, formats correctly. Integration test GETs data and verifies structure.                                                           |
 | [X]**PH5‑10**  | **Implement `/api/submit-waiver` Handler Logic**                                                                                                | Create handler for POST `/api/submit-waiver`. Use core `prisma` to create `Session`, update `User`. **Crucially: Notify admin.** Connect to route. _(Waiver completion webhook handled separately)_                                          | _Pass_: Handler saves session/user via mock Prisma, calls mock notifier. Integration test POSTs data and verifies response/mock calls.                                             |
 | [X]**PH5‑11**  | **Implement `/waiver-completed` Webhook Handler** (2025-05-02)                                                                                  | Re-implement the POST `/waiver-completed` route handler in the main app. Use core `bot` and `prisma` to update the original Telegram message (using `edit_msg_id`) status to confirmed.                                                      | _Pass_: Handler finds user/message ID via mock Prisma, calls mock `bot.telegram.editMessageText`. Integration test POSTs data and verifies response/mocks.                         |
-| [ ]**PH5‑12**  | **Cleanup Legacy Server Code**                                                                                                                  | Delete `legacy/server.js`, `legacy/formWorkflow.js`, `legacy/bot.js` (or large parts of it related to form handling/dispatching). Remove related dependencies if no longer needed.                                                           | _Pass_: Legacy files removed. Application still runs and passes tests.                                                                                                             |
-| [ ]**PH5‑13**  | **Test Coverage:**                                                                                                                              | Ensure Phase 5 modules (`middleware/*`, `routes/*`, modified `app.js`) meet ≥ 90% coverage via unit & integration tests.                                                                                                                     | _Pass_: `npm test` coverage report confirms target. (2025-05-02)                                                                                                                   |
-| [ ]**PH5‑14**  | **Update `docs/architecture.md`:**                                                                                                              | Update diagram/descriptions to reflect consolidated server structure, new middleware, and routes. Update Phase 5 status.                                                                                                                     |
-| [ ]**PH5‑15**  | **Final Review:**                                                                                                                               | Tick all Phase 5 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                                                                                     |
+| [X]**PH5‑12**  | **Cleanup Legacy Server Code**                                                                                                                  | Delete `legacy/server.js`, `legacy/formWorkflow.js`, `legacy/bot.js` (or large parts of it related to form handling/dispatching). Remove related dependencies if no longer needed.                                                           | _Pass_: Legacy files removed. Application still runs and passes tests.                                                                                                             |
+| [X]**PH5‑13**  | **Test Coverage:**                                                                                                                              | Ensure Phase 5 modules (`middleware/*`, `routes/*`, modified `app.js`) meet ≥ 90% coverage via unit & integration tests.                                                                                                                     | _Pass_: `npm test` coverage report confirms target. (2025-05-02)                                                                                                                   |
+| [X]**PH5‑14**  | **Update `docs/architecture.md`:**                                                                                                              | Update diagram/descriptions to reflect consolidated server structure, new middleware, and routes. Update Phase 5 status.                                                                                                                     |
+| [X]**PH5‑15**  | **Final Review:**                                                                                                                               | Tick all Phase 5 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                                                                                     |
 
 ### Discovered During Work
 
@@ -364,6 +362,40 @@ _(Explain routing logic, middleware design, server consolidation benefits/challe
 - **(PH5-08):** Improved UX by editing the original registration message instead of sending a separate welcome message. We skipped designing the
   tests for this feature to speed up development.
 - **(PH5-09):** The `/api/user-data` handler successfully fetches user data via Prisma, formats it correctly for form pre-filling, and returns the data in the expected structure. Added JSDoc and ensured dependencies are injected correctly. Skipped tests for now to maintain velocity, will add in a later task (PH5-TBD-user-data-tests).
+
+---
+
+## 📅 Current Phase 6 – Admin Foundational
+
+| ID        | Task                                                                       | Why / Acceptance Criteria                                                                                                                                                              |
+| :-------- | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [X]**PH6‑01** | **Implement Admin Designation (`bin/set_admin.js`)**                       | Provide a script/mechanism to assign the 'admin' role to a specific user via Telegram ID.                                                                                              | *Pass*: Script created, accepts TG ID, updates user role to 'admin' in DB (verified manually or via test DB state), uses core Prisma/Logger. |
+| [X]**PH6‑02** | **(New)** - Implement Role-Based Command Router & Refine Help Command  | Implement middleware `commandRouter.js`. Update `commandRegistry.js`. Distinct `/help` for client/admin. | *Pass*: Tests pass. Manual test shows distinct `/help` & role-based command access. |
+| [ ]**PH6‑03** | **Integrate Command Router into Update Router**                            | Modify `updateRouterMiddleware` (PH5-02) to call the new `commandRouterMiddleware` when `isCommand(ctx)` is true, replacing the placeholder.                                         | *Pass*: `updateRouter.js` modified, integration test shows commands are routed through the command router. |
+| [ ]**PH6‑04** | **Implement Telegram Command Scope Setting**                               | Modify `set_admin.js` (PH6-01) and potentially registration completion logic to call `telegramNotifier.setRoleSpecificCommands` (PH2-13 tool) to set default/admin commands scope. | *Pass*: `set_admin.js` calls notifier tool. Registration logic updated (if needed). Manual test confirms commands appear correctly in Telegram UI for client/admin. |
+| [ ]**PH6‑05** | **Implement DB Schema for Session Types (`prisma/schema.prisma`)**         | Define `SessionType` model in Prisma (id, label, duration, description, active, etc.). Run migration. Populate initial data from old JSON config (manual script/migration).            | *Pass*: Schema updated, migration successful, DB table created and populated. |
+| [ ]**PH6‑06** | **Refactor `core/sessionTypes.js` for DB Access**                          | Modify helper functions (`getAll`, `getById`) to query `SessionType` table via Prisma. Add `create`, `update`, `delete` functions. Filter `getAll` by `active`.                       | *Pass*: Helper uses Prisma. Unit tests (mocking Prisma) pass for CRUD operations. |
+| [ ]**PH6‑07** | **Implement `/session_add` Admin Command Handler**                         | Create handler (`src/commands/admin/sessionAdd.js`). Parses args, uses `core/sessionTypes.js` `create` function. Update `commandRegistry`.                                          | *Pass*: Handler created & registered. Unit/Integration tests verify command calls mock `sessionTypes.create`. |
+| [ ]**PH6‑08** | **Implement `/session_del` Admin Command Handler**                         | Create handler (`src/commands/admin/sessionDel.js`). Parses args (ID), uses `core/sessionTypes.js` `delete` function (or sets `active=false`). Update `commandRegistry`.              | *Pass*: Handler created & registered. Unit/Integration tests verify command calls mock `sessionTypes.delete`/`update`. |
+| [ ]**PH6‑09** | **Refactor `sendSessionTypeSelector` Tool**                                | Update `telegramNotifier.sendSessionTypeSelector` (PH5-02b) to use `core/sessionTypes.getAll({ active: true })` (fetching from DB) to generate buttons.                              | *Pass*: Tool uses DB helper, tests updated to mock DB helper call. |
+| [ ]**PH6‑10** | **Implement `/sessions` Admin Command Handler**                            | Create handler (`src/commands/admin/sessions.js`). Queries `sessions` table via Prisma (filter?). Formats & replies with list. Update `commandRegistry`.                          | *Pass*: Handler created & registered. Unit/Integration tests verify command calls mock Prisma `findMany` & formats output. |
+| [ ]**PH6‑11** | **Implement `/clients` Admin Command Handler**                             | Create handler (`src/commands/admin/clients.js`). Queries `users` table via Prisma (filter?). Formats & replies with list. Update `commandRegistry`.                            | *Pass*: Handler created & registered. Unit/Integration tests verify command calls mock Prisma `findMany` & formats output. |
+| [ ]**PH6‑12** | **Test Coverage:**                                                         | Ensure Phase 6 modules (`middleware/commandRouter.js`, `core/sessionTypes.js` refactor, `commands/admin/*`, updated notifiers/scripts) meet ≥ 90% coverage.                    | *Pass*: `npm test` coverage report confirms target. |
+| [ ]**PH6‑13** | **Update `docs/architecture.md`:**                                         | Update diagram/descriptions for command router, DB session types, new admin commands. Update Phase 6 status.                                                                 |
+| [ ]**PH6‑14** | **Final Review:**                                                          | Tick all Phase 6 task boxes here when done and ensure Discoveries/Insights are recorded.                                                                                         |
+
+### 🚧 Discovered During Work
+*(Add new subtasks here, e.g., `PH6‑D1`)*
+
+- **(PH6-02):** Created `src/commands/handlers.js` with stub handlers.
+- **(PH6-02):** Updated `commandRegistry.js` with distinct `/help` commands/handlers for client & admin roles.
+- **(PH6-02):** Implemented `commandRouterMiddleware` with strict role separation.
+- **(PH6-02):** Performed manual verification for distinct `/help` and role-based command access.
+
+### 💡 Insights & Decisions
+*(Explain command routing implementation, session type DB schema choices, admin command design, etc.)*
+*   **(PH6-02):** Tailoring `/help` command per role improves UX. Strict role command access enforced by router. Manual DI used for router dependencies.
+*   **Command Menu:** Decided against a custom `/admin` menu command. Relying on `setMyCommands` with chat scope (set in PH6-04) provides the standard Telegram command menu UI tailored per role.
 
 ### Quick‑Run Commands
 

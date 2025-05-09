@@ -4,53 +4,104 @@
  * descriptions and handler functions for each command.
  */
 
-// --- Stub Handlers ---
-// These are placeholders until actual command logic is implemented.
-
-const handleHelpStub = (ctx) => ctx.reply("stub: /help command");
-const handleBookStub = (ctx) => ctx.reply("stub: /book command");
-const handleCancelStub = (ctx) => ctx.reply("stub: /cancel command");
-const handleSessionsStub = (ctx) => ctx.reply("stub: /sessions command");
-const handleClientsStub = (ctx) => ctx.reply("stub: /clients command");
-const handleSessionAddStub = (ctx) => ctx.reply("stub: /session_add command");
-const handleSessionDelStub = (ctx) => ctx.reply("stub: /session_del command");
+const {
+  handleClientHelpStub,
+  handleAdminHelpStub,
+  startBookingStub,
+  handleCancelStub,
+  handleProfileStub,
+  handleContactAdminStub,
+  handleReferralStub,
+  listSessionsStub,
+  listClientsStub,
+  addSessionTypeStub,
+  removeSessionTypeStub,
+  blockTimeStub,
+  unblockTimeStub,
+  broadcastStub,
+  packageAddStub,
+  packageListStub,
+  voucherAddStub,
+  voucherListStub,
+  analyzeStub,
+} = require("./handlers");
 
 // --- Command Registry ---
 
 const commandRegistry = {
   client: {
     help: {
-      descr: "Show available commands",
-      handler: handleHelpStub,
+      descr: "Show commands available to you.",
+      handler: handleClientHelpStub,
     },
     book: {
-      descr: "Start the session booking process",
-      handler: handleBookStub,
+      descr: "Start the session booking process.",
+      handler: startBookingStub,
     },
     cancel: {
-      descr: "Cancel an ongoing booking or a scheduled session",
+      descr: "Cancel a confirmed, scheduled session.",
       handler: handleCancelStub,
     },
-    // Add other client commands here if needed based on future requirements
+    profile: {
+      descr: "View or manage your profile.",
+      handler: handleProfileStub,
+    },
+    contact_admin: {
+      descr: "Send a message to the admin.",
+      handler: handleContactAdminStub,
+    },
+    referral: {
+      descr: "Get your referral code or information.",
+      handler: handleReferralStub,
+    },
   },
   admin: {
+    help: {
+      descr: "Show admin commands available to you.",
+      handler: handleAdminHelpStub,
+    },
     sessions: {
-      descr: "List upcoming or recent sessions",
-      handler: handleSessionsStub,
+      descr: "List upcoming or recent sessions.",
+      handler: listSessionsStub,
     },
-    clients: {
-      descr: "List registered clients",
-      handler: handleClientsStub,
-    },
+    clients: { descr: "List registered clients.", handler: listClientsStub },
     session_add: {
-      descr: "Add a new type of session offering",
-      handler: handleSessionAddStub,
+      descr: "Add a new session type offering.",
+      handler: addSessionTypeStub,
     },
     session_del: {
-      descr: "Remove an existing session type offering",
-      handler: handleSessionDelStub,
+      descr: "Remove an existing session type offering.",
+      handler: removeSessionTypeStub,
     },
-    // Add other admin commands here if needed based on future requirements
+    block_time: {
+      descr: "Block out time slots as unavailable.",
+      handler: blockTimeStub,
+    },
+    unblock_time: {
+      descr: "Make previously blocked time slots available.",
+      handler: unblockTimeStub,
+    },
+    broadcast: {
+      descr: "Send a message to all or a subset of clients.",
+      handler: broadcastStub,
+    },
+    package_add: {
+      descr: "Add a new session package.",
+      handler: packageAddStub,
+    },
+    package_list: {
+      descr: "List existing session packages.",
+      handler: packageListStub,
+    },
+    voucher_add: {
+      descr: "Create a new discount voucher.",
+      handler: voucherAddStub,
+    },
+    voucher_list: {
+      descr: "List existing vouchers.",
+      handler: voucherListStub,
+    },
+    analyze: { descr: "Get analytics or reports.", handler: analyzeStub },
   },
 };
 
