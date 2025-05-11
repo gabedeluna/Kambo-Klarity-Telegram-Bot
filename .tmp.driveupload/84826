@@ -1,2 +1,0 @@
-0000000000000000000000000000000000000000 32105f153f6cc1f5f0248a7975f045d566fbbaff gabedeluna <deluna.m.gabriel@gmail.com> 1745479435 -0500	branch: Created from HEAD
-32105f153f6cc1f5f0248a7975f045d566fbbaff bf976c7a84a781d86d7fb0656e80f8f9faf91ccb gabedeluna <deluna.m.gabriel@gmail.com> 1745480312 -0500	commit: feat(ph1-02): add mocha/nyc/eslint/prettier/husky toolchain

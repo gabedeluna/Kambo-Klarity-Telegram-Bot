@@ -1,2 +1,0 @@
-0000000000000000000000000000000000000000 0fdd22fb61b7f1a45b6f30c03edee707cc6f14e1 gabedeluna <deluna.m.gabriel@gmail.com> 1745545682 -0500	branch: Created from HEAD
-0fdd22fb61b7f1a45b6f30c03edee707cc6f14e1 cc09cedf4b0d065331545532a5fb8666d5989810 gabedeluna <deluna.m.gabriel@gmail.com> 1745546584 -0500	commit: refactor(tools): Convert googleCalendar to class, fix logger tests

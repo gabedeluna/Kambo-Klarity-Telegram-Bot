@@ -1,5 +1,0 @@
-{
-  "all": true,
-  "reporter": ["text", "lcov"],
-  "exclude": ["legacy/**", "tests/**"]
-}

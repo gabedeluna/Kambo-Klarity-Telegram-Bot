@@ -1,2 +1,0 @@
-0000000000000000000000000000000000000000 eb0137c60fb03b05fda8f8882b702ac506ec7377 gabedeluna <deluna.m.gabriel@gmail.com> 1745537572 -0500	branch: Created from HEAD
-eb0137c60fb03b05fda8f8882b702ac506ec7377 d46db149b31eded9b4e749b5d90961b878a41e7e gabedeluna <deluna.m.gabriel@gmail.com> 1745539334 -0500	commit: feat(telegram): implement and test sendTextMessage notifier

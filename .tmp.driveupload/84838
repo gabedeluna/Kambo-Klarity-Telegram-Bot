@@ -1,3 +1,0 @@
-0000000000000000000000000000000000000000 d98ce1e02b43ce1ceb22b4736111cdc314a9805b gabedeluna <deluna.m.gabriel@gmail.com> 1745502598 -0500	branch: Created from HEAD
-d98ce1e02b43ce1ceb22b4736111cdc314a9805b adff31d2ba4b240a3199da1f0ca854ac44fd3251 gabedeluna <deluna.m.gabriel@gmail.com> 1745527036 -0500	commit: feat: implement structured logging with Pino and fix tests
-adff31d2ba4b240a3199da1f0ca854ac44fd3251 bd2a9661b620a7f2c2c4ab7e91fdd31a8f62a9fe gabedeluna <deluna.m.gabriel@gmail.com> 1745528327 -0500	commit: feat(app): PH2-02 setup centralized error handling middleware

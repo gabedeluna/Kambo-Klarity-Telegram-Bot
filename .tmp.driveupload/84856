@@ -1,2 +1,0 @@
-0000000000000000000000000000000000000000 55faeb686f983bf4b7d9431ee77d194d4182af81 gabedeluna <deluna.m.gabriel@gmail.com> 1745486148 -0500	branch: Created from HEAD
-55faeb686f983bf4b7d9431ee77d194d4182af81 799acba8759292ba8b71ab71e42e2e08da1a5fcb gabedeluna <deluna.m.gabriel@gmail.com> 1745486719 -0500	commit: feat(core): PH1-05 implement telegraf bot singleton and basic tests

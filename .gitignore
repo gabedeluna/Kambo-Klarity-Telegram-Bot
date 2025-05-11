@@ -11,3 +11,6 @@ coverage/
 
 # LangGraph API
 .langgraph_api
+
+#Google Drive config
+.tmp.driveupload/

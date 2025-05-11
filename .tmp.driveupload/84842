@@ -1,2 +1,0 @@
-0000000000000000000000000000000000000000 e80d4330e5be4ada27346b589e3c6d9e78c4b09d gabedeluna <deluna.m.gabriel@gmail.com> 1745489562 -0500	branch: Created from HEAD
-e80d4330e5be4ada27346b589e3c6d9e78c4b09d 45eb41391b9197b8aa6647d3a440f97999d8642c gabedeluna <deluna.m.gabriel@gmail.com> 1745489595 -0500	commit: feat(commands): PH1-08 scaffold command registry with stubs and tests

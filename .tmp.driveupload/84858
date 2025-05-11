@@ -1,2 +1,0 @@
-0000000000000000000000000000000000000000 b4dc3f343f0a8dfb4e38f3c9b30e703adf4e3fb4 gabedeluna <deluna.m.gabriel@gmail.com> 1746086221 -0500	branch: Created from HEAD
-b4dc3f343f0a8dfb4e38f3c9b30e703adf4e3fb4 52374a58a62109ce05582bc627be90fb01ab1a6e gabedeluna <deluna.m.gabriel@gmail.com> 1746093712 -0500	commit: fix(middleware): PH5 add missing new user check to update router
