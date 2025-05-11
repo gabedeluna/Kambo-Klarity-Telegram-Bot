@@ -1,0 +1,6 @@
+0000000000000000000000000000000000000000 14c6d1e7733547ece3a96a3ad8bb81f5f6d4f0ef gabedeluna <deluna.m.gabriel@gmail.com> 1744879505 -0500	commit (initial): Initial commit
+14c6d1e7733547ece3a96a3ad8bb81f5f6d4f0ef 14c6d1e7733547ece3a96a3ad8bb81f5f6d4f0ef gabedeluna <deluna.m.gabriel@gmail.com> 1744879511 -0500	Branch: renamed refs/heads/master to refs/heads/main
+14c6d1e7733547ece3a96a3ad8bb81f5f6d4f0ef c2cca909ab0aa6774b2b0a14c0f0772a271f99e4 gabedeluna <deluna.m.gabriel@gmail.com> 1744879839 -0500	pull origin main --rebase: Fast-forward
+c2cca909ab0aa6774b2b0a14c0f0772a271f99e4 edd0b4c9bb6432917469b99a17b549edbcd1b78a gabedeluna <deluna.m.gabriel@gmail.com> 1744880217 -0500	commit: Fix submodule issue: add telegram-hello files directly
+edd0b4c9bb6432917469b99a17b549edbcd1b78a 64495d9cc884f341b7277bbbc5722bfb9599e435 gabedeluna <deluna.m.gabriel@gmail.com> 1744884712 -0500	commit: Add .env.example, update README, add webhook support
+64495d9cc884f341b7277bbbc5722bfb9599e435 8bb1302e5e73c11476c80786dde6e8c2b8007840 gabedeluna <deluna.m.gabriel@gmail.com> 1745005810 -0500	commit: Commit before major refactor

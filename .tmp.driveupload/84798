@@ -1,0 +1,2 @@
+0000000000000000000000000000000000000000 52374a58a62109ce05582bc627be90fb01ab1a6e gabedeluna <deluna.m.gabriel@gmail.com> 1746157249 -0500	branch: Created from HEAD
+52374a58a62109ce05582bc627be90fb01ab1a6e 07249fb492007110750c5c9efd7d270e3dbe1875 gabedeluna <deluna.m.gabriel@gmail.com> 1746164981 -0500	commit: feat: implement static file serving & resolve lint errors

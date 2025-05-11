@@ -1,0 +1,2 @@
+0000000000000000000000000000000000000000 28da8d32693ed3731a1f2f0bd33ef77b70024ad7 gabedeluna <deluna.m.gabriel@gmail.com> 1745558016 -0500	branch: Created from HEAD
+28da8d32693ed3731a1f2f0bd33ef77b70024ad7 4cd45f7078c18e011a0bd7ffcce3f0a076e1d28d gabedeluna <deluna.m.gabriel@gmail.com> 1745558513 -0500	commit: feat(tools): add zod schemas and validation for tool inputs

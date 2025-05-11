@@ -1,80 +1,107 @@
 # Architecture Overview
 
-Revised 2025-04-30 v9
+Revised 2025-05-09 v9
 
-## Folder Layout (End of Phase 4)
+## Folder Layout (as of 2025-05-09)
 
 ```
 .
+├── .env
+├── .eslintignore
+├── .eslintrc.json
+├── .gitignore
 ├── .husky/             # Git hooks managed by Husky
-├── bin/                # Executable scripts
-│   └── server.js       # Starts the Express server
-├── docs/               # Project documentation
+├── .mocharc.js
+├── .nycrc
+├── .prettierrc.json
+├── .windsurfrules
+├── PLANNING.md
+├── README.md
+├── TASK.md
+├── TaskContent&DefinitionsLog.md
+├── bin/
+│   └── server.js       # Starts the Express server & Telegraf bot
+├── docs/
 │   └── architecture.md # This file
-├── legacy/             # Original codebase (for reference)
-│   └── ...
-├── node_modules/       # Project dependencies
-├── src/                # Source code for the application
-│   ├── agents/         # Agent definitions
+├── eslint.config.js
+├── package-lock.json
+├── package.json
+├── prisma/
+│   └── schema.prisma   # Database schema
+│   └── migrations/     # Database migration files
+├── public/             # Static assets for webhooks/UI (if any)
+├── set_all_commands.js # Script to register bot commands with Telegram
+├── src/
+│   ├── agents/
 │   │   └── bookingAgent.js
-│   ├── app.js
+│   ├── app.js            # Main application setup
 │   ├── commands/
-│   │   └── registry.js
+│   │   ├── registry.js
+│   │   └── (other command files ...)
 │   ├── config/
 │   │   ├── agentPrompts.js
-│   │   └── sessionTypes.json # (To be replaced)
+│   │   └── sessionTypes.js
 │   ├── core/
 │   │   ├── bot.js
 │   │   ├── env.js
 │   │   ├── logger.js
 │   │   ├── prisma.js
-│   │   └── sessionTypes.js
+│   │   └── sessionTypes.js # (Likely deprecated by config/sessionTypes.js)
 │   ├── errors/
-│   │   └── ...
-│   ├── graph/          # NEW (PH4) LangGraph definitions
-│   │   ├── bookingGraph.js # Compiled graph
-│   │   ├── edges.js        # Conditional routing logic
-│   │   ├── nodes.js        # Node implementation functions
-│   │   └── state.js        # State schema definition
-│   ├── memory/         # Conversation memory
+│   │   └── (custom error classes ...)
+│   ├── graph/
+│   │   ├── bookingGraph.js
+│   │   ├── edges.js
+│   │   ├── nodes.js
+│   │   └── state.js
+│   ├── handlers/         # Telegraf command/event handlers
+│   │   └── (handler files ...)
+│   ├── memory/
 │   │   └── sessionMemory.js
 │   ├── middleware/
-│   │   └── errorHandler.js
+│   │   ├── attachUser.js
+│   │   ├── errorHandler.js
+│   │   ├── rateLimiter.js
+│   │   ├── session.js
+│   │   ├── unknownUpdate.js
+│   │   └── updateRouter.js
+│   ├── routes/           # Express API routes
+│   │   └── (route files ...)
 │   ├── tools/
 │   │   ├── googleCalendar.js
 │   │   ├── stateManager.js
 │   │   ├── telegramNotifier.js
 │   │   └── toolSchemas.js
-│   └── tests/          # Unit & Integration tests (in root /tests)
-├── tests/              # Root test directory
-│   ├── agents/         # Tests for agent logic
+├── tests/
+│   ├── agents/
 │   │   └── bookingAgent.test.js
+│   ├── app.test.js
+│   ├── bin/
+│   │   └── server.test.js
 │   ├── commands/
 │   │   └── registry.test.js
 │   ├── core/
-│   │   └── ... (core tests)
-│   ├── errors/
-│   │   └── ...
-│   ├── graph/          # NEW (PH4) Tests for LangGraph
+│   │   └── (core module tests ...)
+│   ├── graph/
 │   │   ├── bookingGraph.test.js
 │   │   ├── edges.test.js
 │   │   ├── nodes.test.js
 │   │   └── state.test.js
-│   ├── memory/         # Tests for memory management
+│   ├── health.test.js
+│   ├── helpers/
+│   │   └── (test helper files ...)
+│   ├── memory/
 │   │   └── sessionMemory.test.js
 │   ├── middleware/
-│   │   └── errorHandler.test.js
-│   ├── tools/
-│   │   └── ... (tools tests)
-│   ├── app.test.js
-│   └── health.test.js
-├── .env                # Environment variables (ignored by Git)
-├── .gitignore          # Files ignored by Git
-├── eslint.config.js    # ESLint configuration
-├── package-lock.json   # Dependency lock file
-├── package.json        # Project manifest & dependencies
-├── PLANNING.md         # Project planning document
-└── TASK.md             # Sprint task checklist
+│   │   └── (middleware tests ...)
+│   ├── mocks/
+│   │   └── (mock files ...)
+│   ├── placeholder.test.js
+│   ├── routes/
+│   │   └── (route tests ...)
+│   ├── setup.js          # Global test setup (e.g., Sinon sandbox)
+│   └── tools/
+│       └── (tool tests ...)
 ```
 
 ## 6. Key Modules & Workflows
@@ -122,7 +149,8 @@ The primary user interaction for booking sessions is managed by a stateful graph
   - Assembled and compiled the booking graph using LangGraph (`graph/bookingGraph.js`).
   - Implemented graph execution tests covering key flows (`tests/graph/bookingGraph.test.js`).
   - Achieved >90% test coverage for Phase 4 modules.
-- **Phase 5: Core Routing & Server Merge** - Pending
+- **Phase 5: Core Routing & Server Merge** - Completed (Date: 2025-05-09)
+- **Phase 6: Pending**
 
 **AI:** LangChain JS + LangGraph. LLM selected via `AI_PROVIDER` env var ('openai' for GPT-4 Turbo, 'gemini' for Gemini 1.5 Flash). Agent via `createToolCallingAgent`.
 

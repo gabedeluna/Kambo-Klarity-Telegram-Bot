@@ -1,0 +1,165 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	symlinks = false
+	ignorecase = true
+	hooksPath = .husky/_
+[remote "origin"]
+	url = https://github.com/gabedeluna/Kambo-Klarity-Telegram-Bot.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
+	vscode-merge-base = origin/main
+[branch "main-dev"]
+	vscode-merge-base = origin/main
+[branch "develop"]
+	vscode-merge-base = origin/main
+[branch "feat/ph1-01-sourcetree"]
+	vscode-merge-base = origin/main
+[branch "feat/ph1-02-devtoolchain"]
+	vscode-merge-base = origin/main
+[branch "feat/ph1-03-env"]
+	vscode-merge-base = origin/main
+[branch "feat/PH1-05-core-bot"]
+	vscode-merge-base = origin/main
+[branch "feat/PH1-06-core-app"]
+	vscode-merge-base = origin/main
+[branch "feat/PH1-07-server-startup"]
+	vscode-merge-base = origin/main
+[branch "feat/PH1-08-command-registry"]
+	vscode-merge-base = origin/main
+[branch "feat/PH1-09-session-types"]
+	vscode-merge-base = origin/main
+[branch "feat/PH1-10-initial-tests"]
+	vscode-merge-base = origin/main
+[branch "feat/PH1-11-husky-setup"]
+	vscode-merge-base = origin/main
+[branch "docs/PH1-12-update-architecture"]
+	vscode-merge-base = origin/main
+[branch "feat/PH2-01-structured-logging"]
+	vscode-merge-base = origin/main
+[branch "feat/PH2-02-error-handling"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH2-02-error-handling
+[branch "feat/PH2-03-create-tools-dir"]
+	vscode-merge-base = origin/feat/PH2-02-error-handling
+[branch "feat/PH2-04-tool-resetUserState"]
+	vscode-merge-base = origin/main
+[branch "feat/PH2-05-tool-updateUserState"]
+	vscode-merge-base = origin/main
+[branch "feat/PH2-06-tool-storeBookingData"]
+	vscode-merge-base = origin/main
+[branch "feat/PH2-08-tool-send-text-message"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH2-08-tool-send-text-message
+[branch "feat/PH2-07-tool-send-waiver-link"]
+	vscode-merge-base = origin/feat/PH2-08-tool-send-text-message
+	remote = origin
+	merge = refs/heads/feat/PH2-07-tool-send-waiver-link
+[branch "feat/PH2-09-tool-gcal-findslots-stub"]
+	vscode-merge-base = origin/feat/PH2-07-tool-send-waiver-link
+[branch "feat/PH2-10-tool-gcal-createevent-stub"]
+	vscode-merge-base = origin/main
+[branch "feat/PH2-11-tool-schemas"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH2-11-tool-schemas
+[branch "feat/PH2-12-veteran-status"]
+	vscode-merge-base = origin/feat/PH2-11-tool-schemas
+	remote = origin
+	merge = refs/heads/feat/PH2-12-veteran-status
+[branch "feat/PH2-13-tool-set-role-commands"]
+	vscode-merge-base = origin/main
+[branch "feat/PH2-13-tool-set-role-commands-simple-tests"]
+	vscode-merge-base = origin/feat/PH2-12-veteran-status
+	remote = origin
+	merge = refs/heads/feat/PH2-13-tool-set-role-commands-simple-tests
+[branch "chore/PH2-14-phase2-coverage"]
+	vscode-merge-base = origin/feat/PH2-13-tool-set-role-commands-simple-tests
+[branch "docs/PH2-15-update-architecture-phase2"]
+	vscode-merge-base = origin/main
+[branch "feat/PH3-01-langsmith-setup"]
+	vscode-merge-base = origin/main
+[branch "feat/PH3-02-conversation-memory"]
+	vscode-merge-base = origin/main
+[branch "feat/PH3-04-agent-prompt"]
+	vscode-merge-base = origin/main
+[branch "feat/PH3-05-structure-tools-for-agent"]
+	vscode-merge-base = origin/main
+[branch "feat/PH3-06-booking-agent"]
+	vscode-merge-base = origin/main
+[branch "feat/PH3-07-tool-user-data"]
+	vscode-merge-base = origin/main
+[branch "feat/PH3-08-agent-context-suggestions"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH3-08-agent-context-suggestions
+[branch "test/PH3-09-booking-agent-tests"]
+	vscode-merge-base = origin/feat/PH3-08-agent-context-suggestions
+	remote = origin
+	merge = refs/heads/test/PH3-09-booking-agent-tests
+[branch "feat/PH3-10-multi-provider-agent"]
+	vscode-merge-base = origin/test/PH3-09-booking-agent-tests
+[branch "test/PH3-11-multi-provider-agent-tests"]
+	vscode-merge-base = origin/main
+[branch "chore/PH3-12-phase3-coverage"]
+	vscode-merge-base = origin/main
+[branch "docs/PH3-13-update-architecture-phase3"]
+	vscode-merge-base = origin/main
+[branch "feat/PH4-01-graph-state"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH4-01-graph-state
+[branch "feat/PH4-02-graph-nodes"]
+	vscode-merge-base = origin/feat/PH4-01-graph-state
+[branch "feat/PH4-03-graph-edges"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH4-03-graph-edges
+[branch "feat/PH4-04-assemble-graph"]
+	vscode-merge-base = origin/feat/PH4-03-graph-edges
+[branch "test/PH4-06-graph-execution"]
+	vscode-merge-base = origin/main
+[branch "docs/PH4-08-update-architecture-phase4"]
+	vscode-merge-base = origin/main
+[branch "feat/PH5-01-user-lookup-middleware"]
+	vscode-merge-base = origin/main
+[branch "feat/PH5-02-update-router-and-selector"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH5-02-update-router-and-selector
+[branch "feat/PH5-02c-callback-handler"]
+	vscode-merge-base = origin/feat/PH5-02-update-router-and-selector
+[branch "feat/PH5-03-integrate-graph-router"]
+	vscode-merge-base = origin/main
+[branch "feat/PH5-04-app-use-middleware"]
+	vscode-merge-base = origin/main
+[branch "feat/PH5-05-static-serving"]
+	vscode-merge-base = origin/main
+[branch "feat/PH5-06-form-routes"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/PH5-06-form-routes
+[branch "feat/PH5-07-registration-handler-final"]
+	vscode-merge-base = origin/feat/PH5-06-form-routes
+[branch "feat/PH5-08-api-user-data"]
+	vscode-merge-base = origin/main
+[branch "feat/PH5-09-api-submit-waiver"]
+	vscode-merge-base = origin/main
+[branch "feat/PH5-10-waiver-completed"]
+	vscode-merge-base = origin/main
+[branch "test/PH5-13-waiver-endpoint-tests"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/test/PH5-13-waiver-endpoint-tests
+[branch "feat/PH6-02-command-router-refined-help"]
+	vscode-merge-base = origin/test/PH5-13-waiver-endpoint-tests
+	remote = origin
+	merge = refs/heads/feat/PH6-02-command-router-refined-help
+[branch "feat/PH6-03-integrate-command-router-new"]
+	vscode-merge-base = origin/feat/PH6-02-command-router-refined-help
