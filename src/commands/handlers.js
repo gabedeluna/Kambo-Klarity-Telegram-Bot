@@ -37,7 +37,9 @@ async function listSessionsStub(ctx) {
 
 // Stub for /dashboard command (admin)
 async function dashboardStub(ctx) {
-  await ctx.reply("Admin dashboard command placeholder. This will link to the web admin interface.");
+  await ctx.reply(
+    "Admin dashboard command placeholder. This will link to the web admin interface.",
+  );
 }
 
 // Stub for /broadcast command (admin)

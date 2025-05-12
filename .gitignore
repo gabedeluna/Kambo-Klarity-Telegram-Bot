@@ -14,3 +14,6 @@ coverage/
 
 #Google Drive config
 .tmp.driveupload/
+
+# Temporary development scripts
+# bin/test_sessionTypes_module.js

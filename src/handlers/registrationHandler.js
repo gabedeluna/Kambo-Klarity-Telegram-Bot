@@ -151,13 +151,11 @@ async function handleRegistrationSubmit(req, res) {
   }
 
   // Send Success Response
-  res
-    .status(201)
-    .json({
-      success: true,
-      message: "Registration successful!",
-      userId: savedUser.client_id,
-    });
+  res.status(201).json({
+    success: true,
+    message: "Registration successful!",
+    userId: savedUser.client_id,
+  });
 }
 
 module.exports = {

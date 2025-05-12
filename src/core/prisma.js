@@ -1,10 +1,13 @@
-// src/core/prisma.js
-
-// Import PrismaClient
+/**
+ * Singleton Prisma Client instance with graceful shutdown handling.
+ * @module core/prisma
+ */
 const { PrismaClient } = require("@prisma/client");
 
-// Import the default logger but allow it to be overridden for testing
-let logger = require("./logger");
+// Import the main application logger
+const appLogger = require("./logger");
+// Create a child logger specifically for prisma messages
+const logger = appLogger.child({ component: "prisma" });
 
 let prismaInstance;
 
@@ -14,58 +17,97 @@ const VALID_PRISMA_LOG_LEVELS = ["query", "info", "warn", "error"];
 if (!prismaInstance) {
   // Determine Prisma log configuration from environment variable
   let prismaLogLevels = [];
-  if (process.env.PRISMA_LOG_LEVEL) {
-    const levels = process.env.PRISMA_LOG_LEVEL.split(",").map((level) =>
+  if (process.env.PRISMA_LOGGING) {
+    const levels = process.env.PRISMA_LOGGING.split(",").map((level) =>
       level.trim(),
     );
-    const invalidLevels = levels.filter(
-      (level) => !VALID_PRISMA_LOG_LEVELS.includes(level),
+    prismaLogLevels = levels.filter((level) =>
+      VALID_PRISMA_LOG_LEVELS.includes(level),
     );
-
-    if (invalidLevels.length > 0) {
-      logger.error(
-        `Invalid PRISMA_LOG_LEVEL detected: [${invalidLevels.join(", ")}]. Using default logging. Valid levels are: [${VALID_PRISMA_LOG_LEVELS.join(", ")}]`,
-      );
-      // Optionally, you might want to throw an error or use defaults
-      // For now, just log and use default (empty array)
-    } else {
-      prismaLogLevels = levels;
-    }
   }
 
-  // Instantiate Prisma Client with determined logging config
   prismaInstance = new PrismaClient({
-    log: prismaLogLevels.length > 0 ? prismaLogLevels : undefined, // Pass undefined if no valid levels specified
+    log: prismaLogLevels.length > 0 ? prismaLogLevels : undefined,
   });
-  logger.info("[core/prisma] Prisma Client instantiated.");
+  logger.info("Prisma Client instantiated.");
 
-  process.on("beforeExit", async () => {
-    logger.info(
-      "[core/prisma] Disconnecting Prisma Client due to application exit...",
-    );
-    try {
-      await prismaInstance.$disconnect();
-      logger.info("[core/prisma] Prisma Client disconnected successfully.");
-    } catch (error) {
-      logger.error(error, "[core/prisma] Error disconnecting Prisma Client");
-    }
-  });
+  let isDisconnecting = false;
+  let isDisconnected = false;
+
+  function setupPrismaShutdownHandlers() {
+    const disconnectFn = async (signalOrEvent) => {
+      if (!prismaInstance) {
+        logger.warn(
+          `Prisma instance not available for disconnection (triggered by ${signalOrEvent}).`,
+        );
+        return;
+      }
+      if (isDisconnected) {
+        logger.debug(
+          `Prisma Client already disconnected (triggered by ${signalOrEvent}).`,
+        );
+        return;
+      }
+      if (isDisconnecting) {
+        logger.debug(
+          `Prisma Client disconnection already in progress (triggered by ${signalOrEvent}).`,
+        );
+        return;
+      }
+
+      isDisconnecting = true;
+      logger.info(`Received ${signalOrEvent}. Disconnecting Prisma Client...`);
+      try {
+        await prismaInstance.$disconnect();
+        logger.info("Prisma Client disconnected successfully.");
+        isDisconnected = true;
+      } catch (error) {
+        logger.error(
+          { err: error },
+          "Error disconnecting Prisma Client during shutdown.",
+        );
+      } finally {
+        isDisconnecting = false;
+      }
+    };
+
+    process.on("SIGINT", async () => {
+      await disconnectFn("SIGINT");
+      process.exit(0);
+    });
+    process.on("SIGTERM", async () => {
+      await disconnectFn("SIGTERM");
+      process.exit(0);
+    });
+
+    process.on("beforeExit", async () => {
+      logger.debug(
+        "beforeExit event triggered. Ensuring Prisma client is disconnected.",
+      );
+      await disconnectFn("beforeExit");
+    });
+
+    process.on("uncaughtException", async (error) => {
+      logger.fatal({ err: error }, "Uncaught Exception. Shutting down...");
+      await disconnectFn("uncaughtException");
+      process.exit(1);
+    });
+
+    process.on("unhandledRejection", async (reason, promise) => {
+      logger.fatal(
+        { reason, promise },
+        "Unhandled Rejection. Shutting down...",
+      );
+      await disconnectFn("unhandledRejection");
+      process.exit(1);
+    });
+  }
+
+  setupPrismaShutdownHandlers();
 }
 
 /**
- * The singleton Prisma Client instance for the application.
- * @type {import('@prisma/client').PrismaClient}
+ * The singleton PrismaClient instance.
+ * @type {PrismaClient}
  */
-const prismaExport = prismaInstance;
-
-/**
- * Set a custom logger for testing purposes
- * @param {Object} customLogger - A logger object with standard methods
- * @returns {import('@prisma/client').PrismaClient} - The prisma instance
- */
-prismaExport.setLogger = function (customLogger) {
-  logger = customLogger;
-  return prismaExport;
-};
-
-module.exports = prismaExport;
+module.exports = prismaInstance;

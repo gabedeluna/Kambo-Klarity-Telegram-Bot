@@ -34,74 +34,101 @@ async function handleCommand(ctx) {
   const userId = user?.id || ctx.from?.id;
 
   if (!userRole) {
-    logger.warn({ userId, commandName }, "User role not found in ctx.state.user. Defaulting to 'CLIENT'. Ensure attachUser middleware runs correctly.");
-    userRole = 'CLIENT'; 
+    logger.warn(
+      { userId, commandName },
+      "User role not found in ctx.state.user. Defaulting to 'CLIENT'. Ensure attachUser middleware runs correctly.",
+    );
+    userRole = "CLIENT";
   }
   // Normalize role to uppercase just in case it's stored differently (e.g., 'admin' vs 'ADMIN')
   const normalizedUserRole = userRole.toUpperCase();
 
-  logger.info({ commandName, userRole: normalizedUserRole, userId }, "Attempting to handle command.");
+  logger.info(
+    { commandName, userRole: normalizedUserRole, userId },
+    "Attempting to handle command.",
+  );
 
   let handlerInfo = null;
   let commandGroup = null;
 
-  if (normalizedUserRole === 'CLIENT') {
+  if (normalizedUserRole === "CLIENT") {
     // Clients: Check client commands first
     if (commandRegistry.client && commandRegistry.client[commandName]) {
       handlerInfo = commandRegistry.client[commandName];
-      commandGroup = 'client';
-    } 
+      commandGroup = "client";
+    }
     // Optional: If you want clients to *never* access admin commands, even by mistake, stop here.
     // Or, if some admin commands might be benignly viewable or have a specific 'denied' message:
     // else if (commandRegistry.admin && commandRegistry.admin[commandName]) {
     //   handlerInfo = commandRegistry.admin[commandName];
     //   commandGroup = 'admin'; // This will then be caught by the role check later
     // }
-  } else if (normalizedUserRole === 'ADMIN') {
+  } else if (normalizedUserRole === "ADMIN") {
     // Admins: Check admin commands first
     if (commandRegistry.admin && commandRegistry.admin[commandName]) {
       handlerInfo = commandRegistry.admin[commandName];
-      commandGroup = 'admin';
+      commandGroup = "admin";
     } else if (commandRegistry.client && commandRegistry.client[commandName]) {
       // If admin command not found, check client - will be used to deny client-only commands
       handlerInfo = commandRegistry.client[commandName];
-      commandGroup = 'client';
+      commandGroup = "client";
     }
   } else {
     // Unrecognized role - should not happen if normalization and defaulting are correct
-    logger.error({ userId, commandName, userRole: normalizedUserRole }, 'User with unrecognized role type during command lookup.');
+    logger.error(
+      { userId, commandName, userRole: normalizedUserRole },
+      "User with unrecognized role type during command lookup.",
+    );
     // Fall through, will be treated as unknown command by the next block
   }
 
-  if (handlerInfo && typeof handlerInfo.handler === 'function') {
-    if (commandGroup === 'admin') {
-      if (normalizedUserRole === 'ADMIN') {
-        logger.info({ userId, commandName }, 'Executing admin command.');
+  if (handlerInfo && typeof handlerInfo.handler === "function") {
+    if (commandGroup === "admin") {
+      if (normalizedUserRole === "ADMIN") {
+        logger.info({ userId, commandName }, "Executing admin command.");
         await handlerInfo.handler(ctx);
       } else {
-        logger.warn({ userId, commandName, userRole: normalizedUserRole }, 'Non-ADMIN user attempted admin command.');
+        logger.warn(
+          { userId, commandName, userRole: normalizedUserRole },
+          "Non-ADMIN user attempted admin command.",
+        );
         await ctx.reply("Sorry, this command is for administrators only.");
       }
-    } else if (commandGroup === 'client') {
+    } else if (commandGroup === "client") {
       // For client commands, only 'CLIENT' role should execute.
       // Admins attempting client commands are explicitly denied.
-      if (normalizedUserRole === 'CLIENT') {
-        logger.info({ userId, commandName }, 'Executing client command.');
+      if (normalizedUserRole === "CLIENT") {
+        logger.info({ userId, commandName }, "Executing client command.");
         await handlerInfo.handler(ctx);
-      } else if (normalizedUserRole === 'ADMIN') {
-        logger.info({ userId, commandName }, 'ADMIN user attempted client-only command.');
-        await ctx.reply("This command is for general client use. Please use specific admin commands or the dashboard.");
+      } else if (normalizedUserRole === "ADMIN") {
+        logger.info(
+          { userId, commandName },
+          "ADMIN user attempted client-only command.",
+        );
+        await ctx.reply(
+          "This command is for general client use. Please use specific admin commands or the dashboard.",
+        );
       } else {
         // This case should ideally not be reached if roles are strictly 'ADMIN' or 'CLIENT'.
-        logger.error({ userId, commandName, userRole: normalizedUserRole }, 'User with unrecognized role attempted client command.');
-        await ctx.reply("Your user role is not properly configured to use this command.");
+        logger.error(
+          { userId, commandName, userRole: normalizedUserRole },
+          "User with unrecognized role attempted client command.",
+        );
+        await ctx.reply(
+          "Your user role is not properly configured to use this command.",
+        );
       }
     }
     // If commandGroup is null, it implies the command was not found in either registry section,
     // which is handled by the 'else' block below.
   } else {
-    logger.warn({ userId, commandName, userRole: normalizedUserRole }, 'Unknown command or no handler defined.');
-    await ctx.reply(`Sorry, I don't recognize the command "/${commandName}". Please use /help to see available commands.`);
+    logger.warn(
+      { userId, commandName, userRole: normalizedUserRole },
+      "Unknown command or no handler defined.",
+    );
+    await ctx.reply(
+      `Sorry, I don't recognize the command "/${commandName}". Please use /help to see available commands.`,
+    );
   }
 }
 
