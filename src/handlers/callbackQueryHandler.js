@@ -162,7 +162,7 @@ async function handleCallbackQuery(ctx) {
       telegramId: telegramId,
     });
     // Consider resetting state here?
-    await stateManager.resetUserState({ telegramId }); // Reset state on agent failure
+    await stateManager.resetUserState(telegramId); // Pass telegramId directly
     return; // Stop processing
   }
 

@@ -7,7 +7,6 @@
 const {
   handleClientHelpStub,
   handleAdminHelpStub,
-  startBookingStub,
   handleCancelStub,
   handleProfileStub,
   handleContactAdminStub,
@@ -16,6 +15,8 @@ const {
   dashboardStub,
   broadcastStub,
 } = require("./handlers");
+
+const { handleBookCommand } = require('./client/book');
 
 // --- Command Registry ---
 
@@ -27,7 +28,7 @@ const commandRegistry = {
     },
     book: {
       descr: "Start the session booking process.",
-      handler: startBookingStub,
+      handler: handleBookCommand,
     },
     cancel: {
       descr: "Cancel a confirmed, scheduled session.",

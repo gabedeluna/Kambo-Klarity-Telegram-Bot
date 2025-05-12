@@ -84,6 +84,7 @@ function initializeApp(deps) {
     prisma,
     logger,
     sessionTypes,
+    stateManager, // Pass stateManager here
   });
   logger.info("Telegram Notifier initialized.");
 
@@ -94,6 +95,11 @@ function initializeApp(deps) {
     telegramNotifier: notifierInstance,
   });
   logger.info("Registration Handler initialized.");
+
+  // Initialize Book Command Handler
+  const { initializeBookCommandHandler } = require('./commands/client/book');
+  initializeBookCommandHandler({ notifier: notifierInstance, logger });
+  logger.info("[Book Command Handler] Initialized.");
 
   // --- Create Express App ---
   const app = express();

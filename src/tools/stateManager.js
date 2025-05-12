@@ -405,7 +405,7 @@ function setLogger(newLogger) {
  *
  * @param {object} params - The parameters for fetching user profile data.
  * @param {string} params.telegramId - The Telegram ID of the user.
- * @returns {Promise<{success: boolean, data?: {first_name: string, role: string, state: string, session_type: string|null, active_session_id: string|null}|null, message?: string, error?: string}>} - Result object. `data` is null if user not found.
+ * @returns {Promise<{success: boolean, data?: {first_name: string, role: string, state: string, session_type: string|null, active_session_id: string|null, edit_msg_id: number|null}|null, message?: string, error?: string}>} - Result object. `data` is null if user not found.
  * @throws {Error} If dependencies are not initialized.
  * @throws {z.ZodError} If input validation fails.
  */
@@ -437,6 +437,7 @@ async function getUserProfileData({ telegramId }) {
         state: true,
         session_type: true,
         active_session_id: true,
+        edit_msg_id: true, // Add this line to fetch edit_msg_id
       },
     });
 

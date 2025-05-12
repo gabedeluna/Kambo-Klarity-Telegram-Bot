@@ -1,6 +1,6 @@
 const { Markup } = require("telegraf");
 const commandRegistry = require("../commands/registry"); // Added registry require
-const { toolSchemas } = require("./toolSchemas"); // Import toolSchemas for validation
+// const { toolSchemas } = require("./toolSchemas"); // Import toolSchemas for validation
 
 /**
  * Factory function to create a telegramNotifier instance.
@@ -10,6 +10,7 @@ const { toolSchemas } = require("./toolSchemas"); // Import toolSchemas for vali
  * @param {object} dependencies.logger - The Pino logger instance.
  * @param {object} dependencies.config - The environment config object (needs formUrl).
  * @param {object} dependencies.sessionTypes - Session types helper.
+ * @param {object} dependencies.stateManager - The state manager instance.
  * @returns {object} An object with the notifier functions.
  * @throws {Error} If dependencies or config.formUrl are missing.
  */
@@ -22,7 +23,8 @@ function createTelegramNotifier(dependencies) {
     !dependencies.logger ||
     !dependencies.config ||
     !dependencies.config.formUrl ||
-    !dependencies.sessionTypes
+    !dependencies.sessionTypes ||
+    !dependencies.stateManager // Added stateManager check
   ) {
     const missing = [];
     if (!dependencies) missing.push("dependencies object");
@@ -35,6 +37,7 @@ function createTelegramNotifier(dependencies) {
       if (dependencies.config && !dependencies.config.formUrl)
         missing.push("config.formUrl");
       if (!dependencies.sessionTypes) missing.push("sessionTypes");
+      if (!dependencies.stateManager) missing.push("stateManager"); // Added stateManager to missing check
     }
     const errorMsg = `FATAL: telegramNotifier initialization failed. Missing: ${missing.join(", ")}.`;
     // Use console.error as logger might not be initialized
@@ -48,6 +51,7 @@ function createTelegramNotifier(dependencies) {
   const logger = dependencies.logger;
   const config = dependencies.config;
   const sessionTypes = dependencies.sessionTypes;
+  const stateManager = dependencies.stateManager; // Assign stateManager
 
   logger.info("[telegramNotifier] Instance created successfully.");
 
@@ -216,112 +220,83 @@ function createTelegramNotifier(dependencies) {
   }
 
   /**
-   * Sends a message with session type selection buttons to a Telegram user.
+   * Sends a message to the user allowing them to select a session type.
+   * Fetches session types from the database via `core/sessionTypes.js`.
+   * Displays an inline keyboard with buttons for each available session type.
+   * Stores the `message_id` of the sent selector message in `user.edit_msg_id` using `stateManager`.
    *
-   * @param {object} params - The parameters for sending the selector.
-   * @param {string} params.telegramId - The Telegram ID of the recipient.
-   * @returns {Promise<object>} An object indicating success, failure, and messageId if successful.
+   * @param {object} params - The parameters for sending the session type selector.
+   * @param {string|number} params.telegramId - The Telegram User ID to send the message to.
+   * @returns {Promise<{success: boolean, messageId?: number, error?: string, warning?: string}>}
+   *          - success: true if the operation was successful.
+   *          - messageId: The ID of the sent message, or null if it couldn't be retrieved/stored.
+   *          - error: Description of the error if success is false.
+   *          - warning: Additional information if the message was sent but message_id wasn't stored or an issue occurred.
    */
   async function sendSessionTypeSelector({ telegramId }) {
-    // Validate input using Zod schema (defined in toolSchemas.js)
-    try {
-      toolSchemas.sendSessionTypeSelectorSchema.parse({ telegramId });
-    } catch (error) {
-      logger.error(
-        { error: error.errors, telegramId },
-        "Invalid input for sendSessionTypeSelector",
-      );
-      return { success: false, error: "Invalid input", details: error.errors };
+    if (!telegramId) {
+      logger.error({ telegramId }, "[sendSessionTypeSelector] Failed: Missing telegramId.");
+      return { success: false, error: "Missing telegramId" };
     }
 
-    logger.info({ telegramId }, `Attempting to send session type selector...`);
+    const telegramIdStr = String(telegramId);
+    logger.info({ userId: telegramIdStr }, "[sendSessionTypeSelector] Request received.");
 
     let types;
     try {
-      types = sessionTypes.getAll();
+      types = await sessionTypes.getAll({ active: true }); // Fetch active session types
       if (!types || types.length === 0) {
-        logger.error("No session types found/configured.");
-        return {
-          success: false,
-          error: "Internal configuration error: No session types available.",
-        };
+        logger.warn({ userId: telegramIdStr }, "[sendSessionTypeSelector] No active session types found.");
+        await bot.telegram.sendMessage(telegramIdStr, "Sorry, there are currently no session types available for booking. Please check back later or contact an admin.");
+        return { success: false, error: "No active session types available" };
       }
-    } catch (error) {
-      logger.error({ err: error }, "Error retrieving session types.");
-      return {
-        success: false,
-        error: "Internal error retrieving session types.",
-      };
+      logger.info({ userId: telegramIdStr, count: types.length }, "[sendSessionTypeSelector] Fetched active session types.");
+    } catch (dbErr) {
+      logger.error({ err: dbErr, userId: telegramIdStr }, "[sendSessionTypeSelector] Error fetching session types from DB.");
+      await bot.telegram.sendMessage(telegramIdStr, "Sorry, we encountered an issue retrieving session types. Please try again shortly.");
+      return { success: false, error: "Database error fetching session types" };
     }
 
-    const buttons = types.map(
-      (type) => Markup.button.callback(type.label, `book_session:${type.id}`), // Use type.id
-    );
-    // Arrange buttons (one per row for clarity)
+    let messageText = "Please choose your desired session type:\n";
+    types.forEach(type => {
+      const label = type.label || "Unnamed Session";
+      const duration = type.durationMinutes ? `(${type.durationMinutes} minutes)` : "(Duration not specified)";
+      const description = type.description || "No description available.";
+      messageText += `\n\n*${label}* ${duration}\n_${description}_`; // Using Markdown
+    });
+
+    const buttons = types.map((type) => Markup.button.callback(type.label, `book_session:${type.id}`));
     const keyboard = Markup.inlineKeyboard(buttons.map((btn) => [btn]));
 
-    const messageText = "Please choose your desired session type:";
     let sentMessage;
-
     try {
-      sentMessage = await bot.telegram.sendMessage(
-        telegramId,
-        messageText,
-        keyboard,
-      );
-      logger.info(
-        { telegramId, messageId: sentMessage?.message_id },
-        `Session type selector sent successfully.`,
-      );
+      sentMessage = await bot.telegram.sendMessage(telegramIdStr, messageText, { ...keyboard, parse_mode: 'Markdown' });
+      logger.info({ userId: telegramIdStr, messageId: sentMessage?.message_id }, "[sendSessionTypeSelector] Session type selector sent.");
+    } catch (sendErr) {
+      logger.error({ err: sendErr, userId: telegramIdStr }, "[sendSessionTypeSelector] Error sending session type selector message.");
+      // Don't send another message here, as the primary send failed.
+      return { success: false, error: "Telegram API error sending selector" };
+    }
 
-      if (sentMessage && sentMessage.message_id) {
-        // Store the message ID for potential future edits (e.g., after selection)
-        try {
-          await prisma.users.update({
-            where: { telegram_id: BigInt(telegramId) },
-            data: { edit_msg_id: sentMessage.message_id },
-          });
-          logger.debug(
-            { telegramId, messageId: sentMessage.message_id },
-            "Stored message_id for edits.",
-          );
-          return { success: true, messageId: sentMessage.message_id };
-        } catch (dbError) {
-          logger.error(
-            { err: dbError, telegramId, messageId: sentMessage.message_id },
-            "Database error storing message_id",
-          );
-          // Return success true because the message was sent, but warn about DB issue
-          return {
-            success: true,
-            messageId: sentMessage.message_id,
-            warning: "Database error storing message_id",
-          };
-        }
-      } else {
-        logger.warn(
-          { telegramId },
-          "Telegram did not return a message_id after sending selector.",
+    if (sentMessage && sentMessage.message_id) {
+      try {
+        const updateResult = await stateManager.updateUserState(
+          telegramIdStr, // Pass telegramIdStr directly as the first argument
+          { edit_msg_id: sentMessage.message_id } // Pass the updates object as the second argument
         );
-        return {
-          success: true,
-          messageId: null,
-          warning: "Message sent, but no message_id received.",
-        };
+        if (!updateResult.success) {
+          logger.warn({ userId: telegramIdStr, messageId: sentMessage.message_id, error: updateResult.error }, "[sendSessionTypeSelector] stateManager failed to store edit_msg_id, but message was sent.");
+          return { success: true, messageId: sentMessage.message_id, warning: "Message sent, but failed to store edit_msg_id via stateManager." };
+        }
+        logger.info({ userId: telegramIdStr, messageId: sentMessage.message_id }, "[sendSessionTypeSelector] Stored edit_msg_id using stateManager.");
+        return { success: true, messageId: sentMessage.message_id };
+      } catch (smErr) {
+        logger.error({ err: smErr, userId: telegramIdStr, messageId: sentMessage.message_id }, "[sendSessionTypeSelector] Exception calling stateManager to store edit_msg_id.");
+        return { success: true, messageId: sentMessage.message_id, warning: "Message sent, but exception during stateManager call for edit_msg_id." };
       }
-    } catch (error) {
-      logger.error(
-        { err: error, telegramId },
-        `Failed to send session type selector`,
-      );
-      let userMessage = "Telegram API error";
-      if (error.response && error.response.error_code === 400) {
-        userMessage =
-          "Failed to send selector: Invalid request (e.g., bad chat ID).";
-      } else if (error.response && error.response.error_code === 403) {
-        userMessage = "Failed to send selector: Bot was blocked by the user.";
-      }
-      return { success: false, error: userMessage };
+    } else {
+      logger.warn({ userId: telegramIdStr }, "[sendSessionTypeSelector] Message sent, but message_id was missing in Telegram response.");
+      return { success: true, messageId: null, warning: "Message sent but message_id missing from Telegram response" };
     }
   }
 
@@ -521,9 +496,9 @@ function createTelegramNotifier(dependencies) {
   return {
     sendWaiverLink,
     sendTextMessage,
-    sendSessionTypeSelector,
+    sendSessionTypeSelector, // Export the new function
+    sendAdminNotification, // Keep existing exports
     setRoleSpecificCommands,
-    sendAdminNotification, // <-- Add the new function here
   };
 }
 
