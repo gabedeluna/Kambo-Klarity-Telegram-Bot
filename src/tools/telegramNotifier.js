@@ -343,9 +343,35 @@ function createTelegramNotifier(dependencies) {
       messageText += `\n\n*${label}* ${duration}\n_${description}_`; // Using Markdown
     });
 
-    const buttons = displayableSessionTypes.map((type) =>
-      Markup.button.callback(type.label, `book_session:${type.id}`),
-    );
+    const buttons = displayableSessionTypes.map((type) => {
+      if (!type.id || !type.label) {
+        logger.warn(
+          { userId: telegramIdStr, typeId: type.id },
+          "[sendSessionTypeSelector] Session type missing id or label."
+        );
+        return null;
+      }
+
+      // Use the original label format
+      const buttonLabel = type.label;
+      
+      // Create a web app URL using config.formUrl
+      const calendarAppUrl = `${config.formUrl}/calendar-app.html?telegramId=${telegramIdStr}&sessionTypeId=${type.id}`;
+      return Markup.button.webApp(buttonLabel, calendarAppUrl);
+    }).filter(button => button !== null);
+    
+    if (buttons.length === 0) {
+      logger.warn(
+        { userId: telegramIdStr },
+        "[sendSessionTypeSelector] No valid buttons could be created."
+      );
+      await bot.telegram.sendMessage(
+        telegramIdStr,
+        "Sorry, we encountered an issue with the available session types. Please try again later."
+      );
+      return { success: false, error: "No valid buttons could be created" };
+    }
+    
     const keyboard = Markup.inlineKeyboard(buttons.map((btn) => [btn]));
 
     let sentMessage;
