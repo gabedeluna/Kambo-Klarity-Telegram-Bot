@@ -34,7 +34,6 @@ model users {
   state                   String?   @default("NONE") @db.VarChar
   role                    String?   @default("client") @db.VarChar
   session_type            String?   @db.VarChar
-  conversation_history    String?
   booking_slot            String?   @db.VarChar(255)
   em_first_name           String?   @db.VarChar
   em_last_name            String?   @db.VarChar
@@ -42,6 +41,7 @@ model users {
   edit_msg_id             Int?
   is_veteran_or_responder Boolean   @default(false)
   active_session_id       String?   @unique(map: "client_users_active_session_id_key")
+  can_book_3x3            Boolean   @default(false)
 }
 
 model SessionType {

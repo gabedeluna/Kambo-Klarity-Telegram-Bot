@@ -16,7 +16,7 @@ const {
   broadcastStub,
 } = require("./handlers");
 
-const { handleBookCommand } = require('./client/book');
+const { handleBookCommand } = require("./client/book");
 
 // --- Command Registry ---
 

@@ -42,7 +42,7 @@ const deps = {
   sessionTypes,
   stateManager,
   createTelegramNotifier, // Pass the factory
-  GoogleCalendarTool, // Pass the class
+  GoogleCalendarTool, // Pass the CLASS itself
   bookingAgent, // Pass the module
   graphNodes, // Pass the module
   initializeGraph, // Pass the function
@@ -60,47 +60,121 @@ const deps = {
 
 // 4. Call the initializer function to get the configured Express app
 // This is where the internal initialization of notifier, calendar, agent etc. happens
-const { app: initializedApp } = initializeApp(deps); // Destructure the returned app
+async function main() {
+  try {
+    logger.info("Initializing application components...");
 
-// Determine port from environment or default to 3000
-const PORT = config.PORT || 3000;
+    // Call setLogger for stateManager if it's intended to use the main logger instance
+    stateManager.setLogger(logger); // Ensure stateManager uses the main logger
 
-// 5. Start listening using the *initialized* app
-// Only start listening if the script is run directly
-if (require.main === module) {
-  const server = initializedApp.listen(PORT, () => {
-    // Use initializedApp here
-    logger.info(`[server] Server started successfully.`);
-    logger.info(`[server] Listening on port ${PORT}`);
-    logger.info(
-      `[server] Health check available at http://localhost:${PORT}/health`,
+    // stateManager module doesn't have an initialize method based on its structure.
+    // It's a collection of functions using a shared prisma client.
+    // So, stateManagerInstance will be the module itself.
+    const stateManagerInstance = stateManager;
+
+    // Create notifier instance but we don't need to use it directly as app.js creates its own
+    // Keep this for potential future use or debugging
+    createTelegramNotifier({
+      bot,
+      prisma,
+      logger,
+      config,
+      sessionTypes,
+      stateManager: stateManagerInstance, // Pass the initialized stateManager
+    });
+    // errorHandlerMiddleware is the middleware function itself, no initialize needed.
+    const errorHandlerInstance = errorHandlerMiddleware;
+
+    // Initialize app and its dependent components
+    const { app: initializedApp } = await initializeApp({
+      ...deps, // Spread the global deps object
+      stateManager: stateManagerInstance, // Pass the stateManager module (as instance)
+      // errorHandlerMiddleware from global deps is passed, which app.js uses.
+      // notifierInstance is used by this file's errorHandlerInstance below if needed,
+      // but app.js uses the createTelegramNotifier factory directly.
+    });
+
+    logger.info("Application initialization completed successfully.");
+
+    // Configure Telegraf webhook
+    // The webhook path is constructed from a base path and a secret derived from the bot token
+    // This is a security measure to prevent unauthorized POST requests to the bot's endpoint.
+    // Example: /telegraf/some_secret_path_derived_from_token
+    const secretPath = `/telegraf/${bot.secretPathComponent()}`;
+
+    // Set the webhook. Telegraf will make a request to this URL with updates from Telegram.
+    // NGROK_URL must be set in the environment for local development.
+    if (!config.ngrokUrl) {
+      logger.warn(
+        "NGROK_URL is not set. Webhook will not be set. Bot will rely on polling (if enabled elsewhere) or will not receive updates via webhook.",
+      );
+    } else {
+      await bot.telegram.setWebhook(`${config.ngrokUrl}${secretPath}`);
+      logger.info(`Webhook set to ${config.ngrokUrl}${secretPath}`);
+    }
+
+    // Mount the Telegraf webhook handler. Express will pass matching requests to Telegraf.
+    initializedApp.use(secretPath, bot.webhookCallback(secretPath));
+    logger.info(`Telegraf webhook callback registered at POST ${secretPath}`);
+
+    // Centralized error handling middleware - should be last
+    // Make sure this is the Express middleware, not the Telegraf error handler
+    initializedApp.use(errorHandlerInstance); // Use the errorHandlerMiddleware directly
+    logger.info("Express error handler registered.");
+
+    // Determine port from environment or default to 3000
+    const PORT = config.PORT || 3000;
+
+    // 5. Start listening using the *initialized* app
+    // Only start listening if the script is run directly
+    if (require.main === module) {
+      const server = initializedApp.listen(PORT, () => {
+        // Use initializedApp here
+        logger.info(`[server] Server started successfully.`);
+        logger.info(`[server] Listening on port ${PORT}`);
+        logger.info(
+          `[server] Health check available at http://localhost:${PORT}/health`,
+        );
+        // Note: The actual webhook URL depends on NGROK_URL + secret path.
+        // The secret path component is logged in app.js.
+        // For local dev, combine NGROK_URL and that path.
+      });
+
+      // Handle potential errors during server startup
+      server.on("error", (error) => {
+        if (error.syscall !== "listen") {
+          throw error;
+        }
+
+        // Handle specific listen errors with friendly messages
+        switch (error.code) {
+          case "EACCES":
+            logger.error(`[server] Port ${PORT} requires elevated privileges.`);
+            process.exit(1);
+            break;
+          case "EADDRINUSE":
+            logger.error(`[server] Port ${PORT} is already in use.`);
+            process.exit(1);
+            break;
+          default:
+            throw error;
+        }
+      });
+    }
+
+    // 6. Export the *initialized* Express app instance for testing
+    module.exports = initializedApp; // Export initializedApp
+  } catch (error) {
+    console.error(
+      "CRITICAL: Failed to start application in main function.",
+      error,
     );
-    // Note: The actual webhook URL depends on NGROK_URL + secret path.
-    // The secret path component is logged in app.js.
-    // For local dev, combine NGROK_URL and that path.
-  });
-
-  // Handle potential errors during server startup
-  server.on("error", (error) => {
-    if (error.syscall !== "listen") {
-      throw error;
-    }
-
-    // Handle specific listen errors with friendly messages
-    switch (error.code) {
-      case "EACCES":
-        logger.error(`[server] Port ${PORT} requires elevated privileges.`);
-        process.exit(1);
-        break;
-      case "EADDRINUSE":
-        logger.error(`[server] Port ${PORT} is already in use.`);
-        process.exit(1);
-        break;
-      default:
-        throw error;
-    }
-  });
+    logger.fatal(
+      { err: error },
+      "CRITICAL: Failed to start application in main function.",
+    );
+    process.exit(1);
+  }
 }
 
-// 6. Export the *initialized* Express app instance for testing
-module.exports = initializedApp; // Export initializedApp
+main();

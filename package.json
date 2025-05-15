@@ -11,7 +11,8 @@
     "start:server": "node server.js",
     "dev": "concurrently \"npm run start\" \"npm run start:server\"",
     "set-admin": "node set_admin.js",
-    "set-commands": "node set_default_commands.js"
+    "set-commands": "node set_default_commands.js",
+    "webhook:set": "node bin/set_webhook.js"
   },
   "keywords": [],
   "author": "",

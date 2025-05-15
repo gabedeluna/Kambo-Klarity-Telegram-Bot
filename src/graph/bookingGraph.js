@@ -21,32 +21,78 @@
 const { StateGraph, END } = require("@langchain/langgraph");
 
 /**
+ * Defines the valid states for the booking conversation graph.
+ * @typedef {object} BookingState
+ * @property {string} userInput - The latest input from the user.
+ * @property {string} telegramId - The user's Telegram ID.
+ * @property {Array<object>} chatHistory - The history of the conversation.
+ * @property {object} agentOutcome - The outcome from the main agent's processing.
+ * @property {Array<object>} availableSlots - Slots found by the calendar tool.
+ * @property {object} bookingDetails - Confirmed booking details.
+ * @property {string} googleEventId - ID of the event created in Google Calendar.
+ * @property {string} waiverType - Type of waiver to be sent (e.g., 'kambo', 'course').
+ * @property {string} lastToolResponse - Response from the last tool executed.
+ * @property {string} [error] - Any error message from the last operation.
+ * @property {string} sessionType - E.g. 'private', 'group', 'course'
+ * @property {string} eventName - E.g. 'Kambo Session', 'Training Course: Level 1'
+ * @property {string} bookingStatus - e.g. 'pending_payment', 'confirmed', 'cancelled'
+ * @property {number} [remainingSpots] - For group sessions or courses
+ */
+
+/**
  * Initializes and compiles the booking conversation graph.
  *
- * @param {object} nodes - The initialized nodes module containing agentNode, findSlotsNode, etc.
- * @param {object} edges - The initialized edges module containing routeAgentDecision, etc.
+ * @param {object} params - The parameters object.
+ * @param {object} params.graphNodes - The initialized nodes module containing agentNode, findSlotsNode, etc.
+ * @param {object} params.graphEdges - The initialized edges module containing routeAgentDecision, etc.
+ * @param {object} params.logger - The application logger instance.
  * @returns {StateGraph} The compiled LangGraph workflow.
  */
-function initializeGraph(nodes, edges) {
+function initializeGraph({ graphNodes, graphEdges, logger }) {
+  logger.info(
+    "[bookingGraph] Initializing graph with destructured dependencies...",
+  );
+
+  // Log the types of the main node functions to verify they are functions
+  logger.info(
+    `[bookingGraph] Type of graphNodes.agentNode: ${typeof graphNodes.agentNode}`,
+  );
+  logger.info(
+    `[bookingGraph] Type of graphNodes.findSlotsNode: ${typeof graphNodes.findSlotsNode}`,
+  );
+  logger.info(
+    `[bookingGraph] Type of graphNodes.storeBookingNode: ${typeof graphNodes.storeBookingNode}`,
+  );
+  logger.info(
+    `[bookingGraph] Type of graphNodes.createCalendarEventNode: ${typeof graphNodes.createCalendarEventNode}`,
+  );
+
   // Initialize the workflow state graph with object-based channels
+  // TODO: Define a proper BookingState class for channels for better type safety
   const workflow = new StateGraph({ channels: Object });
 
   // Register all nodes using the provided nodes object
-  workflow.addNode("agentNode", nodes.agentNode);
-  workflow.addNode("findSlotsNode", nodes.findSlotsNode);
-  workflow.addNode("storeBookingNode", nodes.storeBookingNode);
-  workflow.addNode("createCalendarEventNode", nodes.createCalendarEventNode);
-  workflow.addNode("sendWaiverNode", nodes.sendWaiverNode);
-  workflow.addNode("resetStateNode", nodes.resetStateNode);
-  workflow.addNode("handleErrorNode", nodes.handleErrorNode);
-  workflow.addNode("deleteCalendarEventNode", nodes.deleteCalendarEventNode);
-  workflow.addNode("sendTextMessageNode", nodes.sendTextMessageNode);
+  workflow.addNode("agentNode", graphNodes.agentNode);
+  workflow.addNode("findSlotsNode", graphNodes.findSlotsNode);
+  workflow.addNode("storeBookingNode", graphNodes.storeBookingNode);
+  workflow.addNode(
+    "createCalendarEventNode",
+    graphNodes.createCalendarEventNode,
+  );
+  workflow.addNode("sendWaiverNode", graphNodes.sendWaiverNode);
+  workflow.addNode("resetStateNode", graphNodes.resetStateNode);
+  workflow.addNode("handleErrorNode", graphNodes.handleErrorNode);
+  workflow.addNode(
+    "deleteCalendarEventNode",
+    graphNodes.deleteCalendarEventNode,
+  );
+  workflow.addNode("sendTextMessageNode", graphNodes.sendTextMessageNode);
 
   // Set the entry point to the agent node
   workflow.setEntryPoint("agentNode");
 
   // Add edges with conditional routing
-  workflow.addConditionalEdges("agentNode", edges.routeAgentDecision, {
+  workflow.addConditionalEdges("agentNode", graphEdges.routeAgentDecision, {
     findSlotsNode: "findSlotsNode",
     storeBookingNode: "storeBookingNode",
     createCalendarEventNode: "createCalendarEventNode",
@@ -59,15 +105,19 @@ function initializeGraph(nodes, edges) {
   });
 
   // Route after finding slots
-  workflow.addConditionalEdges("findSlotsNode", edges.routeAfterSlotFinding, {
-    agentNode: "agentNode",
-    handleErrorNode: "handleErrorNode",
-  });
+  workflow.addConditionalEdges(
+    "findSlotsNode",
+    graphEdges.routeAfterSlotFinding,
+    {
+      agentNode: "agentNode",
+      handleErrorNode: "handleErrorNode",
+    },
+  );
 
   // Route after storing booking data
   workflow.addConditionalEdges(
     "storeBookingNode",
-    edges.routeAfterBookingStorage,
+    graphEdges.routeAfterBookingStorage,
     {
       createCalendarEventNode: "createCalendarEventNode",
       handleErrorNode: "handleErrorNode",
@@ -77,7 +127,7 @@ function initializeGraph(nodes, edges) {
   // Route after creating calendar event
   workflow.addConditionalEdges(
     "createCalendarEventNode",
-    edges.routeAfterGCalCreation,
+    graphEdges.routeAfterGCalCreation,
     {
       sendWaiverNode: "sendWaiverNode",
       handleErrorNode: "handleErrorNode",
@@ -85,13 +135,17 @@ function initializeGraph(nodes, edges) {
   );
 
   // Route after sending waiver
-  workflow.addConditionalEdges("sendWaiverNode", edges.routeAfterWaiverSent, {
-    [END]: END,
-    handleErrorNode: "handleErrorNode",
-  });
+  workflow.addConditionalEdges(
+    "sendWaiverNode",
+    graphEdges.routeAfterWaiverSent,
+    {
+      [END]: END,
+      handleErrorNode: "handleErrorNode",
+    },
+  );
 
   // Route after resetting state
-  workflow.addConditionalEdges("resetStateNode", edges.routeAfterReset, {
+  workflow.addConditionalEdges("resetStateNode", graphEdges.routeAfterReset, {
     [END]: END,
     handleErrorNode: "handleErrorNode",
   });
@@ -102,8 +156,9 @@ function initializeGraph(nodes, edges) {
   workflow.addEdge("deleteCalendarEventNode", "resetStateNode");
 
   // Compile the graph
-  const bookingGraph = workflow.compile();
-  return bookingGraph;
+  const bookingGraphInstance = workflow.compile(); // Renamed to avoid confusion with module name
+  logger.info("[bookingGraph] Graph compiled successfully.");
+  return bookingGraphInstance;
 }
 
 module.exports = { initializeGraph };

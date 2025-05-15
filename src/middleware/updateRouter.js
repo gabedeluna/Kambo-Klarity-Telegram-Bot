@@ -143,26 +143,79 @@ function initialize(deps) {
         }
         // 3.2 Handle Text Message during Booking
         else if (userState === "BOOKING") {
-          console.log(">>> routeUpdate BOOKING path");
+          logger.info(
+            { telegramId, messageText, activeSessionId: sessionId },
+            ">>> routeUpdate BOOKING path (text message)",
+          );
+
           if (!sessionId) {
             logger.error(
               { telegramId },
-              "Cannot invoke graph: User is in BOOKING state but has no active_session_id.",
+              "User in BOOKING state but has no active_session_id. Cannot invoke agent.",
             );
             await ctx.reply(
-              "There seems to be an issue with your current booking session. Please try starting a new request, perhaps with /book.",
+              "There seems to be an issue with your current booking session. Please try starting over with /book.",
             );
             return;
           }
-          logger.debug(
-            { telegramId, sessionId },
-            "Routing message to booking graph",
+
+          const userInput = messageText;
+
+          logger.info(
+            {
+              telegramId,
+              userInputLength: userInput.length,
+              chatHistoryLength: ctx.state.user?.chat_history?.length || 0,
+            },
+            ">>> routeUpdate BOOKING state - preparing to call runBookingAgent",
           );
-          const graphInput = { userInput: messageText };
-          console.log(">>> routeUpdate BOOKING before invokeGraph");
-          await bookingAgent.invokeGraph(sessionId, graphInput);
-          console.log(">>> routeUpdate BOOKING after invokeGraph");
-          // Agent is expected to handle the reply based on graphOutput
+
+          if (!bookingAgent) {
+            logger.error(
+              { telegramId },
+              "Booking agent not initialized in updateRouter.",
+            );
+            await ctx.reply(
+              "Sorry, there's an issue with my booking system. Please try again later.",
+            );
+            return;
+          }
+
+          const agentResponse = await bookingAgent.runBookingAgent({
+            userInput,
+            telegramId: telegramId.toString(),
+            chatHistory: ctx.state.user?.chat_history || [],
+            // sessionId is implicitly available to runBookingAgent via stateManager if needed for memory keying
+          });
+
+          logger.info(
+            {
+              telegramId,
+              success: agentResponse.success,
+              outputPresent: !!agentResponse.data?.output,
+            },
+            ">>> routeUpdate BOOKING after runBookingAgent",
+          );
+
+          if (
+            agentResponse.success &&
+            agentResponse.data &&
+            agentResponse.data.output
+          ) {
+            await ctx.reply(agentResponse.data.output);
+          } else {
+            logger.error(
+              {
+                telegramId,
+                error: agentResponse.error,
+                responseData: agentResponse.data,
+              },
+              "Error in agent response during BOOKING state or no output.",
+            );
+            await ctx.reply(
+              "Sorry, I encountered an issue processing your request. Please try again or contact support if the problem persists.",
+            );
+          }
           return;
         }
         // 3.3. Handle Generic Text (IDLE state)

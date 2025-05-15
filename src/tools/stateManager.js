@@ -400,16 +400,77 @@ function setLogger(newLogger) {
 }
 
 /**
+ * Retrieves all profile data for a given user from the database.
+ *
+ * @param {object} params - The parameters object.
+ * @param {string|number} params.telegramId - The Telegram ID of the user.
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>} - An object containing the user data or an error message.
+ */
+// This implementation has been replaced by getUserProfileDataEnhanced
+/* async function getUserProfileData({ telegramId }) {
+  if (!telegramId) {
+    logger.error("getUserProfileData called without a telegramId.");
+    return { success: false, error: "Invalid input: telegramId is required." };
+  }
+
+  let bigIntTelegramId;
+  try {
+    bigIntTelegramId = BigInt(telegramId);
+  } catch (error) {
+    logger.error(
+      { telegramId: String(telegramId), err: error },
+      "Invalid telegramId format for getUserProfileData. Cannot convert to BigInt.",
+    );
+    return {
+      success: false,
+      error: "Invalid input: telegramId format is invalid.",
+    };
+  }
+
+  logger.info(
+    { telegramId: String(bigIntTelegramId) },
+    "Attempting to fetch user profile data",
+  );
+
+  try {
+    const user = await prisma.users.findUnique({
+      where: { telegram_id: bigIntTelegramId },
+    });
+
+    if (!user) {
+      logger.warn({ telegramId: String(bigIntTelegramId) }, "User not found.");
+      return { success: false, error: "User not found." };
+    }
+
+    logger.info(
+      { telegramId: String(bigIntTelegramId) },
+      "User profile data fetched successfully.",
+    );
+    return { success: true, data: user };
+  } catch (error) {
+    logger.error(
+      { telegramId: String(bigIntTelegramId), err: error },
+      "Error fetching user profile data from database.",
+    );
+    return {
+      success: false,
+      error: "Database error fetching user profile data.",
+    };
+  }
+} */
+
+/**
  * Retrieves basic profile data for a given user.
  * Fetches fields relevant for initial agent interaction or context.
  *
  * @param {object} params - The parameters for fetching user profile data.
  * @param {string} params.telegramId - The Telegram ID of the user.
- * @returns {Promise<{success: boolean, data?: {first_name: string, role: string, state: string, session_type: string|null, active_session_id: string|null, edit_msg_id: number|null}|null, message?: string, error?: string}>} - Result object. `data` is null if user not found.
+ * @returns {Promise<{success: boolean, data?: {first_name: string, role: string, state: string, session_type: string|null, active_session_id: string|null, edit_msg_id: number|null, can_book_3x3: boolean|null}|null, message?: string, error?: string}>} - Result object. `data` is null if user not found.
  * @throws {Error} If dependencies are not initialized.
  * @throws {z.ZodError} If input validation fails.
  */
-async function getUserProfileData({ telegramId }) {
+// Renamed to avoid redeclaration with the function above
+async function getUserProfileDataEnhanced({ telegramId }) {
   if (!prisma || !logger) {
     throw new Error("StateManager not initialized. Call initialize first.");
   }
@@ -437,7 +498,8 @@ async function getUserProfileData({ telegramId }) {
         state: true,
         session_type: true,
         active_session_id: true,
-        edit_msg_id: true, // Add this line to fetch edit_msg_id
+        edit_msg_id: true,
+        can_book_3x3: true, // Add this line to fetch can_book_3x3 permission
       },
     });
 
@@ -466,7 +528,8 @@ async function getUserProfileData({ telegramId }) {
  * @throws {Error} If dependencies are not initialized.
  * @throws {z.ZodError} If input validation fails.
  */
-async function getUserPastSessions({ telegramId }) {
+// Commented out as it's currently not used in the application
+/* async function getUserPastSessions({ telegramId }) {
   if (!prisma || !logger) {
     throw new Error("StateManager not initialized. Call initialize first.");
   }
@@ -509,7 +572,10 @@ async function getUserPastSessions({ telegramId }) {
     );
     return { success: false, error: "Database error fetching past sessions" };
   }
-}
+} */
+
+// Export the enhanced version as getUserProfileData
+const exportedGetUserProfileData = getUserProfileDataEnhanced;
 
 module.exports = {
   resetUserState,
@@ -517,7 +583,6 @@ module.exports = {
   storeBookingData,
   setActiveSessionId,
   clearActiveSessionId,
-  setLogger, // Keep exported for tests
-  getUserProfileData, // Added export
-  getUserPastSessions, // Added export
+  getUserProfileData: exportedGetUserProfileData, // Use the enhanced version
+  setLogger,
 };
