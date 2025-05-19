@@ -1,19 +1,54 @@
 # Ignore .env file 
 .env
+.env.test
+
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
 
 # Ignore credential files
-legacy/config/*.json
-node_modules
+credentials/
+*.pem
+*.key
+*.p12
 
 # Coverage reports
 coverage/
 .nyc_output/
 
+# Jest
+jest_cache/
+
 # LangGraph API
 .langgraph_api
 
-#Google Drive config
+# Google Drive config
 .tmp.driveupload/
 
 # Temporary development scripts
-# bin/test_sessionTypes_module.js
+bin/test_*.js
+
+# IDE files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build files
+dist/
+build/
+
+# Backup of old tests
+backup/
+
+# Debug logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

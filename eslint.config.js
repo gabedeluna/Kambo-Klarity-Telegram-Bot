@@ -2,6 +2,7 @@
 const js = require("@eslint/js");
 const globals = require("globals");
 const pluginImport = require("eslint-plugin-import");
+const pluginJest = require("eslint-plugin-jest");
 // eslint-config-prettier needs to be the last configuration in the array
 // to override other configs. It's often applied directly.
 const eslintConfigPrettier = require("eslint-config-prettier");
@@ -44,19 +45,27 @@ module.exports = [
 
   // Configuration specifically for test files
   {
-    files: ["tests/**/*.test.js"], // Correct path for test files
+    files: ["tests/**/*.test.js", "tests/**/*.spec.js"],
+    plugins: {
+      jest: pluginJest,
+    },
     languageOptions: {
       globals: {
-        ...globals.mocha, // Includes Mocha globals like describe, it
+        ...globals.jest,
       },
     },
     rules: {
-      // Relax rules often needed in tests, e.g., console logs
-      // 'no-console': 'off',
+      // Relax rules often needed in tests
+      'no-console': 'off',
       "no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        "error", 
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }
       ], // Allow unused vars/args prefixed with _
+      "jest/no-disabled-tests": "warn",
+      "jest/no-focused-tests": "error",
+      "jest/no-identical-title": "error",
+      "jest/prefer-to-have-length": "warn",
+      "jest/valid-expect": "error"
     },
   },
 

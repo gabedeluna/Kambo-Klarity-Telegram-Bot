@@ -1,0 +1,59 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run linting
+      run: npm run lint
+    
+    - name: Run tests
+      run: npm test
+      env:
+        NODE_ENV: test
+        TG_TOKEN: test-token
+        DATABASE_URL: test-db-url
+        FORM_URL: test-form-url
+        LANGCHAIN_API_KEY: test-langchain-key
+        NGROK_URL: test-ngrok-url
+        AI_PROVIDER: test-provider
+        OPENAI_API_KEY: test-openai-key
+        GOOGLE_API_KEY: test-google-key
+    
+    - name: Run test coverage
+      run: npm run test:coverage
+      env:
+        NODE_ENV: test
+        TG_TOKEN: test-token
+        DATABASE_URL: test-db-url
+        FORM_URL: test-form-url
+        LANGCHAIN_API_KEY: test-langchain-key
+        NGROK_URL: test-ngrok-url
+        AI_PROVIDER: test-provider
+        OPENAI_API_KEY: test-openai-key
+        GOOGLE_API_KEY: test-google-key
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2

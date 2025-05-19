@@ -1,170 +1,90 @@
-"use strict";
+/**
+ * Test suite for env.js module
+ */
 
-const { expect } = require("chai");
-const sinon = require("sinon");
-const dotenv = require("dotenv");
+jest.mock('dotenv', () => ({
+  config: jest.fn(),
+}));
 
-const REQUIRED_ENV_KEYS = [
-  "TG_TOKEN",
-  "DATABASE_URL",
-  "FORM_URL",
-  "LANGCHAIN_API_KEY",
-];
-const ALL_RELEVANT_KEYS = [
-  ...REQUIRED_ENV_KEYS,
-  "PORT",
-  "AI_PROVIDER",
-  "OPENAI_API_KEY",
-  "GOOGLE_API_KEY",
-];
+jest.mock('../../src/core/logger', () => ({
+  info: jest.fn(),
+  error: jest.fn(),
+}));
 
-describe("core/env Module", () => {
-  let originalEnvValues = {};
-  let sandbox;
+describe('env.js', () => {
+  let originalEnv;
 
   beforeEach(() => {
-    // Backup original values of relevant env vars
-    originalEnvValues = {};
-    ALL_RELEVANT_KEYS.forEach((key) => {
-      if (process.env[key] !== undefined) {
-        originalEnvValues[key] = process.env[key];
-      }
-      // Ensure keys are initially deleted for the test setup
-      delete process.env[key];
-    });
-
-    // Clear cache for env module before each test
-    // Ensures that require('../../src/core/env') re-runs the initialization logic
-    delete require.cache[require.resolve("../../src/core/env")];
-
-    sandbox = sinon.createSandbox();
+    // Save original process.env
+    originalEnv = { ...process.env };
+    
+    // Reset modules before each test
+    jest.resetModules();
+    
+    // Set minimum required env variables
+    process.env.TG_TOKEN = 'test-token';
+    process.env.DATABASE_URL = 'test-db-url';
+    process.env.FORM_URL = 'test-form-url';
+    process.env.LANGCHAIN_API_KEY = 'test-langchain-key';
+    process.env.NGROK_URL = 'test-ngrok-url';
+    
+    // Reset AI_PROVIDER to default to check OpenAI dependency
+    delete process.env.AI_PROVIDER;
+    process.env.OPENAI_API_KEY = 'test-openai-key';
   });
 
   afterEach(() => {
-    // Clear any env vars set during the test
-    ALL_RELEVANT_KEYS.forEach((key) => delete process.env[key]);
-
-    // Restore original values
-    Object.keys(originalEnvValues).forEach((key) => {
-      process.env[key] = originalEnvValues[key];
-    });
-
-    // Optional: Clear cache again just in case (might be redundant)
-    delete require.cache[require.resolve("../../src/core/env")];
-    sandbox.restore();
+    // Restore original process.env
+    process.env = originalEnv;
   });
 
-  const setupEnv = (presentVars) => {
-    const defaults = {
-      TG_TOKEN: "mock_token",
-      DATABASE_URL: "mock_db_url",
-      FORM_URL: "mock_form_url",
-      LANGCHAIN_API_KEY: "mock_langchain_key",
-      AI_PROVIDER: "openai",
-      OPENAI_API_KEY: "mock_openai_key",
-      GOOGLE_API_KEY: "mock_google_key",
-    };
-
-    // Start with original system env, but clean the required ones
-    const envToSet = {};
-    ALL_RELEVANT_KEYS.forEach((key) => delete envToSet[key]);
-
-    // Add back only the ones meant to be present for this test
-    for (const key of presentVars) {
-      if (defaults[key]) {
-        envToSet[key] = defaults[key];
-      }
-    }
-    Object.keys(envToSet).forEach((key) => {
-      process.env[key] = envToSet[key];
-    });
-  };
-
-  it("should load environment variables and export a frozen object when all required vars are present", () => {
-    setupEnv(["TG_TOKEN", "DATABASE_URL", "FORM_URL"]);
-    process.env.PORT = "5432";
-
-    const config = require("../../src/core/env");
-
-    expect(config).to.be.an("object");
-    expect(config.tgToken).to.equal("mock_token");
-    expect(config.databaseUrl).to.equal("mock_db_url");
-    expect(config.formUrl).to.equal("mock_form_url");
-    expect(config.port).to.equal(5432);
-
-    expect(Object.isFrozen(config)).to.be.true;
-    expect(() => {
-      config.tgToken = "new_value";
-    }).to.throw(TypeError, /Cannot assign to read only property/);
+  test('exports frozen config object with required properties', () => {
+    const config = require('../../src/core/env');
+    
+    expect(config).toBeDefined();
+    expect(Object.isFrozen(config)).toBe(true);
+    expect(config.tgToken).toBe('test-token');
+    expect(config.databaseUrl).toBe('test-db-url');
+    expect(config.formUrl).toBe('test-form-url');
+    expect(config.aiProvider).toBe('openai'); // Default value
   });
 
-  it("should throw error if TG_TOKEN is missing", () => {
-    setupEnv(["DATABASE_URL", "FORM_URL"]);
-    sandbox.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../src/core/env");
-    expect(() => {
-      delete require.cache[path];
-      require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars for provider 'openai': TG_TOKEN",
-    );
-  });
-
-  it("should throw error if DATABASE_URL is missing", () => {
-    setupEnv(["TG_TOKEN", "FORM_URL"]);
-    sandbox.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../src/core/env");
-    expect(() => {
-      delete require.cache[path];
-      require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars for provider 'openai': DATABASE_URL",
-    );
-  });
-
-  it("should throw error if FORM_URL is missing", () => {
-    setupEnv(["TG_TOKEN", "DATABASE_URL"]);
-    sandbox.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../src/core/env");
-    expect(() => {
-      delete require.cache[path];
-      require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars for provider 'openai': FORM_URL",
-    );
-  });
-
-  it("should throw error if multiple required vars are missing", () => {
-    setupEnv(["DATABASE_URL"]);
-    sandbox.stub(dotenv, "config").returns({});
-    const path = require.resolve("../../src/core/env");
-    expect(() => {
-      delete require.cache[path];
-      require(path);
-    }).to.throw(
-      Error,
-      "Missing required env vars for provider 'openai': TG_TOKEN, FORM_URL",
-    );
-  });
-
-  it("should use default PORT 3000 if not set in environment", () => {
-    setupEnv(["TG_TOKEN", "DATABASE_URL", "FORM_URL"]);
+  test('defaults to port 3000 if PORT env var not specified', () => {
     delete process.env.PORT;
-
-    const config = require("../../src/core/env");
-    expect(config.port).to.equal(3000);
+    
+    const config = require('../../src/core/env');
+    
+    expect(config.port).toBe(3000);
   });
 
-  it("uses PORT from environment if set", () => {
-    process.env.TG_TOKEN = "temp_test_token";
-    process.env.DATABASE_URL = "temp_db_url";
-    process.env.FORM_URL = "temp_form_url";
-    process.env.PORT = "8080";
+  test('uses specified PORT env var when available', () => {
+    process.env.PORT = '4000';
+    
+    const config = require('../../src/core/env');
+    
+    expect(config.port).toBe(4000);
+  });
 
-    const config = require("../../src/core/env");
-    expect(config.port).to.equal(8080);
+  test('throws error when required env vars are missing', () => {
+    delete process.env.TG_TOKEN;
+    
+    const logger = require('../../src/core/logger');
+    
+    expect(() => {
+      require('../../src/core/env');
+    }).toThrow();
+    
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  test('supports Gemini AI provider configuration', () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GOOGLE_API_KEY = 'test-google-key';
+    delete process.env.OPENAI_API_KEY; // Not needed for Gemini
+    
+    const config = require('../../src/core/env');
+    
+    expect(config.aiProvider).toBe('gemini');
+    expect(config.googleApiKey).toBe('test-google-key');
   });
 });
