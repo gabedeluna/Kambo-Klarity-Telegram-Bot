@@ -2,43 +2,60 @@
 
 A Telegram bot for Kambo Klarity that handles user registration and client workflows.
 
+[![Node.js CI](https://github.com/yourusername/kambo-klarity-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/kambo-klarity-bot/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/yourusername/kambo-klarity-bot/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/kambo-klarity-bot)
+
 ## Features
 
 - User role-based workflows (admin, client, new client)
 - User registration via Telegram mini-app form
+- Session booking via calendar integration
+- Waiver form submission and tracking
 - Database integration with PostgreSQL via Prisma
-- Command handling for various user interactions
+- Google Calendar integration for availability and booking
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v18 or higher)
 - PostgreSQL database
 - Telegram Bot Token (from BotFather)
+- Google API credentials for Calendar access
+- LangChain API key for AI components
 - Ngrok or similar for webhook development (optional)
 
 ## Setup
 
 1. Clone the repository
+   ```
+   git clone https://github.com/yourusername/kambo-klarity-bot.git
+   cd kambo-klarity-bot
+   ```
+
 2. Install dependencies:
    ```
    npm install
    ```
+
 3. Create a `.env` file based on `.env.example`:
    ```
-   TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+   TG_TOKEN=your-telegram-bot-token
    DATABASE_URL=your-database-url
-   WEBHOOK_SECRET=your-webhook-secret
-   FORM_SERVER_PORT=3001
-   FORM_SERVER_URL=https://your-domain.com
+   FORM_URL=your-form-url
+   LANGCHAIN_API_KEY=your-langchain-api-key
+   NGROK_URL=your-ngrok-url
+   AI_PROVIDER=openai  # or 'gemini'
+   OPENAI_API_KEY=your-openai-api-key  # if using OpenAI
+   GOOGLE_API_KEY=your-google-api-key  # if using Gemini
    ```
+
 4. Run Prisma migrations to set up the database:
    ```
    npx prisma migrate dev
    ```
 
-## Running the Bot
+## Development
 
-### Development Mode
+### Running the Bot
 
 Run both the bot and the registration form server:
 
@@ -46,13 +63,33 @@ Run both the bot and the registration form server:
 npm run dev
 ```
 
-### Production Mode
+### Setting Webhook (Development)
 
-Run the bot and server separately:
+For local development with webhook:
 
 ```
-npm run start        # Start the bot
-npm run start:server # Start the registration form server
+npm run webhook:set
+```
+
+### Testing
+
+Run tests:
+
+```
+npm test
+```
+
+Run tests with coverage:
+
+```
+npm run test:coverage
+```
+
+### Linting and Formatting
+
+```
+npm run lint      # Check for linting errors
+npm run format    # Automatically fix formatting issues
 ```
 
 ## Admin Setup
@@ -76,20 +113,31 @@ npm run set-commands
 
 ## Project Structure
 
-- `bot.js` - Main bot logic and webhook handling
-- `server.js` - Server for hosting the registration form
-- `registration-form.html` - Telegram mini-app form for user registration
-- `set_admin.js` - Script to set a user as an admin
-- `set_default_commands.js` - Script to set default bot commands
+- `src/app.js` - Main Express application setup
+- `src/core/` - Core modules (bot, env, logger, prisma)
+- `src/commands/` - Telegram bot commands
+- `src/routes/` - Express API routes
+- `src/middleware/` - Express and Telegram middleware
+- `src/tools/` - Utility tools (Google Calendar, state management, notifications)
+- `src/graph/` - LangGraph conversation flow (for AI components)
+- `src/agents/` - AI agent setup and configuration
 - `prisma/schema.prisma` - Database schema definition
+- `public/` - Static files for forms and web apps
 
-## Workflow
+## Contributing
 
-1. New users are prompted to fill out a registration form
-2. Upon form submission, user data is stored in the database
-3. Users are assigned the 'client' role by default
-4. Different message handlers process requests based on user role
-5. Commands provide specific functionality based on user role
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+### Branching Strategy
+
+This project follows a Git Flow approach:
+
+- `main`: Production-ready code
+- `develop`: Main development branch
+- `feature/XX-feature-name`: New features
+- `bugfix/XX-description`: Bug fixes
+- `release/X.X.X`: Release candidates
+- `hotfix/XX-description`: Critical production fixes
 
 ## License
 
