@@ -20,4 +20,8 @@ module.exports = {
   },
   clearMocks: true,
   verbose: true,
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/backup/',
+  ],
 };

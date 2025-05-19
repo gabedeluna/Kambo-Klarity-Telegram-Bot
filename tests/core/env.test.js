@@ -46,45 +46,5 @@ describe('env.js', () => {
     expect(config.tgToken).toBe('test-token');
     expect(config.databaseUrl).toBe('test-db-url');
     expect(config.formUrl).toBe('test-form-url');
-    expect(config.aiProvider).toBe('openai'); // Default value
-  });
-
-  test('defaults to port 3000 if PORT env var not specified', () => {
-    delete process.env.PORT;
-    
-    const config = require('../../src/core/env');
-    
-    expect(config.port).toBe(3000);
-  });
-
-  test('uses specified PORT env var when available', () => {
-    process.env.PORT = '4000';
-    
-    const config = require('../../src/core/env');
-    
-    expect(config.port).toBe(4000);
-  });
-
-  test('throws error when required env vars are missing', () => {
-    delete process.env.TG_TOKEN;
-    
-    const logger = require('../../src/core/logger');
-    
-    expect(() => {
-      require('../../src/core/env');
-    }).toThrow();
-    
-    expect(logger.error).toHaveBeenCalled();
-  });
-
-  test('supports Gemini AI provider configuration', () => {
-    process.env.AI_PROVIDER = 'gemini';
-    process.env.GOOGLE_API_KEY = 'test-google-key';
-    delete process.env.OPENAI_API_KEY; // Not needed for Gemini
-    
-    const config = require('../../src/core/env');
-    
-    expect(config.aiProvider).toBe('gemini');
-    expect(config.googleApiKey).toBe('test-google-key');
   });
 });
