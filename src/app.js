@@ -6,7 +6,7 @@ console.log(">>> express loaded.");
 
 const path = require("path"); // Keep path
 const { DynamicStructuredTool } = require("langchain/tools"); // Changed to DynamicStructuredTool
-const allToolSchemas = require("./tools/toolSchemas"); // Corrected import
+// Removed toolSchemas import as it's no longer used
 
 // --- Express App Setup and Initialization Function ---
 async function initializeApp(deps) {
@@ -215,7 +215,7 @@ async function initializeApp(deps) {
       func: async (input) => googleCalendarInstance.createCalendarEvent(input),
     });
 
-    // Add deleteCalendarEventTool (schema needs to be added to toolSchemas.js if it doesn't exist)
+    // Add deleteCalendarEventTool
     // For now, assuming a schema like { eventId: string } exists or will be added.
     // If allToolSchemas.deleteCalendarEventSchema does not exist, this will cause an error later.
     // const deleteCalendarEventTool = new DynamicStructuredTool({

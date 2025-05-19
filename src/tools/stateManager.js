@@ -73,7 +73,7 @@ async function resetUserState(telegramId) {
  * Use this to change the user's current state (e.g., 'AWAITING_SLOT_CONFIRMATION'), store temporary data like a message ID to be edited, or update conversation history.
  *
  * @param {string|number} telegramId - The Telegram ID of the user to update.
- * @param {object} dataToUpdate - An object containing the fields and values to update (e.g., { state: 'NEW_STATE', edit_msg_id: 123 }). Must not be empty. Refer to toolSchemas.js updateUserStateSchema for allowed fields.
+ * @param {object} dataToUpdate - An object containing the fields and values to update (e.g., { state: 'NEW_STATE', edit_msg_id: 123 }). Must not be empty.
  * @returns {Promise<{success: boolean, error?: string, user?: object}>} - An object indicating success/failure and potentially the updated user data.
  */
 async function updateUserState(telegramId, dataToUpdate) {
