@@ -60,45 +60,52 @@ jest.mock('../src/routes/forms', () => {
 });
 
 describe('app.js', () => {
-  let app;
+  let app, server;
   
   beforeEach(() => {
     // Reset modules to ensure a fresh app instance
     jest.resetModules();
     // Import the app module
     app = require('../src/app');
+    // Create a test server
+    server = app.listen();
+  });
+  
+  afterEach(() => {
+    // Close the server after each test
+    server.close();
   });
   
   test('should respond with 200 to health check endpoint', async () => {
-    const response = await request(app).get('/health');
+    const response = await request(server).get('/health');
     
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok' });
   });
   
   test('should handle webhook requests', async () => {
-    const response = await request(app).post('/webhook');
+    const response = await request(server).post('/webhook');
     
     expect(response.status).toBe(200);
     expect(response.text).toBe('Webhook handled');
   });
   
   test('should route API requests', async () => {
-    const response = await request(app).get('/api/test');
+    const response = await request(server).get('/api/test');
     
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ message: 'API route works' });
   });
   
   test('should route form requests', async () => {
-    const response = await request(app).get('/forms/test');
+    const response = await request(server).get('/forms/test');
     
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ message: 'Forms route works' });
   });
   
   test('should return 404 for unknown routes', async () => {
-    const response = await request(app).get('/unknown-route');
+    const response = await request(server).get('/unknown-route');
     
     expect(response.status).toBe(404);
   });
