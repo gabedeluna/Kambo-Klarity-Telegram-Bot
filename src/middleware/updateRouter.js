@@ -7,8 +7,6 @@ const { Markup } = require("telegraf");
  * @param {object} deps - Dependency context.
  * @param {object} deps.commandHandler - Handler for command messages.
  * @param {object} deps.callbackQueryHandler - Handler for callback queries.
- * @param {object} deps.bookingAgent - The booking agent instance.
- * @param {object} deps.bookingGraph - The compiled booking graph instance.
  * @param {object} deps.logger - The logger instance.
  * @param {object} deps.config - Application configuration object.
  * @returns {Function} The configured routeUpdate middleware function.
@@ -20,8 +18,6 @@ function initialize(deps) {
     logger,
     commandHandler,
     callbackQueryHandler,
-    bookingAgent,
-    bookingGraph,
     config,
   } = deps || {};
 
@@ -29,16 +25,12 @@ function initialize(deps) {
     !logger ||
     !commandHandler ||
     !callbackQueryHandler ||
-    !bookingAgent ||
-    !bookingGraph ||
     !config
   ) {
     const missing = [
       !logger && "logger",
       !commandHandler && "commandHandler",
       !callbackQueryHandler && "callbackQueryHandler",
-      !bookingAgent && "bookingAgent",
-      !bookingGraph && "bookingGraph",
       !config && "config",
     ]
       .filter(Boolean)
@@ -48,7 +40,7 @@ function initialize(deps) {
       `UpdateRouter initialization failed. Missing: ${missing}`,
     );
     throw new Error(
-      `UpdateRouter requires logger, commandHandler, callbackQueryHandler, bookingAgent, bookingGraph, and config.`,
+      `UpdateRouter requires logger, commandHandler, callbackQueryHandler, and config.`,
     );
   }
 
@@ -141,81 +133,17 @@ function initialize(deps) {
           );
           await commandHandler.handleCommand(ctx, next);
         }
-        // 3.2 Handle Text Message during Booking
+        // 3.2 Handle Text Message during Booking (Agent logic removed)
         else if (userState === "BOOKING") {
           logger.info(
             { telegramId, messageText, activeSessionId: sessionId },
-            ">>> routeUpdate BOOKING path (text message)",
+            ">>> routeUpdate BOOKING path (text message) - Agent logic removed.",
           );
-
-          if (!sessionId) {
-            logger.error(
-              { telegramId },
-              "User in BOOKING state but has no active_session_id. Cannot invoke agent.",
-            );
-            await ctx.reply(
-              "There seems to be an issue with your current booking session. Please try starting over with /book.",
-            );
-            return;
-          }
-
-          const userInput = messageText;
-
-          logger.info(
-            {
-              telegramId,
-              userInputLength: userInput.length,
-              chatHistoryLength: ctx.state.user?.chat_history?.length || 0,
-            },
-            ">>> routeUpdate BOOKING state - preparing to call runBookingAgent",
+          // Previously, this section would invoke the bookingAgent.
+          // Now, it might reply with a generic message or be removed if BOOKING state is handled differently.
+          await ctx.reply(
+            "I received your message, but the AI booking assistant is currently unavailable. Please use commands if you know them, or type /help.",
           );
-
-          if (!bookingAgent) {
-            logger.error(
-              { telegramId },
-              "Booking agent not initialized in updateRouter.",
-            );
-            await ctx.reply(
-              "Sorry, there's an issue with my booking system. Please try again later.",
-            );
-            return;
-          }
-
-          const agentResponse = await bookingAgent.runBookingAgent({
-            userInput,
-            telegramId: telegramId.toString(),
-            chatHistory: ctx.state.user?.chat_history || [],
-            // sessionId is implicitly available to runBookingAgent via stateManager if needed for memory keying
-          });
-
-          logger.info(
-            {
-              telegramId,
-              success: agentResponse.success,
-              outputPresent: !!agentResponse.data?.output,
-            },
-            ">>> routeUpdate BOOKING after runBookingAgent",
-          );
-
-          if (
-            agentResponse.success &&
-            agentResponse.data &&
-            agentResponse.data.output
-          ) {
-            await ctx.reply(agentResponse.data.output);
-          } else {
-            logger.error(
-              {
-                telegramId,
-                error: agentResponse.error,
-                responseData: agentResponse.data,
-              },
-              "Error in agent response during BOOKING state or no output.",
-            );
-            await ctx.reply(
-              "Sorry, I encountered an issue processing your request. Please try again or contact support if the problem persists.",
-            );
-          }
           return;
         }
         // 3.3. Handle Generic Text (IDLE state)

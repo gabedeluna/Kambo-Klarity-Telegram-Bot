@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 
-let logger, stateManager, bookingAgent, telegramNotifier;
+let logger, stateManager, telegramNotifier;
 
 /**
  * Initializes the callback query handler module with required dependencies.
@@ -8,7 +8,6 @@ let logger, stateManager, bookingAgent, telegramNotifier;
  * @param {object} deps - The dependencies object.
  * @param {object} deps.logger - The logger instance.
  * @param {object} deps.stateManager - The state manager instance.
- * @param {object} deps.bookingAgent - The booking agent instance.
  * @param {object} deps.telegramNotifier - The telegram notifier instance.
  * @throws {Error} If any required dependency is missing.
  */
@@ -16,14 +15,12 @@ function initialize(deps) {
   if (
     !deps.logger ||
     !deps.stateManager ||
-    !deps.bookingAgent ||
     !deps.telegramNotifier
   ) {
     throw new Error("Missing required dependencies for callbackQueryHandler");
   }
   logger = deps.logger;
   stateManager = deps.stateManager;
-  bookingAgent = deps.bookingAgent;
   telegramNotifier = deps.telegramNotifier;
   logger.info("callbackQueryHandler initialized successfully.");
 }
@@ -150,76 +147,28 @@ async function handleCallbackQuery(ctx) {
     return;
   }
 
-  // 5. Invoke Booking Agent
-  let agentResponse;
-  const initialAgentInput = `I'd like to book the "${selectedSessionTypeId}" session.`; // Simplified user input
-  try {
-    agentResponse = await bookingAgent.runBookingAgent({
-      userInput: initialAgentInput,
-      telegramId,
-      // sessionId is now implicitly handled by bookingAgent through stateManager or memory keying
-      // but ensure bookingAgent.runBookingAgent internally uses/retrieves the active_session_id for memory.
-      // Let's assume for now runBookingAgent uses the active_session_id stored in the user's profile for memory.
-    });
-
-    if (!agentResponse || !agentResponse.success || !agentResponse.output) {
-      throw new Error(
-        agentResponse?.error || "Agent did not return a valid output.",
-      );
-    }
-    logger.info(
-      { userId: telegramId, sessionId },
-      "Booking agent invoked successfully for the first turn.",
-    );
-    // LangSmith Checkpoint: Go to LangSmith UI and verify this interaction is traced.
-  } catch (err) {
-    logger.error(
-      { err, userId: telegramId, sessionId },
-      "Error invoking booking agent on first turn.",
-    );
-    await telegramNotifier.sendTextMessage({
-      telegramId,
-      text: "Sorry, I encountered an issue initiating our conversation. Please try /book again.",
-    });
-    await stateManager.resetUserState(telegramId); // Reset state on agent failure
-    return;
-  }
-
-  // 6. Edit Original Message with Agent's Response
-  try {
-    await ctx.telegram.editMessageText(
-      chatId, // Chat ID where the original message is
-      originalMessageId, // Message ID to edit
-      undefined, // inline_message_id (not used here)
-      agentResponse.output, // New text content
-      { parse_mode: "Markdown" }, // Or 'HTML', ensure agent output matches
-    );
-    logger.info(
-      { userId: telegramId, originalMessageId },
-      "Successfully edited original selector message with agent's first response.",
-    );
-  } catch (editErr) {
-    logger.error(
-      {
-        err: editErr,
-        userId: telegramId,
-        originalMessageId,
-        agentOutput: agentResponse.output,
-      },
-      "Error editing original message text.",
-    );
-    // Fallback: Send agent's response as a new message if editing fails
-    await telegramNotifier.sendTextMessage({
-      telegramId,
-      text:
-        "It seems I couldn't update our previous message, but here's what I have:\n\n" +
-        agentResponse.output,
-    });
-    logger.warn(
-      { userId: telegramId },
-      "Sent agent response as a new message due to edit failure.",
-    );
-  }
+  // Agent invocation and subsequent message editing removed.
+  // The user's state is updated, but no further agent interaction occurs here.
+  // The original message with the inline keyboard will remain as is.
+  // A new flow would be needed to guide the user after this point.
+  logger.info(
+    { userId: telegramId, sessionId },
+    "User selected session type. Agent interaction has been removed from this handler.",
+  );
+  // Optionally, edit the message to remove the keyboard or provide a static message.
+  // For now, per plan, only removing agent-specific logic.
+  // Example:
+  // try {
+  //   await ctx.telegram.editMessageText(
+  //     chatId,
+  //     originalMessageId,
+  //     undefined,
+  //     `You selected: ${selectedSessionTypeId}. Further booking steps are TBD.`,
+  //     { reply_markup: { remove_keyboard: true } } // Or remove inline keyboard
+  //   );
+  // } catch (editErr) {
+  //    logger.error({ err: editErr, userId: telegramId }, "Failed to edit message after agent removal.");
+  // }
 }
 
 module.exports = { initialize, handleCallbackQuery };

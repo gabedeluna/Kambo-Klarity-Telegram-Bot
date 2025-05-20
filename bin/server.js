@@ -12,10 +12,6 @@ const sessionTypes = require("../src/core/sessionTypes");
 const stateManager = require("../src/tools/stateManager");
 const { createTelegramNotifier } = require("../src/tools/telegramNotifier"); // Factory
 const GoogleCalendarTool = require("../src/tools/googleCalendar.js"); // Class
-const bookingAgent = require("../src/agents/bookingAgent"); // Module with initialize
-const graphNodes = require("../src/graph/nodes"); // Module with initialize
-const graphEdges = require("../src/graph/edges"); // Simple object/module
-const { initializeGraph } = require("../src/graph/bookingGraph.js"); // Function
 const commandHandler = require("../src/handlers/commandHandler"); // Module with initialize
 const callbackHandler = require("../src/handlers/callbackQueryHandler"); // Simple function/module
 const {
@@ -43,10 +39,6 @@ const deps = {
   stateManager,
   createTelegramNotifier, // Pass the factory
   GoogleCalendarTool, // Pass the CLASS itself
-  bookingAgent, // Pass the module
-  graphNodes, // Pass the module
-  initializeGraph, // Pass the function
-  graphEdges, // Pass the definitions
   commandHandler, // Pass the module
   callbackHandler, // Pass the handler
   initialize, // Pass the initializer function
@@ -159,6 +151,48 @@ async function main() {
           default:
             throw error;
         }
+      });
+// Graceful shutdown logic
+      const signals = ['SIGINT', 'SIGTERM'];
+
+      signals.forEach(signal => {
+        process.on(signal, async () => { // Make handler async
+          logger.info(`[server] Received ${signal}. Shutting down gracefully...`);
+
+          const forceExitTimeout = setTimeout(() => {
+            logger.warn('[server] Graceful shutdown timed out after 10 seconds. Forcing exit.');
+            logger.flush(); // Ensure logs are written before forced exit
+            process.exit(1); // Force exit
+          }, 10000); // 10-second timeout
+
+          try {
+            // Close the HTTP server
+            await new Promise((resolve, reject) => {
+              server.close((err) => {
+                if (err) {
+                  logger.error({ err }, '[server] Error closing HTTP server.');
+                  return reject(err);
+                }
+                logger.info('[server] HTTP server closed.');
+                resolve();
+              });
+            });
+
+            // Telegraf bot.stop() is mainly for polling bots; for webhook bots, closing the server is key.
+            // Prisma client should disconnect automatically due to its own SIGINT/SIGTERM handlers.
+
+            clearTimeout(forceExitTimeout); // Clear the timeout as shutdown was successful
+            logger.info('[server] Graceful shutdown complete. Exiting process now.');
+            logger.flush(); // Ensure logs are written
+            process.exit(0); // Exit successfully
+
+          } catch (error) {
+            clearTimeout(forceExitTimeout); // Clear the timeout
+            logger.error({ err: error }, '[server] Error during graceful shutdown.');
+            logger.flush(); // Ensure logs are written
+            process.exit(1); // Exit with error
+          }
+        });
       });
     }
 

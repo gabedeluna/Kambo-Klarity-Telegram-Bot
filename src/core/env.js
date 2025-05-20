@@ -13,7 +13,6 @@ const ALWAYS_REQUIRED = [
   "TG_TOKEN",
   "DATABASE_URL",
   "FORM_URL",
-  "LANGCHAIN_API_KEY",
   "NGROK_URL",
 ];
 
@@ -50,7 +49,6 @@ const config = Object.freeze({
   databaseUrl: process.env.DATABASE_URL,
   formUrl: process.env.FORM_URL,
   port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
-  langchainApiKey: process.env.LANGCHAIN_API_KEY,
   openaiApiKey: process.env.OPENAI_API_KEY, // Include even if not selected, might be used elsewhere
   googleApiKey: process.env.GOOGLE_API_KEY, // Include even if not selected
   aiProvider: provider,

@@ -5,7 +5,6 @@ const express = require("express");
 console.log(">>> express loaded.");
 
 const path = require("path"); // Keep path
-const { DynamicStructuredTool } = require("langchain/tools"); // Changed to DynamicStructuredTool
 const allToolSchemas = require("./tools/toolSchemas"); // Corrected import
 
 // --- Express App Setup and Initialization Function ---
@@ -46,10 +45,6 @@ async function initializeApp(deps) {
     stateManager,
     createTelegramNotifier,
     GoogleCalendarTool, // Destructure the class
-    bookingAgent,
-    graphNodes,
-    initializeGraph,
-    graphEdges, // Add graphEdges here
     commandHandler,
     callbackHandler,
     userLookupMiddleware,
@@ -65,10 +60,6 @@ async function initializeApp(deps) {
     // bot,
     // sessionTypes,
     // createTelegramNotifier,
-    // bookingAgent,
-    // graphNodes,
-    // initializeGraph,
-    // graphEdges,
     // commandHandler,
     // callbackHandler,
     // initialize, // Corrected name
@@ -90,9 +81,6 @@ async function initializeApp(deps) {
     stateManager,
     createTelegramNotifier,
     GoogleCalendarTool,
-    bookingAgent,
-    graphNodes,
-    initializeGraph,
     commandHandler,
     callbackHandler,
     userLookupMiddleware,
@@ -150,7 +138,7 @@ async function initializeApp(deps) {
   console.log(">>> express.json middleware added.");
 
   // Declare instances here to make them available in the return scope
-  let bookingGraphInstance; // Renamed from bookingGraph for clarity if needed, or keep as bookingGraph
+  // let bookingGraphInstance; // Agent related - Removed
   let routeUpdate; // for updateRouter, also initialized in try and used for bot commands
 
   // Health check
@@ -186,7 +174,7 @@ async function initializeApp(deps) {
   logger.info("API and Form routers mounted.");
 
   // Create GoogleCalendarTool instance here
-  const googleCalendarInstance = new GoogleCalendarTool({ logger, config });
+  const googleCalendarInstance = new GoogleCalendarTool({ logger, config, prisma });
   logger.info(
     "[GoogleCalendarTool] Instance created successfully inside initializeApp.",
   );
@@ -198,154 +186,24 @@ async function initializeApp(deps) {
     );
     // stateManager should be initialized before being passed in, if necessary.
 
-    // Wrap GoogleCalendarTool methods as LangChain StructuredTools
-    const findFreeSlotsTool = new DynamicStructuredTool({
-      schema: allToolSchemas.findFreeSlotsSchema,
-      name: "findFreeSlots",
-      description:
-        "Searches the practitioner's calendar for available time slots for a kambo session. Input can include desired date range and session duration. Returns a list of available slots or an empty list if none are found.",
-      func: async (input) => googleCalendarInstance.findFreeSlots(input),
-    });
+    // Agent-related tool wrapping and initialization removed.
+    // If any of these tools' functionalities (e.g., finding free slots, creating calendar events)
+    // are needed outside the agent context, they will need to be invoked directly
+    // using googleCalendarInstance, stateManager, or notifierInstance.
 
-    const createCalendarEventTool = new DynamicStructuredTool({
-      schema: allToolSchemas.createCalendarEventSchema,
-      name: "createCalendarEvent",
-      description:
-        "Creates a new event on the practitioner's calendar. Requires start time, end time, summary, and optionally a description and attendee email. Returns the event ID upon successful creation.",
-      func: async (input) => googleCalendarInstance.createCalendarEvent(input),
-    });
-
-    // Add deleteCalendarEventTool (schema needs to be added to toolSchemas.js if it doesn't exist)
-    // For now, assuming a schema like { eventId: string } exists or will be added.
-    // If allToolSchemas.deleteCalendarEventSchema does not exist, this will cause an error later.
-    // const deleteCalendarEventTool = new DynamicStructuredTool({
-    //   schema: allToolSchemas.deleteCalendarEventSchema, // Placeholder
-    //   name: "deleteCalendarEvent",
-    //   description: "Deletes a calendar event using its event ID.",
-    //   func: async (input) => googleCalendarInstance.deleteCalendarEvent(input.eventId),
-    // });
-
-    // Wrap StateManager methods as LangChain StructuredTools
-    const resetUserStateTool = new DynamicStructuredTool({
-      schema: allToolSchemas.resetUserStateSchema,
-      name: "resetUserState",
-      description:
-        "Resets the user's state in the conversation, clearing any temporary booking information or active session details. Useful if the user wants to start over or cancels mid-process.",
-      func: async (input) => stateManager.resetUserState(input.telegramId),
-    });
-
-    const updateUserStateTool = new DynamicStructuredTool({
-      schema: allToolSchemas.updateUserStateSchema,
-      name: "updateUserState",
-      description:
-        "Updates specific fields in the user's state. Can be used to store temporary information like a selected booking slot or to modify conversation history.",
-      func: async (input) =>
-        stateManager.updateUserState(input.telegramId, input.updates),
-    });
-
-    const storeBookingDataTool = new DynamicStructuredTool({
-      schema: allToolSchemas.storeBookingDataSchema,
-      name: "storeBookingData",
-      description:
-        "Stores the confirmed booking details (Telegram ID, booking slot, session type) into the database. This is typically called after the user confirms their chosen time slot.",
-      func: async (input) => stateManager.storeBookingData(input),
-    });
-
-    // Wrap TelegramNotifier methods as LangChain StructuredTools
-    const sendWaiverLinkTool = new DynamicStructuredTool({
-      schema: allToolSchemas.sendWaiverLinkSchema,
-      name: "sendWaiverLink",
-      description:
-        "Sends a message to the user containing the waiver link and information about their confirmed booking. The message text can be customized.",
-      func: async (input) => notifierInstance.sendWaiverLink(input),
-    });
-
-    const sendTextMessageTool = new DynamicStructuredTool({
-      schema: allToolSchemas.sendTextMessageSchema,
-      name: "sendTextMessage",
-      description:
-        "Sends a simple text message to the user. Used for general communication, clarifications, or providing information that isn't part of a structured tool interaction.",
-      func: async (input) => notifierInstance.sendTextMessage(input),
-    });
-
-    // New tools from the prompt
-    const getUserProfileDataTool = new DynamicStructuredTool({
-      schema: allToolSchemas.getUserProfileDataSchema,
-      name: "getUserProfileData",
-      description:
-        "Retrieves basic profile data for the user, such as their name or registration status.",
-      func: async (input) => stateManager.getUserProfileData(input),
-    });
-
-    const getUserPastSessionsTool = new DynamicStructuredTool({
-      schema: allToolSchemas.getUserPastSessionsSchema,
-      name: "getUserPastSessions",
-      description:
-        "Retrieves a summary or list of the user's past completed Kambo sessions.",
-      func: async (input) => stateManager.getUserPastSessions(input),
-    });
-
-    // Consolidate all tools into an array
-    const allTools = [
-      findFreeSlotsTool,
-      createCalendarEventTool,
-      // deleteCalendarEventTool, // Add when schema and function are ready
-      resetUserStateTool,
-      updateUserStateTool,
-      storeBookingDataTool,
-      sendWaiverLinkTool,
-      sendTextMessageTool,
-      getUserProfileDataTool,
-      getUserPastSessionsTool,
-    ];
-
-    logger.info(
-      { toolCount: allTools.length, toolNames: allTools.map((t) => t.name) },
-      "All DynamicStructuredTools created and collected.",
-    );
-
-    // Initialize Booking Agent with all dependencies including the tools
-    // The bookingAgent is the module itself, initializeAgent is a function within it
-    await bookingAgent.initializeAgent({
-      tools: allTools,
-      stateManager, // Pass the initialized stateManager
-      logger, // Pass the logger
-      config, // Pass the config
-      prisma, // Pass prisma instance
-      googleCalendar: googleCalendarInstance, // Pass the created googleCalendarInstance
-      notifier: notifierInstance, // Pass the created notifierInstance
-      // provider: 'openai', // Optionally specify provider, defaults to openai in agent
-    });
-    logger.info("Booking Agent initialized successfully.");
-
-    // Initialize command and callback handlers, passing the resolved agent instance
     commandHandler.initialize({ logger }); // Initialize the module
     logger.info("[commandHandler] Initialized.");
 
     callbackHandler.initialize({
       logger,
       stateManager, // Use injected stateManager
-      bookingAgent: bookingAgent, // Pass the agent module
+      // bookingAgent: bookingAgent, // Removed agent dependency
       telegramNotifier: notifierInstance,
     }); // Initialize the module
     logger.info("callbackQueryHandler initialized successfully.");
 
-    graphNodes.initializeNodes({
-      logger,
-      stateManager, // Use injected stateManager
-      bookingAgent: bookingAgent, // Pass the agent module
-      googleCalendar: googleCalendarInstance,
-      telegramNotifier: notifierInstance,
-    });
-    logger.info("[Graph Nodes] Initialized successfully.");
-
-    // Compile the graph
-    bookingGraphInstance = initializeGraph({
-      graphNodes,
-      graphEdges,
-      logger,
-    });
-    logger.info("bookingGraph compiled.");
+    // graphNodes.initializeNodes removed
+    // bookingGraphInstance = initializeGraph removed
 
     // Initialize Telegraf middleware and handlers
     // User Lookup Middleware (scoped per user)
@@ -364,10 +222,10 @@ async function initializeApp(deps) {
     logger.info("Initializing updateRouter middleware...");
     routeUpdate = updateRouter.initialize({
       logger,
-      bookingAgent: bookingAgent, // Pass the agent module
+      // bookingAgent: bookingAgent, // Removed agent dependency
       callbackQueryHandler: callbackHandler, // Pass the module directly
       commandHandler: commandHandler, // Pass the module directly
-      bookingGraph: bookingGraphInstance, // Pass the compiled graph
+      // bookingGraph: bookingGraphInstance, // Removed graph dependency
       stateManager, // Pass stateManager
       telegramNotifier: notifierInstance, // Pass notifier
       config, // Add config here
@@ -452,10 +310,10 @@ async function initializeApp(deps) {
   return {
     app,
     bot,
-    bookingAgent, // Now this will be the bookingAgent module itself
+    // bookingAgent, // Removed
     commandHandler, // Return the module
     callbackHandler, // Return the module
-    bookingGraph: bookingGraphInstance, // Return the compiled graph
+    // bookingGraph: bookingGraphInstance, // Removed
     updateRouter: routeUpdate, // Return the initialized updateRouter instance
   }; // Make sure to return the app instance!
 }
