@@ -122,3 +122,5 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.json
 .pnp.*
+# Temporary drive upload files
+.tmp.driveupload/
