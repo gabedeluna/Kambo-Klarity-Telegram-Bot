@@ -16,13 +16,14 @@ let regHandler; // Module-level registration handler variable
  * @param {object} deps.registrationHandler - Registration handler instance.
  */
 function initialize(deps) {
-  if (!deps.logger || !deps.registrationHandler) {
+  if (!deps || !deps.logger || !deps.registrationHandler) { // Added !deps check
     // Check for registrationHandler
     console.error(
       "FATAL: formsRouter initialization failed. Missing dependencies.",
       {
-        logger: !!deps.logger,
-        registrationHandler: !!deps.registrationHandler,
+        // Log actual presence rather than boolean cast if deps might be null/undefined
+        logger: deps ? !!deps.logger : false,
+        registrationHandler: deps ? !!deps.registrationHandler : false,
       },
     );
     throw new Error("Missing dependencies for formsRouter");

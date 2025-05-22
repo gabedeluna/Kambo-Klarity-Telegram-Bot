@@ -45,7 +45,7 @@ The system must automate practitioner tasks, empower admins via Telegram, and pr
 - **Lint/Format:** ESLint (`recommended`) + Prettier
 - **Logging:** Pino via singleton `core/logger.js`
 - **AI Observability:** LangSmith
-- **Testing:** Manual Verification (Functional, Happy Path, Edge Case, Error Path scenarios defined per feature)
+- **Testing:** Jest (Unit & Integration Tests). Manual Verification for E2E and exploratory testing.
 
 ---
 
@@ -229,17 +229,26 @@ Sessions: Status (e.g., 'SCHEDULED', 'WAIVER_SUBMITTED', 'CANCELLED_BY_CLIENT', 
 
 # 7.4 Tests
 
-(Scope expands to cover all new commands, tools, automations, and phases)
+(Scope expands to cover all new commands, tools, automations, and phases with automated tests where feasible.)
+
+### Automated Testing with Jest
+
+*   **Framework:** Jest will be used for automated unit and integration testing.
+*   **Test Location:** Tests will reside in the `tests/` directory at the project root, with subdirectories mirroring the `src/` structure (e.g., `tests/core/`, `tests/tools/`).
+*   **Unit Tests:** Focus on testing individual modules and functions in isolation. Mocks will be used for external dependencies (e.g., Prisma client, Google APIs, Telegraf).
+*   **Integration Tests:** Focus on testing interactions between different modules, API endpoints (using `supertest`), and database interactions (potentially with a test database or transaction-based cleanup).
+*   **Coverage:** Code coverage will be collected and reported, with a target threshold defined in `jest.config.js`.
+*   **Execution:** Tests can be run via `npm test`.
 
 ### Manual Verification
 
-*   **Pattern:** Manual verification of features against defined scenarios before deployment.
-*   **Isolation:** Verify each feature independently to ensure it meets requirements across key scenarios.
+*   **Purpose:** Manual verification will continue to be used for End-to-End (E2E) testing of user flows, exploratory testing, and verifying features that are difficult to automate comprehensively.
+*   **Pattern:** Manual verification of features against defined scenarios before deployment, especially for complex user interactions and visual elements.
 *   **Assertion Helpers:**
-  - Verify bot responses in Telegram.
+  - Verify bot responses and interactions in Telegram.
   - Check application logs (`logger` output).
   - Inspect database state changes (using a DB client).
-  - Confirm interactions with external services (like Google Calendar, once integrated).
+  - Confirm interactions with external services (like Google Calendar).
 
 
 # 8 External Integrations

@@ -5,8 +5,7 @@ const express = require("express");
 console.log(">>> express loaded.");
 
 const path = require("path"); // Keep path
-const allToolSchemas = require("./tools/toolSchemas"); // Corrected import
-
+// const allToolSchemas = require("./tools/toolSchemas"); // Removed as per user request
 // --- Express App Setup and Initialization Function ---
 async function initializeApp(deps) {
   // Made initializeApp async

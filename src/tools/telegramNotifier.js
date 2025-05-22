@@ -1,7 +1,6 @@
 const { Markup } = require("telegraf");
 const commandRegistry = require("../commands/registry"); // Added registry require
-// const { toolSchemas } = require("./toolSchemas"); // Import toolSchemas for validation
-
+// Removed: const { toolSchemas } = require("./toolSchemas");
 /**
  * Factory function to create a telegramNotifier instance.
  * @param {object} dependencies - The dependencies needed by the tool.

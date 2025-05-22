@@ -35,10 +35,20 @@ function initialize(deps) {
     ]
       .filter(Boolean)
       .join(", ");
-    logger.error(
-      { missingDependencies: missing },
-      `UpdateRouter initialization failed. Missing: ${missing}`,
-    );
+
+    // Log critical failure appropriately
+    if (!logger) {
+      // If logger itself is missing, use console.error
+      console.error(
+        `FATAL: UpdateRouter initialization failed. Missing dependencies, including logger. Missing: ${missing}`,
+      );
+    } else {
+      // If logger is present, use it to log other missing dependencies
+      logger.error(
+        { missingDependencies: missing },
+        `UpdateRouter initialization failed. Missing: ${missing}`,
+      );
+    }
     throw new Error(
       `UpdateRouter requires logger, commandHandler, callbackQueryHandler, and config.`,
     );

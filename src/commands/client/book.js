@@ -10,7 +10,7 @@ let localLogger;
  */
 function initializeBookCommandHandler(deps) {
   if (!deps || !deps.notifier || !deps.logger) {
-    const log = deps.logger || console;
+    const log = deps && deps.logger ? deps.logger : console;
     log.error(
       "[bookCommandHandler] Initialization failed: Missing notifier or logger dependency.",
     );

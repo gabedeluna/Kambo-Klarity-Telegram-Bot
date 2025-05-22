@@ -74,6 +74,19 @@ To set the default commands for the bot:
 npm run set-commands
 ```
 
+## Testing
+
+This project uses Jest for automated unit and integration testing.
+
+To run the tests:
+
+```
+npm test
+```
+
+This will execute all tests located in the `tests/` directory and generate a coverage report in the `coverage/` directory.
+```
+
 ## Project Structure
 
 - `bot.js` - Main bot logic and webhook handling
