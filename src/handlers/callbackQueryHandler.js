@@ -12,11 +12,7 @@ let logger, stateManager, telegramNotifier;
  * @throws {Error} If any required dependency is missing.
  */
 function initialize(deps) {
-  if (
-    !deps.logger ||
-    !deps.stateManager ||
-    !deps.telegramNotifier
-  ) {
+  if (!deps.logger || !deps.stateManager || !deps.telegramNotifier) {
     throw new Error("Missing required dependencies for callbackQueryHandler");
   }
   logger = deps.logger;
@@ -40,7 +36,7 @@ async function handleCallbackQuery(ctx) {
   }
 
   const telegramId = ctx.from.id.toString();
-  const chatId = ctx.chat.id; // For editing the message
+  const _chatId = ctx.chat.id; // For editing the message
   const callbackData = ctx.callbackQuery.data;
 
   // Check if it's a session booking callback

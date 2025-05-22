@@ -1,6 +1,6 @@
 // tests/handlers/apiHandler.test.js
 
-const { toDate } = require("date-fns");
+const { toDate: _toDate } = require("date-fns"); // Renamed as it's mocked below
 const { formatInTimeZone } = require("date-fns-tz");
 
 // Mock dependencies
@@ -63,7 +63,7 @@ describe("API Handler", () => {
     jest.clearAllMocks(); // Clear all mock calls
     // Explicitly reset formatInTimeZone to its default mock behavior
     formatInTimeZone.mockImplementation((date, tz, format) =>
-      jest.requireActual("date-fns-tz").formatInTimeZone(date, tz, format)
+      jest.requireActual("date-fns-tz").formatInTimeZone(date, tz, format),
     );
 
     // Suppress console.error for expected error tests
@@ -376,7 +376,9 @@ describe("API Handler", () => {
 
     it("should return 500 if database error occurs during session creation", async () => {
       mockPrisma.users.findUnique.mockResolvedValue({ client_id: 1 });
-      mockPrisma.sessions.create.mockRejectedValue(new Error("DB Create Error"));
+      mockPrisma.sessions.create.mockRejectedValue(
+        new Error("DB Create Error"),
+      );
       const req = mockRequest({}, validFormData);
       const res = mockResponse();
       await apiHandler.submitWaiverApi(req, res);
@@ -541,7 +543,9 @@ describe("API Handler", () => {
       mockPrisma.sessions.findUnique.mockResolvedValue({
         appointment_datetime: new Date(),
       });
-      mockPrisma.sessions.update.mockRejectedValue(new Error("DB Update Error"));
+      mockPrisma.sessions.update.mockRejectedValue(
+        new Error("DB Update Error"),
+      );
       const req = mockRequest({}, validWebhookBody);
       const res = mockResponse();
       await apiHandler.waiverCompletedWebhook(req, res);

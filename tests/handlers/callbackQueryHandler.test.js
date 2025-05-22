@@ -1,6 +1,6 @@
 // tests/handlers/callbackQueryHandler.test.js
 
-const { v4: uuidv4 } = require("uuid");
+const { v4: _uuidv4 } = require("uuid"); // Renamed as it's mocked below
 
 // Mock dependencies
 jest.mock("uuid", () => {
@@ -121,15 +121,27 @@ describe("Callback Query Handler", () => {
       await callbackQueryHandler.handleCallbackQuery(ctxNoCb);
       expect(mockLogger.info).not.toHaveBeenCalled(); // No processing should occur
 
-      const ctxNoData = mockCtx(undefined); // Simulate no callbackQuery object at all for one path
+      const _ctxNoData = mockCtx(undefined); // Simulate no callbackQuery object at all for one path
       // To test ctx.callbackQuery.data undefined when ctx.callbackQuery IS defined:
-      const ctxCbNoDataField = { from: {id:123}, chat: {id:123}, callbackQuery: { /* no data field */ }, answerCbQuery: jest.fn() };
+      const ctxCbNoDataField = {
+        from: { id: 123 },
+        chat: { id: 123 },
+        callbackQuery: {
+          /* no data field */
+        },
+        answerCbQuery: jest.fn(),
+      };
       mockLogger.info.mockClear();
       await callbackQueryHandler.handleCallbackQuery(ctxCbNoDataField);
       expect(mockLogger.info).not.toHaveBeenCalled();
 
       // Test original case for ctx.callbackQuery.data being explicitly undefined
-      const ctxWithUndefinedData = { from: {id:123}, chat: {id:123}, callbackQuery: { data: undefined }, answerCbQuery: jest.fn() };
+      const ctxWithUndefinedData = {
+        from: { id: 123 },
+        chat: { id: 123 },
+        callbackQuery: { data: undefined },
+        answerCbQuery: jest.fn(),
+      };
       mockLogger.info.mockClear();
       await callbackQueryHandler.handleCallbackQuery(ctxWithUndefinedData);
       expect(mockLogger.info).not.toHaveBeenCalled();
@@ -251,14 +263,11 @@ describe("Callback Query Handler", () => {
         telegramId: "123",
         sessionId: "test-uuid-123",
       });
-      expect(mockStateManager.updateUserState).toHaveBeenCalledWith(
-        "123",
-        {
-          state: "BOOKING",
-          session_type: "sessionType1",
-          edit_msg_id: null,
-        },
-      );
+      expect(mockStateManager.updateUserState).toHaveBeenCalledWith("123", {
+        state: "BOOKING",
+        session_type: "sessionType1",
+        edit_msg_id: null,
+      });
       expect(mockLogger.error).toHaveBeenCalledWith(
         {
           err: new Error("State Update Error"),
@@ -299,14 +308,11 @@ describe("Callback Query Handler", () => {
         telegramId: "123",
         sessionId: "test-uuid-123",
       });
-      expect(mockStateManager.updateUserState).toHaveBeenCalledWith(
-        "123",
-        {
-          state: "BOOKING",
-          session_type: selectedSessionTypeId,
-          edit_msg_id: null,
-        },
-      );
+      expect(mockStateManager.updateUserState).toHaveBeenCalledWith("123", {
+        state: "BOOKING",
+        session_type: selectedSessionTypeId,
+        edit_msg_id: null,
+      });
       expect(mockLogger.info).toHaveBeenCalledWith(
         {
           userId: "123",

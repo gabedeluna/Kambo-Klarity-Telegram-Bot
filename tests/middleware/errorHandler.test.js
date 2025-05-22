@@ -34,7 +34,7 @@ describe("errorHandler Middleware", () => {
     logger.error.mockClear(); // Clear mock usage before each test
 
     // Suppress console.error for expected error logging during tests
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {

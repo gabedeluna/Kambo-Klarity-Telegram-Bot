@@ -14,19 +14,9 @@ const { Markup } = require("telegraf");
 
 function initialize(deps) {
   // --- Validate Dependencies ---
-  const {
-    logger,
-    commandHandler,
-    callbackQueryHandler,
-    config,
-  } = deps || {};
+  const { logger, commandHandler, callbackQueryHandler, config } = deps || {};
 
-  if (
-    !logger ||
-    !commandHandler ||
-    !callbackQueryHandler ||
-    !config
-  ) {
+  if (!logger || !commandHandler || !callbackQueryHandler || !config) {
     const missing = [
       !logger && "logger",
       !commandHandler && "commandHandler",

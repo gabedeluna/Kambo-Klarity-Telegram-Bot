@@ -10,13 +10,13 @@ describe("rateLimiterMiddleware", () => {
     // Reset modules to ensure a clean state and that the module under test
     // re-evaluates its top-level require of 'express-rate-limit'.
     jest.resetModules();
-        
+
     // Get a reference to the mock function.
     // This require call will hit the mock because of jest.mock at the top.
     mockRateLimit = require("express-rate-limit");
     // Clear any calls from previous tests or setups before the module under test is loaded.
     mockRateLimit.mockClear();
-    
+
     // Load the module under test. This will trigger its internal require('express-rate-limit'),
     // which will call our (now cleared) mockRateLimit function once.
     require("../../src/middleware/rateLimiterMiddleware");
@@ -31,7 +31,8 @@ describe("rateLimiterMiddleware", () => {
       max: 100, // Limit each IP to 100 requests per windowMs
       standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
       legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-      message: "Too many requests from this IP, please try again after 15 minutes",
+      message:
+        "Too many requests from this IP, please try again after 15 minutes",
     });
   });
 

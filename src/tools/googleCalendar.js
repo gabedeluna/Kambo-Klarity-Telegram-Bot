@@ -542,7 +542,6 @@ class GoogleCalendarTool {
       return []; // Return empty array on critical error
     }
   }
-
 }
 
 // Export the class itself, allowing consumers to instantiate it.

@@ -1,7 +1,7 @@
 const { toDate } = require("date-fns");
 const { formatInTimeZone } = require("date-fns-tz");
 
-let prisma, logger, telegramNotifier, bot;
+let prisma, logger, telegramNotifier, bot, googleCalendarTool;
 
 /**
  * Initializes the API handler module with required dependencies.
@@ -11,6 +11,7 @@ let prisma, logger, telegramNotifier, bot;
  * @param {object} deps.logger - The logger instance.
  * @param {object} deps.telegramNotifier - The Telegram Notifier instance.
  * @param {object} deps.bot - The Telegram Bot instance.
+ * @param {object} deps.googleCalendarTool - The GoogleCalendarTool instance.
  * @throws {Error} If required dependencies are missing.
  */
 function initialize(deps) {
@@ -30,12 +31,19 @@ function initialize(deps) {
   if (!deps.bot) {
     throw new Error("Dependency Error: bot is required for apiHandler.");
   }
+  if (!deps.googleCalendarTool) {
+    // logger.error("Dependency: googleCalendarTool is required for apiHandler."); // Optional: log if logger is available
+    throw new Error(
+      "Dependency: googleCalendarTool is required for apiHandler.",
+    );
+  }
   prisma = deps.prisma;
   logger = deps.logger;
   telegramNotifier = deps.telegramNotifier;
   bot = deps.bot;
+  googleCalendarTool = deps.googleCalendarTool;
   logger.info(
-    "API Handler initialized successfully with Prisma, Logger, TelegramNotifier, and Bot.",
+    "API Handler initialized successfully with Prisma, Logger, TelegramNotifier, Bot, and GoogleCalendarTool.",
   );
 }
 
@@ -516,9 +524,114 @@ async function waiverCompletedWebhook(req, res) {
   }
 }
 
+// const logger = require('../core/logger'); // Ensure logger is available - logger is module-scoped via initialize
+
+/**
+ * Handles GET /api/calendar/availability requests.
+ * Finds available time slots based on query parameters using GoogleCalendarTool.
+ *
+ * @param {object} req - The Express request object.
+ * @param {object} req.query - Query parameters.
+ * @param {string} req.query.startDateRange - Start of the date range (UTC ISO string, e.g., "YYYY-MM-DDTHH:MM:SSZ").
+ * @param {string} req.query.endDateRange - End of the date range (UTC ISO string, e.g., "YYYY-MM-DDTHH:MM:SSZ").
+ * @param {string} req.query.sessionDurationMinutes - Desired session duration in minutes.
+ * @param {object} res - The Express response object.
+ * @param {Function} next - The Express next middleware function.
+ * @returns {Promise<void>} Sends a JSON response with available slots or an error.
+ * @response {200} {object} Successfully fetched slots. { success: true, slots: Array<object> }
+ * @response {400} {object} Invalid or missing query parameters. { success: false, message: string }
+ * @response {500} {object} Internal server error. { success: false, message: string }
+ */
+async function getAvailability(req, res, _next) {
+  // Ensure logger is accessible here (it's module-scoped from initialize)
+  // const { logger } = require('../core/logger'); // Direct require if not already module-scoped from initialize - Not needed
+
+  logger.info({ query: req.query }, "GET /api/calendar/availability called");
+
+  const { startDateRange, endDateRange, sessionDurationMinutes } = req.query;
+
+  // --- Input Validation ---
+  if (!startDateRange || !endDateRange || !sessionDurationMinutes) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Missing required query parameters: startDateRange, endDateRange, sessionDurationMinutes.",
+    });
+  }
+
+  const duration = parseInt(sessionDurationMinutes, 10);
+  if (isNaN(duration) || duration <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid sessionDurationMinutes: must be a positive number.",
+    });
+  }
+
+  // Regex for YYYY-MM-DDTHH:MM:SS.sssZ or YYYY-MM-DDTHH:MM:SSZ
+  const isoUtcRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
+  if (!isoUtcRegex.test(startDateRange) || !isoUtcRegex.test(endDateRange)) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Invalid date format for startDateRange or endDateRange. Expected UTC ISO string ending with 'Z'.",
+    });
+  }
+
+  try {
+    if (new Date(startDateRange) >= new Date(endDateRange)) {
+      return res.status(400).json({
+        success: false,
+        message: "startDateRange must be before endDateRange.",
+      });
+    }
+  } catch {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid date string(s) provided for date ranges.",
+    });
+  }
+
+  // --- Call Core Logic ---
+  try {
+    if (
+      !googleCalendarTool ||
+      typeof googleCalendarTool.findFreeSlots !== "function"
+    ) {
+      logger.error(
+        "FATAL: googleCalendarTool or findFreeSlots method not available in getAvailability handler.",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Internal server configuration error [GCT].",
+      });
+    }
+
+    const availableSlots = await googleCalendarTool.findFreeSlots({
+      startDateRange,
+      endDateRange,
+      sessionDurationMinutes: duration,
+    });
+
+    logger.info(
+      `Successfully fetched ${availableSlots.length} slots for range ${startDateRange} to ${endDateRange}, duration ${duration}min.`,
+    );
+    res.status(200).json({ success: true, slots: availableSlots });
+  } catch (error) {
+    logger.error(
+      { err: error, query: req.query },
+      "Error calling findFreeSlots from /api/calendar/availability",
+    );
+    res.status(500).json({
+      success: false,
+      message: "An internal error occurred while fetching availability.",
+    });
+  }
+}
+
 module.exports = {
   initialize,
   getUserDataApi,
   submitWaiverApi,
   waiverCompletedWebhook,
+  getAvailability, // Add new handler
 };

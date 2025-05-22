@@ -11,7 +11,8 @@ let logger;
  * @param {object} deps.logger - Logger instance.
  */
 function initialize(deps) {
-  if (!deps || !deps.logger) { // Added !deps check
+  if (!deps || !deps.logger) {
+    // Added !deps check
     console.error(
       "FATAL: bookingRouter initialization failed. Missing dependencies.",
     );

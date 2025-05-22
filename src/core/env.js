@@ -9,12 +9,7 @@ const logger = require("./logger");
 dotenv.config();
 
 // Always required
-const ALWAYS_REQUIRED = [
-  "TG_TOKEN",
-  "DATABASE_URL",
-  "FORM_URL",
-  "NGROK_URL",
-];
+const ALWAYS_REQUIRED = ["TG_TOKEN", "DATABASE_URL", "FORM_URL", "NGROK_URL"];
 
 // Conditionally required based on AI provider
 const provider = process.env.AI_PROVIDER || "openai"; // Default to openai if not set

@@ -33,8 +33,11 @@ module.exports = [
       },
     },
     rules: {
-      // Add any specific project rules here if needed
-      // Example: 'no-unused-vars': 'warn'
+      "no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      // Add any other specific project rules here if needed
     },
     settings: {
       // Settings for eslint-plugin-import if needed
@@ -47,7 +50,7 @@ module.exports = [
     files: ["tests/**/*.test.js"], // Correct path for test files
     languageOptions: {
       globals: {
-        ...globals.mocha, // Includes Mocha globals like describe, it
+        ...globals.jest, // Includes Jest globals like describe, it, expect, jest
       },
     },
     rules: {
@@ -62,16 +65,4 @@ module.exports = [
 
   // Apply Prettier overrides last
   eslintConfigPrettier,
-
-  // Global ignores
-  {
-    ignores: [
-      "node_modules/",
-      "legacy/",
-      "dist/",
-      ".husky/",
-      "coverage/", // Also ignore coverage reports
-      ".nyc_output/", // And NYC output
-    ],
-  },
 ];

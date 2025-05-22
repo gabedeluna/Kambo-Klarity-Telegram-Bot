@@ -14,9 +14,9 @@ describe("loggingMiddleware", () => {
       info: jest.fn(),
       error: jest.fn(), // Add error mock if initialize logs errors
     };
-    
+
     // Suppress console.error for expected error logging during tests
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -40,16 +40,16 @@ describe("loggingMiddleware", () => {
       expect(() => loggingMiddleware.initialize({ logger: null })).toThrow(
         "Missing logger dependency for loggingMiddleware",
       );
-       expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
         "FATAL: loggingMiddleware initialization failed. Missing logger.",
       );
-      
+
       consoleErrorSpy.mockClear(); // Clear for next assertion
 
       expect(() => loggingMiddleware.initialize({ logger: undefined })).toThrow(
         "Missing logger dependency for loggingMiddleware",
       );
-       expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
         "FATAL: loggingMiddleware initialization failed. Missing logger.",
       );
     });
@@ -99,7 +99,8 @@ describe("loggingMiddleware", () => {
       loggingMiddleware.logRequest(mockReq, mockRes, mockNext);
 
       expect(mockLogger.info).toHaveBeenCalledTimes(2); // 1 for init, 1 for request
-      expect(mockLogger.info).toHaveBeenNthCalledWith(2,
+      expect(mockLogger.info).toHaveBeenNthCalledWith(
+        2,
         {
           method: "GET",
           url: "/test-path",
@@ -127,7 +128,8 @@ describe("loggingMiddleware", () => {
       loggingMiddleware.logRequest(reqWithoutHeaders, mockRes, mockNext);
 
       expect(mockLogger.info).toHaveBeenCalledTimes(2);
-      expect(mockLogger.info).toHaveBeenNthCalledWith(2,
+      expect(mockLogger.info).toHaveBeenNthCalledWith(
+        2,
         {
           method: "POST",
           url: "/another-path",
@@ -141,16 +143,17 @@ describe("loggingMiddleware", () => {
       );
       expect(mockNext).toHaveBeenCalledTimes(1);
     });
-    
+
     it("should correctly use the initialized logger instance", () => {
       const anotherMockLogger = { info: jest.fn(), error: jest.fn() };
       loggingMiddleware.initialize({ logger: anotherMockLogger });
       loggingMiddleware.logRequest(mockReq, mockRes, mockNext);
 
       expect(anotherMockLogger.info).toHaveBeenCalledTimes(2); // Init + request
-      expect(anotherMockLogger.info).toHaveBeenNthCalledWith(2, 
+      expect(anotherMockLogger.info).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({ method: "GET" }),
-        "Incoming request"
+        "Incoming request",
       );
       expect(mockLogger.info).not.toHaveBeenCalled(); // Original mockLogger should not be used
       expect(mockNext).toHaveBeenCalledTimes(1);

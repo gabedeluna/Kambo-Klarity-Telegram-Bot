@@ -35,7 +35,7 @@ describe("Sessions Route Handlers (sessions.js)", () => {
     };
     next = jest.fn();
 
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -46,32 +46,39 @@ describe("Sessions Route Handlers (sessions.js)", () => {
 
   describe("Initialization", () => {
     it("should initialize successfully with logger and prisma", () => {
-      expect(() => sessionsRouter.initialize({
-        logger: loggerMock,
-        prisma: prismaMock
-      })).not.toThrow();
-      expect(loggerMock.info).toHaveBeenCalledWith("[sessionsRouter] Initialized successfully.");
+      expect(() =>
+        sessionsRouter.initialize({
+          logger: loggerMock,
+          prisma: prismaMock,
+        }),
+      ).not.toThrow();
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        "[sessionsRouter] Initialized successfully.",
+      );
     });
 
     it("should throw an error if logger is missing", () => {
-      expect(() => sessionsRouter.initialize({ prisma: prismaMock }))
-        .toThrow("Missing dependencies for sessionsRouter");
+      expect(() => sessionsRouter.initialize({ prisma: prismaMock })).toThrow(
+        "Missing dependencies for sessionsRouter",
+      );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "FATAL: sessionsRouter initialization failed. Missing dependencies."
+        "FATAL: sessionsRouter initialization failed. Missing dependencies.",
       );
     });
 
     it("should throw an error if prisma is missing", () => {
-      expect(() => sessionsRouter.initialize({ logger: loggerMock }))
-        .toThrow("Missing dependencies for sessionsRouter");
+      expect(() => sessionsRouter.initialize({ logger: loggerMock })).toThrow(
+        "Missing dependencies for sessionsRouter",
+      );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "FATAL: sessionsRouter initialization failed. Missing dependencies."
+        "FATAL: sessionsRouter initialization failed. Missing dependencies.",
       );
     });
 
-     it("should throw an error if deps is undefined", () => {
-        expect(() => sessionsRouter.initialize(undefined))
-          .toThrow("Missing dependencies for sessionsRouter");
+    it("should throw an error if deps is undefined", () => {
+      expect(() => sessionsRouter.initialize(undefined)).toThrow(
+        "Missing dependencies for sessionsRouter",
+      );
     });
   });
 
@@ -80,14 +87,15 @@ describe("Sessions Route Handlers (sessions.js)", () => {
     let handler;
 
     beforeEach(() => {
-        // Initialize with mocks before each test in this describe block
-        sessionsRouter.initialize({ logger: loggerMock, prisma: prismaMock });
+      // Initialize with mocks before each test in this describe block
+      sessionsRouter.initialize({ logger: loggerMock, prisma: prismaMock });
 
-        routeStack = sessionsRouter.router.stack.find(
-            (layer) => layer.route && layer.route.path === "/" && layer.route.methods.get
-        );
-        expect(routeStack).toBeDefined();
-        handler = routeStack.route.stack[0].handle;
+      routeStack = sessionsRouter.router.stack.find(
+        (layer) =>
+          layer.route && layer.route.path === "/" && layer.route.methods.get,
+      );
+      expect(routeStack).toBeDefined();
+      handler = routeStack.route.stack[0].handle;
     });
 
     it("should fetch session types and return them as JSON on success", async () => {
@@ -99,7 +107,9 @@ describe("Sessions Route Handlers (sessions.js)", () => {
 
       await handler(req, res, next);
 
-      expect(loggerMock.info).toHaveBeenCalledWith("GET /api/sessions called (placeholder)");
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        "GET /api/sessions called (placeholder)",
+      );
       expect(prismaMock.sessionType.findMany).toHaveBeenCalledTimes(1);
       expect(res.json).toHaveBeenCalledWith({ sessionTypes: mockSessionTypes });
       expect(next).not.toHaveBeenCalled();
@@ -111,9 +121,14 @@ describe("Sessions Route Handlers (sessions.js)", () => {
 
       await handler(req, res, next);
 
-      expect(loggerMock.info).toHaveBeenCalledWith("GET /api/sessions called (placeholder)");
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        "GET /api/sessions called (placeholder)",
+      );
       expect(prismaMock.sessionType.findMany).toHaveBeenCalledTimes(1);
-      expect(loggerMock.error).toHaveBeenCalledWith({ err: dbError }, "Failed to fetch session types");
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        { err: dbError },
+        "Failed to fetch session types",
+      );
       expect(next).toHaveBeenCalledWith(dbError);
       expect(res.json).not.toHaveBeenCalled();
     });

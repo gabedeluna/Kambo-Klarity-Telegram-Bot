@@ -32,9 +32,9 @@ describe("userLookupMiddleware", () => {
 
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     processExitSpy = jest.spyOn(process, "exit").mockImplementation(() => {
-        throw new Error("process.exit called"); // Make test fail if exit is called unexpectedly
+      throw new Error("process.exit called"); // Make test fail if exit is called unexpectedly
     });
-    
+
     // Require the module after mocks are set up for module-level variables
     userLookupModule = require("../../src/middleware/userLookup");
   });
@@ -110,7 +110,7 @@ describe("userLookupMiddleware", () => {
         expect(mockCtx.state.user).toBeUndefined();
         expect(mockCtx.state.isNewUser).toBeUndefined();
       });
-      
+
       it("should handle ctx.from being undefined", async () => {
         mockCtx.from = undefined;
         await userLookupModule.userLookupMiddleware(mockCtx, mockNext);
@@ -135,7 +135,14 @@ describe("userLookupMiddleware", () => {
       });
 
       it("should find existing user, set ctx.state, and call next", async () => {
-        const fakeUser = { client_id: 1, telegram_id: BigInt(mockCtx.from.id), role: "USER", state: "IDLE", first_name: "Test", active_session_id: null };
+        const fakeUser = {
+          client_id: 1,
+          telegram_id: BigInt(mockCtx.from.id),
+          role: "USER",
+          state: "IDLE",
+          first_name: "Test",
+          active_session_id: null,
+        };
         mockPrisma.users.findUnique.mockResolvedValue(fakeUser);
 
         await userLookupModule.userLookupMiddleware(mockCtx, mockNext);
@@ -186,13 +193,13 @@ describe("userLookupMiddleware", () => {
         expect(mockCtx.state.isNewUser).toBeUndefined();
         expect(mockNext).toHaveBeenCalledTimes(1);
       });
-      
+
       it("should ensure ctx.state exists if not present initially", async () => {
         mockCtx.state = undefined; // Test case where ctx.state is not pre-existing
         mockPrisma.users.findUnique.mockResolvedValue(null); // Simulate a lookup path
 
         await userLookupModule.userLookupMiddleware(mockCtx, mockNext);
-        
+
         expect(mockCtx.state).toBeDefined();
         expect(mockCtx.state.user).toBeNull(); // Check a property was set
         expect(mockNext).toHaveBeenCalledTimes(1);

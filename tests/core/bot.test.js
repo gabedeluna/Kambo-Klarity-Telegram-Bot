@@ -82,8 +82,8 @@ describe("Core Bot Initialization", () => {
     expect(Telegraf).toHaveBeenCalledWith(newToken);
     // expect(newBotInstance).toBeInstanceOf(Telegraf);
     expect(newBotInstance).toBe(mockTelegrafInstance); // Should be a new instance, but our mock always returns the same one
-                                                    // unless we make MockTelegrafConstructor return new {} each time.
-                                                    // For this test, verifying it's *an* instance from our mock is key.
+    // unless we make MockTelegrafConstructor return new {} each time.
+    // For this test, verifying it's *an* instance from our mock is key.
     // If MockTelegrafConstructor was cleared, this would be the first instance in the new list.
     // If not cleared, it would be the second. Since we do clearAllMocks, it's the first of this 'require' cycle.
     // expect(MockTelegrafConstructor.mock.instances[0]).toBe(mockTelegrafInstance);

@@ -117,7 +117,7 @@ describe("Command Handler", () => {
       // Current logic: if a command is not in client registry, it's unknown for a client.
       // It doesn't check admin registry to then deny.
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Sorry, I don't recognize the command \"/ban\". Please use /help to see available commands.",
+        'Sorry, I don\'t recognize the command "/ban". Please use /help to see available commands.',
       );
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ commandName: "ban", userRole: "CLIENT" }),
@@ -142,7 +142,7 @@ describe("Command Handler", () => {
       const ctx = mockCtx("/unknowncmd", { id: "client123", role: "CLIENT" });
       await commandHandler.handleCommand(ctx);
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Sorry, I don't recognize the command \"/unknowncmd\". Please use /help to see available commands.",
+        'Sorry, I don\'t recognize the command "/unknowncmd". Please use /help to see available commands.',
       );
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -157,7 +157,7 @@ describe("Command Handler", () => {
       const ctx = mockCtx("/unknowncmd", { id: "admin456", role: "ADMIN" });
       await commandHandler.handleCommand(ctx);
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Sorry, I don't recognize the command \"/unknowncmd\". Please use /help to see available commands.",
+        'Sorry, I don\'t recognize the command "/unknowncmd". Please use /help to see available commands.',
       );
     });
 
@@ -174,62 +174,82 @@ describe("Command Handler", () => {
         "Executing client command.",
       );
     });
-    
+
     it("should handle case-insensitivity for command names (by parsing to lowercase)", async () => {
-        const ctx = mockCtx("/HELP", { id: "client123", role: "CLIENT" });
-        await commandHandler.handleCommand(ctx);
-        expect(mockCommandRegistry.client.help.handler).toHaveBeenCalledWith(ctx);
+      const ctx = mockCtx("/HELP", { id: "client123", role: "CLIENT" });
+      await commandHandler.handleCommand(ctx);
+      expect(mockCommandRegistry.client.help.handler).toHaveBeenCalledWith(ctx);
     });
 
     it("should handle case-insensitivity for user roles (by normalizing to uppercase)", async () => {
-        const ctxAdminLower = mockCtx("/ban user789", { id: "admin789", role: "admin" }); // lowercase admin
-        await commandHandler.handleCommand(ctxAdminLower);
-        expect(mockCommandRegistry.admin.ban.handler).toHaveBeenCalledWith(ctxAdminLower);
+      const ctxAdminLower = mockCtx("/ban user789", {
+        id: "admin789",
+        role: "admin",
+      }); // lowercase admin
+      await commandHandler.handleCommand(ctxAdminLower);
+      expect(mockCommandRegistry.admin.ban.handler).toHaveBeenCalledWith(
+        ctxAdminLower,
+      );
 
-        const ctxClientUpper = mockCtx("/help", { id: "client789", role: "client" }); // lowercase client
-        await commandHandler.handleCommand(ctxClientUpper);
-        expect(mockCommandRegistry.client.help.handler).toHaveBeenCalledWith(ctxClientUpper);
+      const ctxClientUpper = mockCtx("/help", {
+        id: "client789",
+        role: "client",
+      }); // lowercase client
+      await commandHandler.handleCommand(ctxClientUpper);
+      expect(mockCommandRegistry.client.help.handler).toHaveBeenCalledWith(
+        ctxClientUpper,
+      );
     });
 
     it("should reply with unrecognized role message if role is neither ADMIN nor CLIENT after normalization (edge case)", async () => {
-        // This tests the scenario where role normalization might fail or an unexpected role slips through
-        // The current code defaults to CLIENT if role is missing, but this tests if it was something else entirely.
-        const ctx = mockCtx("/help", { id: "unknownRoleUser", role: "VIEWER" });
-        await commandHandler.handleCommand(ctx);
-        // For role "VIEWER", handlerInfo will be null as it's not in client or admin lookup.
-        // This leads to the "Unknown command" path.
-        expect(mockCommandRegistry.client.help.handler).not.toHaveBeenCalled();
-        expect(ctx.reply).toHaveBeenCalledWith(
-            "Sorry, I don't recognize the command \"/help\". Please use /help to see available commands."
-        );
-        // This specific error log for "unrecognized role attempted client command" is not hit.
-        // Instead, the "User with unrecognized role type during command lookup" is logged.
-        expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.objectContaining({ commandName: "help", userRole: "VIEWER", userId: "unknownRoleUser" }),
-            "User with unrecognized role type during command lookup."
-        );
-        expect(mockLogger.warn).toHaveBeenCalledWith(
-            expect.objectContaining({ commandName: "help", userRole: "VIEWER" }),
-            "Unknown command or no handler defined."
-        );
+      // This tests the scenario where role normalization might fail or an unexpected role slips through
+      // The current code defaults to CLIENT if role is missing, but this tests if it was something else entirely.
+      const ctx = mockCtx("/help", { id: "unknownRoleUser", role: "VIEWER" });
+      await commandHandler.handleCommand(ctx);
+      // For role "VIEWER", handlerInfo will be null as it's not in client or admin lookup.
+      // This leads to the "Unknown command" path.
+      expect(mockCommandRegistry.client.help.handler).not.toHaveBeenCalled();
+      expect(ctx.reply).toHaveBeenCalledWith(
+        'Sorry, I don\'t recognize the command "/help". Please use /help to see available commands.',
+      );
+      // This specific error log for "unrecognized role attempted client command" is not hit.
+      // Instead, the "User with unrecognized role type during command lookup" is logged.
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          commandName: "help",
+          userRole: "VIEWER",
+          userId: "unknownRoleUser",
+        }),
+        "User with unrecognized role type during command lookup.",
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ commandName: "help", userRole: "VIEWER" }),
+        "Unknown command or no handler defined.",
+      );
     });
 
     it("should correctly parse command with arguments but only use the command part", async () => {
-        const ctx = mockCtx("/book argument1 argument2", { id: "client123", role: "CLIENT" });
-        await commandHandler.handleCommand(ctx);
-        expect(mockCommandRegistry.client.book.handler).toHaveBeenCalledWith(ctx);
-        expect(mockLogger.info).toHaveBeenCalledWith(
-            expect.objectContaining({ commandName: "book", userId: "client123" }),
-            "Executing client command."
-        );
+      const ctx = mockCtx("/book argument1 argument2", {
+        id: "client123",
+        role: "CLIENT",
+      });
+      await commandHandler.handleCommand(ctx);
+      expect(mockCommandRegistry.client.book.handler).toHaveBeenCalledWith(ctx);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ commandName: "book", userId: "client123" }),
+        "Executing client command.",
+      );
     });
 
     it("should handle commands not found in any registry section for ADMIN", async () => {
-        const ctx = mockCtx("/completely_unknown", { id: "admin456", role: "ADMIN" });
-        await commandHandler.handleCommand(ctx);
-        expect(ctx.reply).toHaveBeenCalledWith(
-            "Sorry, I don't recognize the command \"/completely_unknown\". Please use /help to see available commands."
-        );
+      const ctx = mockCtx("/completely_unknown", {
+        id: "admin456",
+        role: "ADMIN",
+      });
+      await commandHandler.handleCommand(ctx);
+      expect(ctx.reply).toHaveBeenCalledWith(
+        'Sorry, I don\'t recognize the command "/completely_unknown". Please use /help to see available commands.',
+      );
     });
   });
 });

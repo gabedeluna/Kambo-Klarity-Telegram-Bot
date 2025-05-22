@@ -6,7 +6,8 @@ const apiHandler = require("../../../src/handlers/apiHandler"); // Adjusted path
 // const { PrismaClient } = require("@prisma/client"); // Not strictly needed
 
 // Mock dependencies
-jest.mock("../../../src/core/prisma", () => ({ // Adjusted path
+jest.mock("../../../src/core/prisma", () => ({
+  // Adjusted path
   users: {
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -30,17 +31,18 @@ const telegramNotifierMock = {
   sendAdminNotification: jest.fn(),
 };
 
-const botMock = { // Not used by submitWaiverApi, but part of apiHandler init
+const botMock = {
+  // Not used by submitWaiverApi, but part of apiHandler init
   telegram: {
     editMessageText: jest.fn(),
   },
 };
 
 // Mock date-fns-tz - not directly used by submitWaiverApi but good to keep if other parts of apiHandler use it
-jest.mock('date-fns-tz', () => ({
-  ...jest.requireActual('date-fns-tz'),
+jest.mock("date-fns-tz", () => ({
+  ...jest.requireActual("date-fns-tz"),
   formatInTimeZone: jest.fn(),
-  toDate: jest.fn((date) => jest.requireActual('date-fns-tz').toDate(date)),
+  toDate: jest.fn((date) => jest.requireActual("date-fns-tz").toDate(date)),
 }));
 // const { formatInTimeZone, toDate } = require('date-fns-tz'); // Not directly used here
 
@@ -71,7 +73,7 @@ describe("API Handler - submitWaiverApi", () => {
       send: jest.fn().mockReturnThis(),
     };
 
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     // formatInTimeZone.mockReset(); // Not directly used here
   });
 
@@ -103,7 +105,8 @@ describe("API Handler - submitWaiverApi", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      message: "Missing required fields (e.g., signature, emergency contact, booking info).",
+      message:
+        "Missing required fields (e.g., signature, emergency contact, booking info).",
     });
     expect(loggerMock.warn).toHaveBeenCalledWith(
       { telegramIdString: validFormData.telegramId, signatureProvided: false },
@@ -120,7 +123,10 @@ describe("API Handler - submitWaiverApi", () => {
       message: "Invalid Telegram ID format.",
     });
     expect(loggerMock.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ telegramIdString: "invalid-id", error: expect.any(String) }),
+      expect.objectContaining({
+        telegramIdString: "invalid-id",
+        error: expect.any(String),
+      }),
       "Invalid Telegram ID format in waiver submission.",
     );
   });
@@ -211,7 +217,10 @@ describe("API Handler - submitWaiverApi", () => {
       message: "Waiver submitted successfully.",
     });
     expect(loggerMock.info).toHaveBeenCalledWith(
-      { telegramId: BigInt(validFormData.telegramId), sessionId: mockNewSession.id },
+      {
+        telegramId: BigInt(validFormData.telegramId),
+        sessionId: mockNewSession.id,
+      },
       "Session record created.",
     );
     expect(loggerMock.info).toHaveBeenCalledWith(
@@ -291,43 +300,43 @@ describe("API Handler - submitWaiverApi", () => {
   });
 
   it("should handle optional fields (firstName, lastName, email, phone, dob) being undefined", async () => {
-      const partialFormData = {
-          ...validFormData,
-          firstName: undefined,
-          lastName: undefined,
-          email: undefined,
-          phone: undefined,
-          dob: undefined,
-      };
-      req.body = partialFormData;
-      const mockUser = { client_id: 1 };
-      const mockNewSession = { id: 101 };
+    const partialFormData = {
+      ...validFormData,
+      firstName: undefined,
+      lastName: undefined,
+      email: undefined,
+      phone: undefined,
+      dob: undefined,
+    };
+    req.body = partialFormData;
+    const mockUser = { client_id: 1 };
+    const mockNewSession = { id: 101 };
 
-      prismaMock.users.findUnique.mockResolvedValue(mockUser);
-      prismaMock.sessions.create.mockResolvedValue(mockNewSession);
-      prismaMock.users.update.mockResolvedValue({});
-      telegramNotifierMock.sendAdminNotification.mockResolvedValue({});
+    prismaMock.users.findUnique.mockResolvedValue(mockUser);
+    prismaMock.sessions.create.mockResolvedValue(mockNewSession);
+    prismaMock.users.update.mockResolvedValue({});
+    telegramNotifierMock.sendAdminNotification.mockResolvedValue({});
 
-      await apiHandler.submitWaiverApi(req, res);
+    await apiHandler.submitWaiverApi(req, res);
 
-      expect(prismaMock.users.update).toHaveBeenCalledWith({
-          where: { telegram_id: BigInt(partialFormData.telegramId) },
-          data: {
-            first_name: undefined,
-            last_name: undefined,
-            email: undefined,
-            phone_number: undefined,
-            date_of_birth: undefined,
-            em_first_name: partialFormData.emergencyFirstName,
-            em_last_name: partialFormData.emergencyLastName,
-            em_phone_number: partialFormData.emergencyPhone,
-            booking_slot: null,
-            updated_at: expect.any(Date),
-          },
-        });
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(telegramNotifierMock.sendAdminNotification).toHaveBeenCalledWith({
-          text: ` Waiver Submitted:\nClient: N/A N/A (TG ID: ${partialFormData.telegramId})\nSession: ${partialFormData.sessionType}\nTime: ${new Date(partialFormData.appointmentDateTime).toLocaleString("en-US", { timeZone: "America/Chicago" })}`,
-      });
+    expect(prismaMock.users.update).toHaveBeenCalledWith({
+      where: { telegram_id: BigInt(partialFormData.telegramId) },
+      data: {
+        first_name: undefined,
+        last_name: undefined,
+        email: undefined,
+        phone_number: undefined,
+        date_of_birth: undefined,
+        em_first_name: partialFormData.emergencyFirstName,
+        em_last_name: partialFormData.emergencyLastName,
+        em_phone_number: partialFormData.emergencyPhone,
+        booking_slot: null,
+        updated_at: expect.any(Date),
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(telegramNotifierMock.sendAdminNotification).toHaveBeenCalledWith({
+      text: ` Waiver Submitted:\nClient: N/A N/A (TG ID: ${partialFormData.telegramId})\nSession: ${partialFormData.sessionType}\nTime: ${new Date(partialFormData.appointmentDateTime).toLocaleString("en-US", { timeZone: "America/Chicago" })}`,
+    });
   });
 });

@@ -76,7 +76,9 @@ describe("Registration Handler", () => {
           prisma: mockPrisma,
           logger: mockLogger,
         }),
-      ).toThrow("TelegramNotifier dependency is missing for registrationHandler");
+      ).toThrow(
+        "TelegramNotifier dependency is missing for registrationHandler",
+      );
     });
 
     it("should throw an error if logger is missing", () => {
@@ -197,14 +199,17 @@ describe("Registration Handler", () => {
     });
 
     it("should handle is_veteran_or_responder as false if not provided or not 'true'", async () => {
-      const formDataNoVeteran = { ...validFormData, is_veteran_or_responder: undefined };
+      const formDataNoVeteran = {
+        ...validFormData,
+        is_veteran_or_responder: undefined,
+      };
       const mockSavedUser = { client_id: 2, ...formDataNoVeteran };
       mockPrisma.users.upsert.mockResolvedValue(mockSavedUser);
       const req = mockRequest(formDataNoVeteran);
       const res = mockResponse();
       await registrationHandler.handleRegistrationSubmit(req, res);
 
-      const expectedTelegramIdBigInt = BigInt(formDataNoVeteran.telegramId);
+      const _expectedTelegramIdBigInt = BigInt(formDataNoVeteran.telegramId);
       expect(mockPrisma.users.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({ is_veteran_or_responder: false }),
@@ -213,59 +218,63 @@ describe("Registration Handler", () => {
       );
       expect(res.status).toHaveBeenCalledWith(201);
     });
-    
+
     it("should proceed with registration even if admin notification fails", async () => {
-        const mockSavedUser = { client_id: 3, ...validFormData };
-        mockPrisma.users.upsert.mockResolvedValue(mockSavedUser);
-        mockTelegramNotifier.sendAdminNotification.mockRejectedValue(new Error("Admin Notify Fail"));
-        mockTelegramNotifier.sendTextMessage.mockResolvedValue(true); // Client notification succeeds
+      const mockSavedUser = { client_id: 3, ...validFormData };
+      mockPrisma.users.upsert.mockResolvedValue(mockSavedUser);
+      mockTelegramNotifier.sendAdminNotification.mockRejectedValue(
+        new Error("Admin Notify Fail"),
+      );
+      mockTelegramNotifier.sendTextMessage.mockResolvedValue(true); // Client notification succeeds
 
-        const req = mockRequest(validFormData);
-        const res = mockResponse();
-        await registrationHandler.handleRegistrationSubmit(req, res);
+      const req = mockRequest(validFormData);
+      const res = mockResponse();
+      await registrationHandler.handleRegistrationSubmit(req, res);
 
-        expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.objectContaining({ err: new Error("Admin Notify Fail") }),
-            "Error sending notifications after registration."
-        );
-        expect(res.status).toHaveBeenCalledWith(201); // Still successful
-        // If admin notification fails, the client welcome message in the same try block is also skipped.
-        expect(mockTelegramNotifier.sendTextMessage).not.toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ err: new Error("Admin Notify Fail") }),
+        "Error sending notifications after registration.",
+      );
+      expect(res.status).toHaveBeenCalledWith(201); // Still successful
+      // If admin notification fails, the client welcome message in the same try block is also skipped.
+      expect(mockTelegramNotifier.sendTextMessage).not.toHaveBeenCalled();
     });
 
     it("should proceed with registration even if client welcome message fails", async () => {
-        const mockSavedUser = { client_id: 4, ...validFormData };
-        mockPrisma.users.upsert.mockResolvedValue(mockSavedUser);
-        mockTelegramNotifier.sendAdminNotification.mockResolvedValue(true); // Admin notification succeeds
-        mockTelegramNotifier.sendTextMessage.mockRejectedValue(new Error("Client Notify Fail"));
+      const mockSavedUser = { client_id: 4, ...validFormData };
+      mockPrisma.users.upsert.mockResolvedValue(mockSavedUser);
+      mockTelegramNotifier.sendAdminNotification.mockResolvedValue(true); // Admin notification succeeds
+      mockTelegramNotifier.sendTextMessage.mockRejectedValue(
+        new Error("Client Notify Fail"),
+      );
 
-        const req = mockRequest(validFormData);
-        const res = mockResponse();
-        await registrationHandler.handleRegistrationSubmit(req, res);
+      const req = mockRequest(validFormData);
+      const res = mockResponse();
+      await registrationHandler.handleRegistrationSubmit(req, res);
 
-        expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.objectContaining({ err: new Error("Client Notify Fail") }),
-            "Error sending notifications after registration."
-        );
-        expect(res.status).toHaveBeenCalledWith(201); // Still successful
-        expect(mockTelegramNotifier.sendAdminNotification).toHaveBeenCalled(); // Admin still notified
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ err: new Error("Client Notify Fail") }),
+        "Error sending notifications after registration.",
+      );
+      expect(res.status).toHaveBeenCalledWith(201); // Still successful
+      expect(mockTelegramNotifier.sendAdminNotification).toHaveBeenCalled(); // Admin still notified
     });
 
     it("should return 400 if dateOfBirth is null (due to !dateOfBirth validation)", async () => {
-        const formDataNullDob = { ...validFormData, dateOfBirth: null };
-        // No need to mock upsert as validation should fail first
-        // const mockSavedUser = { client_id: 5, ...formDataNullDob };
-        // mockPrisma.users.upsert.mockResolvedValue(mockSavedUser);
-        const req = mockRequest(formDataNullDob);
-        const res = mockResponse();
-        await registrationHandler.handleRegistrationSubmit(req, res);
+      const formDataNullDob = { ...validFormData, dateOfBirth: null };
+      // No need to mock upsert as validation should fail first
+      // const mockSavedUser = { client_id: 5, ...formDataNullDob };
+      // mockPrisma.users.upsert.mockResolvedValue(mockSavedUser);
+      const req = mockRequest(formDataNullDob);
+      const res = mockResponse();
+      await registrationHandler.handleRegistrationSubmit(req, res);
 
-        expect(mockPrisma.users.upsert).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith({
-            success: false,
-            message: "Missing required fields.", // Because !null is true
-        });
+      expect(mockPrisma.users.upsert).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Missing required fields.", // Because !null is true
+      });
     });
   });
 });

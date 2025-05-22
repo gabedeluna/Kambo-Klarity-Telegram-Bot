@@ -13,7 +13,8 @@ let prisma;
  * @param {import('@prisma/client').PrismaClient} deps.prisma - Prisma client instance.
  */
 function initialize(deps) {
-  if (!deps || !deps.logger || !deps.prisma) { // Added !deps check
+  if (!deps || !deps.logger || !deps.prisma) {
+    // Added !deps check
     console.error(
       "FATAL: sessionsRouter initialization failed. Missing dependencies.",
     );

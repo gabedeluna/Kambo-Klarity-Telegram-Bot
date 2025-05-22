@@ -22,7 +22,7 @@ describe("errorHandlerMiddleware", () => {
     // Reset modules to ensure createLogger is called fresh if needed.
     // This is important because errorHandlerMiddleware calls createLogger() at its top level.
     jest.resetModules();
-    
+
     // We need to re-require errorHandlerMiddleware IF its internal reference to the logger
     // (obtained from its top-level createLogger() call) needs to be fresh based on a per-test mock setup.
     // However, our current mock for createLogger is global to the file.
@@ -35,10 +35,9 @@ describe("errorHandlerMiddleware", () => {
     // Note: `errorHandlerMiddleware` is already loaded at the top. `jest.resetModules()`
     // means that when `errorHandlerMiddleware` (the function) is *called*, the `createLogger()`
     // inside `src/middleware/errorHandlerMiddleware.js` will be called again, hitting the global mock.
-    
+
     // const freshErrorHandlerMiddleware = require("../../src/middleware/errorHandlerMiddleware");
     // const { createLogger: freshCreateLoggerMock } = require("../../src/core/logger");
-
 
     mockReq = {
       method: "POST",
@@ -56,16 +55,16 @@ describe("errorHandlerMiddleware", () => {
 
     // Clear mocks before each test
     mockLoggerError.mockClear(); // The function returned by the mocked logger's error property
-    
+
     // `createLogger` is the mock function from `jest.mock`. We need to clear its call history.
     // This `createLogger` is the one imported at the top of the file.
     if (createLogger && createLogger.mockClear) {
-        createLogger.mockClear();
+      createLogger.mockClear();
     }
-    
+
     // Suppress console.error for expected error logging during tests
     // This is important if the mocked logger still tries to output to console.error
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -119,7 +118,7 @@ describe("errorHandlerMiddleware", () => {
     error.status = "bad_request"; // Non-numeric
 
     errorHandlerMiddleware(error, mockReq, mockRes, mockNext);
-    
+
     expect(mockLoggerError).toHaveBeenCalledTimes(1);
     expect(mockRes.status).toHaveBeenCalledWith(500);
     expect(mockRes.json).toHaveBeenCalledWith(
@@ -132,7 +131,7 @@ describe("errorHandlerMiddleware", () => {
     );
     expect(mockNext).not.toHaveBeenCalled();
   });
-  
+
   it("should use 500 status and generic message if error has no status property", () => {
     const error = new Error("No status property error");
 
@@ -150,7 +149,6 @@ describe("errorHandlerMiddleware", () => {
     );
     expect(mockNext).not.toHaveBeenCalled();
   });
-
 
   it("should call next(err) if headers already sent", () => {
     const error = new Error("Headers sent error");
@@ -202,11 +200,11 @@ describe("errorHandlerMiddleware", () => {
       expect(responseJson.error.stack).toBeUndefined();
     });
 
-     it("should NOT include stack trace in development if error status is not 500 but message is from error", () => {
+    it("should NOT include stack trace in development if error status is not 500 but message is from error", () => {
       process.env.NODE_ENV = "development";
       const error = new Error("Dev error with stack, non-500");
       error.stack = "Error stack trace details";
-      error.status = 400; 
+      error.status = 400;
 
       errorHandlerMiddleware(error, mockReq, mockRes, mockNext);
 
@@ -215,7 +213,7 @@ describe("errorHandlerMiddleware", () => {
         success: false,
         error: {
           message: "Dev error with stack, non-500",
-          stack: "Error stack trace details", 
+          stack: "Error stack trace details",
         },
       });
     });

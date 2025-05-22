@@ -32,7 +32,7 @@ describe("Booking Route Handlers (booking.js)", () => {
     };
 
     // Suppress console.error for expected error tests if any, or for the init failure
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -43,18 +43,26 @@ describe("Booking Route Handlers (booking.js)", () => {
 
   describe("Initialization", () => {
     it("should initialize successfully with a logger", () => {
-      expect(() => bookingRouter.initialize({ logger: loggerMock })).not.toThrow();
-      expect(loggerMock.info).toHaveBeenCalledWith("[bookingRouter] Initialized successfully.");
+      expect(() =>
+        bookingRouter.initialize({ logger: loggerMock }),
+      ).not.toThrow();
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        "[bookingRouter] Initialized successfully.",
+      );
     });
 
     it("should throw an error if logger is missing during initialization", () => {
-      expect(() => bookingRouter.initialize({})).toThrow("Missing dependencies for bookingRouter");
+      expect(() => bookingRouter.initialize({})).toThrow(
+        "Missing dependencies for bookingRouter",
+      );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "FATAL: bookingRouter initialization failed. Missing dependencies."
+        "FATAL: bookingRouter initialization failed. Missing dependencies.",
       );
     });
-     it("should throw an error if deps is undefined during initialization", () => {
-      expect(() => bookingRouter.initialize(undefined)).toThrow("Missing dependencies for bookingRouter");
+    it("should throw an error if deps is undefined during initialization", () => {
+      expect(() => bookingRouter.initialize(undefined)).toThrow(
+        "Missing dependencies for bookingRouter",
+      );
       // The internal check is `!deps.logger`, so `deps` itself being undefined will cause `deps.logger` to throw.
       // The console.error in the original code might not be reached if `deps` is undefined before `deps.logger` is accessed.
       // However, the custom error "Missing dependencies for bookingRouter" should still be thrown.
@@ -67,7 +75,7 @@ describe("Booking Route Handlers (booking.js)", () => {
     // It's good practice to initialize the router before testing its routes
     // even if the route itself doesn't directly use the initialized dependencies.
     beforeEach(() => {
-        bookingRouter.initialize({ logger: loggerMock });
+      bookingRouter.initialize({ logger: loggerMock });
     });
 
     it("should return 501 and a placeholder message", () => {
@@ -75,14 +83,17 @@ describe("Booking Route Handlers (booking.js)", () => {
       // This can be a bit tricky without an Express app instance.
       // We'll assume the first handler for the '/' GET route is our target.
       const routeStack = bookingRouter.router.stack.find(
-        (layer) => layer.route && layer.route.path === "/" && layer.route.methods.get
+        (layer) =>
+          layer.route && layer.route.path === "/" && layer.route.methods.get,
       );
       expect(routeStack).toBeDefined();
       const handler = routeStack.route.stack[0].handle;
 
       handler(req, res); // Call the handler directly
 
-      expect(loggerMock.info).toHaveBeenCalledWith("GET /api/booking called (placeholder)");
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        "GET /api/booking called (placeholder)",
+      );
       expect(res.status).toHaveBeenCalledWith(501);
       expect(res.json).toHaveBeenCalledWith({
         message: "Booking API not fully implemented yet.",

@@ -33,7 +33,7 @@ describe("Forms Route Handlers (forms.js)", () => {
     };
     next = jest.fn();
 
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -44,41 +44,52 @@ describe("Forms Route Handlers (forms.js)", () => {
     // This is to ensure that 'regHandler' is reset between tests for the initialization checks.
     // A bit of a hack, but necessary if the module retains state.
     try {
-        formsRouter.initialize({ logger: {}, registrationHandler: {} }); // Minimal valid init
-    } catch(e) { /* ignore if it fails, already tested */ }
+      formsRouter.initialize({ logger: {}, registrationHandler: {} }); // Minimal valid init
+    } catch {
+      /* ignore if it fails, already tested */
+    }
   });
 
   describe("Initialization", () => {
     it("should initialize successfully with logger and registrationHandler", () => {
-      expect(() => formsRouter.initialize({
-        logger: loggerMock,
-        registrationHandler: registrationHandlerMock
-      })).not.toThrow();
-      expect(loggerMock.info).toHaveBeenCalledWith("[formsRouter] Initialized successfully.");
+      expect(() =>
+        formsRouter.initialize({
+          logger: loggerMock,
+          registrationHandler: registrationHandlerMock,
+        }),
+      ).not.toThrow();
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        "[formsRouter] Initialized successfully.",
+      );
     });
 
     it("should throw an error if logger is missing", () => {
-      expect(() => formsRouter.initialize({ registrationHandler: registrationHandlerMock }))
-        .toThrow("Missing dependencies for formsRouter");
+      expect(() =>
+        formsRouter.initialize({
+          registrationHandler: registrationHandlerMock,
+        }),
+      ).toThrow("Missing dependencies for formsRouter");
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "FATAL: formsRouter initialization failed. Missing dependencies.",
-        { logger: false, registrationHandler: true }
+        { logger: false, registrationHandler: true },
       );
     });
 
     it("should throw an error if registrationHandler is missing", () => {
-      expect(() => formsRouter.initialize({ logger: loggerMock }))
-        .toThrow("Missing dependencies for formsRouter");
+      expect(() => formsRouter.initialize({ logger: loggerMock })).toThrow(
+        "Missing dependencies for formsRouter",
+      );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "FATAL: formsRouter initialization failed. Missing dependencies.",
-        { logger: true, registrationHandler: false }
+        { logger: true, registrationHandler: false },
       );
     });
 
     it("should throw an error if deps is undefined", () => {
-        expect(() => formsRouter.initialize(undefined))
-          .toThrow("Missing dependencies for formsRouter");
-        // consoleErrorSpy might be called depending on how robust the internal checks are
+      expect(() => formsRouter.initialize(undefined)).toThrow(
+        "Missing dependencies for formsRouter",
+      );
+      // consoleErrorSpy might be called depending on how robust the internal checks are
     });
   });
 
@@ -87,20 +98,26 @@ describe("Forms Route Handlers (forms.js)", () => {
     let handler;
 
     beforeEach(() => {
-        // To get the handler, we need to access the router's stack.
-        // This assumes the route is the first one defined for POST /submit-registration.
-        routeStack = formsRouter.router.stack.find(
-            (layer) => layer.route && layer.route.path === "/submit-registration" && layer.route.methods.post
-        );
-        expect(routeStack).toBeDefined(); // Ensure the route exists
-        handler = routeStack.route.stack[0].handle;
+      // To get the handler, we need to access the router's stack.
+      // This assumes the route is the first one defined for POST /submit-registration.
+      routeStack = formsRouter.router.stack.find(
+        (layer) =>
+          layer.route &&
+          layer.route.path === "/submit-registration" &&
+          layer.route.methods.post,
+      );
+      expect(routeStack).toBeDefined(); // Ensure the route exists
+      handler = routeStack.route.stack[0].handle;
     });
 
     it("should log receipt of POST request", () => {
-      formsRouter.initialize({ logger: loggerMock, registrationHandler: registrationHandlerMock });
+      formsRouter.initialize({
+        logger: loggerMock,
+        registrationHandler: registrationHandlerMock,
+      });
       handler(req, res, next);
       expect(loggerMock.info).toHaveBeenCalledWith(
-        `[forms.js] Received POST to /submit-registration for user: ${req.body.telegramId}`
+        `[forms.js] Received POST to /submit-registration for user: ${req.body.telegramId}`,
       );
     });
 
@@ -110,35 +127,47 @@ describe("Forms Route Handlers (forms.js)", () => {
     // in the "Initialization" describe block.
 
     it("should return 500 if registrationHandler.handleRegistrationSubmit is not a function", () => {
-      formsRouter.initialize({ logger: loggerMock, registrationHandler: { handleRegistrationSubmit: "not-a-function" } });
+      formsRouter.initialize({
+        logger: loggerMock,
+        registrationHandler: { handleRegistrationSubmit: "not-a-function" },
+      });
 
       handler(req, res, next);
 
       expect(loggerMock.error).toHaveBeenCalledWith(
-        "Registration handler or submit method not initialized or not a function."
+        "Registration handler or submit method not initialized or not a function.",
       );
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith("Internal Server Error: Registration handler not ready.");
+      expect(res.send).toHaveBeenCalledWith(
+        "Internal Server Error: Registration handler not ready.",
+      );
     });
 
     it("should delegate to registrationHandler.handleRegistrationSubmit if properly initialized", () => {
-      formsRouter.initialize({ logger: loggerMock, registrationHandler: registrationHandlerMock });
+      formsRouter.initialize({
+        logger: loggerMock,
+        registrationHandler: registrationHandlerMock,
+      });
       // Ensure the mock is a function
       registrationHandlerMock.handleRegistrationSubmit = jest.fn();
 
-
       handler(req, res, next);
 
-      expect(registrationHandlerMock.handleRegistrationSubmit).toHaveBeenCalledWith(req, res, next);
+      expect(
+        registrationHandlerMock.handleRegistrationSubmit,
+      ).toHaveBeenCalledWith(req, res, next);
       expect(res.status).not.toHaveBeenCalledWith(500); // Assuming the handler itself doesn't send 500 for this test
     });
 
-     it("should log receipt of POST request even if telegramId is missing in body", () => {
-      formsRouter.initialize({ logger: loggerMock, registrationHandler: registrationHandlerMock });
+    it("should log receipt of POST request even if telegramId is missing in body", () => {
+      formsRouter.initialize({
+        logger: loggerMock,
+        registrationHandler: registrationHandlerMock,
+      });
       req.body.telegramId = undefined;
       handler(req, res, next);
       expect(loggerMock.info).toHaveBeenCalledWith(
-        `[forms.js] Received POST to /submit-registration for user: UnknownTelegramId`
+        `[forms.js] Received POST to /submit-registration for user: UnknownTelegramId`,
       );
     });
   });

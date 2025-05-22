@@ -6,7 +6,8 @@ const apiHandler = require("../../../src/handlers/apiHandler"); // Adjusted path
 // const { PrismaClient } = require("@prisma/client"); // Not strictly needed
 
 // Mock dependencies
-jest.mock("../../../src/core/prisma", () => ({ // Adjusted path
+jest.mock("../../../src/core/prisma", () => ({
+  // Adjusted path
   users: {
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -26,7 +27,8 @@ const loggerMock = {
   debug: jest.fn(), // Though not directly used by waiverCompletedWebhook
 };
 
-const telegramNotifierMock = { // Not used by waiverCompletedWebhook, but part of apiHandler init
+const telegramNotifierMock = {
+  // Not used by waiverCompletedWebhook, but part of apiHandler init
   sendAdminNotification: jest.fn(),
 };
 
@@ -37,12 +39,12 @@ const botMock = {
 };
 
 // Mock date-fns-tz functions
-jest.mock('date-fns-tz', () => ({
-  ...jest.requireActual('date-fns-tz'),
+jest.mock("date-fns-tz", () => ({
+  ...jest.requireActual("date-fns-tz"),
   formatInTimeZone: jest.fn(),
-  toDate: jest.fn((date) => jest.requireActual('date-fns-tz').toDate(date)),
+  toDate: jest.fn((date) => jest.requireActual("date-fns-tz").toDate(date)),
 }));
-const { formatInTimeZone, toDate } = require('date-fns-tz');
+const { formatInTimeZone, toDate: _toDate } = require("date-fns-tz");
 
 describe("API Handler - waiverCompletedWebhook", () => {
   let req, res;
@@ -71,7 +73,7 @@ describe("API Handler - waiverCompletedWebhook", () => {
       send: jest.fn().mockReturnThis(),
     };
 
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     formatInTimeZone.mockReset();
   });
 
@@ -140,7 +142,10 @@ describe("API Handler - waiverCompletedWebhook", () => {
       select: { edit_msg_id: true },
     });
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "User not found." });
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "User not found.",
+    });
     expect(loggerMock.error).toHaveBeenCalledWith(
       { telegramId: BigInt(validWebhookPayload.telegramId) },
       "User not found processing waiver completion.",
@@ -157,9 +162,15 @@ describe("API Handler - waiverCompletedWebhook", () => {
       select: { appointment_datetime: true },
     });
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Session not found." });
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "Session not found.",
+    });
     expect(loggerMock.error).toHaveBeenCalledWith(
-      { telegramId: BigInt(validWebhookPayload.telegramId), sessionId: validWebhookPayload.sessionId },
+      {
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        sessionId: validWebhookPayload.sessionId,
+      },
       "Session not found processing waiver completion.",
     );
   });
@@ -167,8 +178,11 @@ describe("API Handler - waiverCompletedWebhook", () => {
   it("should successfully process waiver completion, update DB, and edit message if edit_msg_id exists", async () => {
     req.body = validWebhookPayload;
     const mockUser = { edit_msg_id: 54321 };
-    const mockSession = { appointment_datetime: new Date("2025-09-10T12:00:00.000Z") };
-    const formattedDate = "Wednesday, September 10, 2025 - 7:00 AM Central Daylight Time";
+    const mockSession = {
+      appointment_datetime: new Date("2025-09-10T12:00:00.000Z"),
+    };
+    const formattedDate =
+      "Wednesday, September 10, 2025 - 7:00 AM Central Daylight Time";
 
     prismaMock.users.findUnique.mockResolvedValue(mockUser);
     prismaMock.sessions.findUnique.mockResolvedValue(mockSession);
@@ -198,7 +212,7 @@ describe("API Handler - waiverCompletedWebhook", () => {
     expect(formatInTimeZone).toHaveBeenCalledWith(
       mockSession.appointment_datetime,
       "America/Chicago",
-      "EEEE, MMMM d, yyyy - h:mm aaaa zzzz"
+      "EEEE, MMMM d, yyyy - h:mm aaaa zzzz",
     );
     expect(botMock.telegram.editMessageText).toHaveBeenCalledWith(
       validWebhookPayload.telegramId.toString(),
@@ -208,9 +222,15 @@ describe("API Handler - waiverCompletedWebhook", () => {
       { parse_mode: "HTML", reply_markup: { inline_keyboard: [] } },
     );
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, message: "Waiver completion processed." });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: "Waiver completion processed.",
+    });
     expect(loggerMock.info).toHaveBeenCalledWith(
-      { telegramId: BigInt(validWebhookPayload.telegramId), sessionId: validWebhookPayload.sessionId },
+      {
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        sessionId: validWebhookPayload.sessionId,
+      },
       "Session status updated to CONFIRMED.",
     );
     expect(loggerMock.info).toHaveBeenCalledWith(
@@ -218,7 +238,10 @@ describe("API Handler - waiverCompletedWebhook", () => {
       "Cleared edit_msg_id for user.",
     );
     expect(loggerMock.info).toHaveBeenCalledWith(
-      { telegramId: BigInt(validWebhookPayload.telegramId), messageId: mockUser.edit_msg_id },
+      {
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        messageId: mockUser.edit_msg_id,
+      },
       "Successfully edited original booking message to confirmed.",
     );
   });
@@ -241,9 +264,15 @@ describe("API Handler - waiverCompletedWebhook", () => {
     expect(prismaMock.users.update).not.toHaveBeenCalled(); // edit_msg_id is already null
     expect(botMock.telegram.editMessageText).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, message: "Waiver completion processed." });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: "Waiver completion processed.",
+    });
     expect(loggerMock.warn).toHaveBeenCalledWith(
-      { telegramId: BigInt(validWebhookPayload.telegramId), sessionId: validWebhookPayload.sessionId },
+      {
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        sessionId: validWebhookPayload.sessionId,
+      },
       "No original message ID (edit_msg_id) found for user, cannot edit Telegram message.",
     );
   });
@@ -254,9 +283,16 @@ describe("API Handler - waiverCompletedWebhook", () => {
     prismaMock.users.findUnique.mockRejectedValue(dbError);
     await apiHandler.waiverCompletedWebhook(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Internal server error processing waiver completion." });
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "Internal server error processing waiver completion.",
+    });
     expect(loggerMock.error).toHaveBeenCalledWith(
-      { err: dbError, telegramId: BigInt(validWebhookPayload.telegramId), sessionId: validWebhookPayload.sessionId },
+      {
+        err: dbError,
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        sessionId: validWebhookPayload.sessionId,
+      },
       "Error processing waiver completion webhook.",
     );
   });
@@ -268,9 +304,16 @@ describe("API Handler - waiverCompletedWebhook", () => {
     prismaMock.sessions.findUnique.mockRejectedValue(dbError);
     await apiHandler.waiverCompletedWebhook(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Internal server error processing waiver completion." });
-     expect(loggerMock.error).toHaveBeenCalledWith(
-      { err: dbError, telegramId: BigInt(validWebhookPayload.telegramId), sessionId: validWebhookPayload.sessionId },
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "Internal server error processing waiver completion.",
+    });
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      {
+        err: dbError,
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        sessionId: validWebhookPayload.sessionId,
+      },
       "Error processing waiver completion webhook.",
     );
   });
@@ -278,14 +321,23 @@ describe("API Handler - waiverCompletedWebhook", () => {
   it("should return 500 if DB error on updating session", async () => {
     req.body = validWebhookPayload;
     prismaMock.users.findUnique.mockResolvedValue({ edit_msg_id: 123 });
-    prismaMock.sessions.findUnique.mockResolvedValue({ appointment_datetime: new Date() });
+    prismaMock.sessions.findUnique.mockResolvedValue({
+      appointment_datetime: new Date(),
+    });
     const dbError = new Error("DB Session Update Error");
     prismaMock.sessions.update.mockRejectedValue(dbError);
     await apiHandler.waiverCompletedWebhook(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Internal server error processing waiver completion." });
-     expect(loggerMock.error).toHaveBeenCalledWith(
-      { err: dbError, telegramId: BigInt(validWebhookPayload.telegramId), sessionId: validWebhookPayload.sessionId },
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "Internal server error processing waiver completion.",
+    });
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      {
+        err: dbError,
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        sessionId: validWebhookPayload.sessionId,
+      },
       "Error processing waiver completion webhook.",
     );
   });
@@ -293,15 +345,24 @@ describe("API Handler - waiverCompletedWebhook", () => {
   it("should return 500 if DB error on updating user (clearing edit_msg_id)", async () => {
     req.body = validWebhookPayload;
     prismaMock.users.findUnique.mockResolvedValue({ edit_msg_id: 123 });
-    prismaMock.sessions.findUnique.mockResolvedValue({ appointment_datetime: new Date() });
+    prismaMock.sessions.findUnique.mockResolvedValue({
+      appointment_datetime: new Date(),
+    });
     prismaMock.sessions.update.mockResolvedValue({});
     const dbError = new Error("DB User Update Error");
     prismaMock.users.update.mockRejectedValue(dbError); // This is the one that fails
     await apiHandler.waiverCompletedWebhook(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Internal server error processing waiver completion." });
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "Internal server error processing waiver completion.",
+    });
     expect(loggerMock.error).toHaveBeenCalledWith(
-      { err: dbError, telegramId: BigInt(validWebhookPayload.telegramId), sessionId: validWebhookPayload.sessionId },
+      {
+        err: dbError,
+        telegramId: BigInt(validWebhookPayload.telegramId),
+        sessionId: validWebhookPayload.sessionId,
+      },
       "Error processing waiver completion webhook.",
     );
   });
@@ -324,7 +385,10 @@ describe("API Handler - waiverCompletedWebhook", () => {
     await apiHandler.waiverCompletedWebhook(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, message: "Waiver completion processed." });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: "Waiver completion processed.",
+    });
     expect(loggerMock.error).toHaveBeenCalledWith(
       {
         err: { message: "Chat not found", code: 400 },

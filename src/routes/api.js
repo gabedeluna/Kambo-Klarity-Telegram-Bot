@@ -7,7 +7,7 @@
 const express = require("express");
 const apiHandler = require("../handlers/apiHandler"); // Import the handler
 
-let prisma, logger, telegramNotifier, bot; // Added bot
+let prisma, logger, telegramNotifier, bot, googleCalendarTool; // Added bot and googleCalendarTool
 // let agentExecutor; // Keep commented out if planned for future use
 
 /**
@@ -17,6 +17,7 @@ let prisma, logger, telegramNotifier, bot; // Added bot
  * @param {object} deps.logger - The logger instance.
  * @param {object} deps.telegramNotifier - The Telegram Notifier instance.
  * @param {object} deps.bot - The Telegraf bot instance.
+ * @param {object} deps.googleCalendarTool - The GoogleCalendarTool instance.
  * @param {object} [deps.agentExecutor] - The agent executor instance (optional).
  * @throws {Error} If required dependencies are missing.
  */
@@ -25,21 +26,28 @@ function initialize(deps) {
   logger = deps.logger;
   telegramNotifier = deps.telegramNotifier; // Store telegramNotifier
   bot = deps.bot; // Store bot
+  googleCalendarTool = deps.googleCalendarTool; // Store googleCalendarTool
 
   // Store optional dependencies if provided
   // agentExecutor = deps.agentExecutor;
 
   // Check required dependencies for the router itself (none specific for now)
   // And check dependencies needed for the handler
-  if (!prisma || !logger || !telegramNotifier || !bot) {
-    // Added bot check
+  if (!prisma || !logger || !telegramNotifier || !bot || !googleCalendarTool) {
+    // Added bot and googleCalendarTool check
     throw new Error(
-      "API Router Initialization Error: Missing required dependencies (prisma, logger, telegramNotifier, bot).", // Added bot to message
+      "API Router Initialization Error: Missing required dependencies (prisma, logger, telegramNotifier, bot, googleCalendarTool).", // Added bot and GCT to message
     );
   }
 
   // Initialize the specific handler needed by this router, passing all required deps
-  apiHandler.initialize({ prisma, logger, telegramNotifier, bot }); // Pass bot
+  apiHandler.initialize({
+    prisma,
+    logger,
+    telegramNotifier,
+    bot,
+    googleCalendarTool,
+  }); // Pass bot and googleCalendarTool
 }
 
 /**
@@ -58,6 +66,9 @@ function getRouter() {
 
   // Webhook route for waiver completion
   router.post("/waiver-completed", apiHandler.waiverCompletedWebhook); // Use the actual handler
+
+  // Route to get calendar availability
+  router.get("/calendar/availability", apiHandler.getAvailability); // New route
 
   logger.info("API routes configured.");
   return router;

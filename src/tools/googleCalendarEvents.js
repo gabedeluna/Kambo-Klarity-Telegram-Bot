@@ -25,9 +25,11 @@ class GoogleCalendarEventsTool {
 
     this.prisma = dependencies.prisma; // Store prisma if provided
     if (this.prisma) {
-        this.logger.debug("[GoogleCalendarEventsTool] Prisma client provided.");
+      this.logger.debug("[GoogleCalendarEventsTool] Prisma client provided.");
     } else {
-        this.logger.warn("[GoogleCalendarEventsTool] Prisma client was not provided during instantiation. This may be acceptable if not directly used by event methods.");
+      this.logger.warn(
+        "[GoogleCalendarEventsTool] Prisma client was not provided during instantiation. This may be acceptable if not directly used by event methods.",
+      );
     }
 
     try {
@@ -77,13 +79,13 @@ class GoogleCalendarEventsTool {
     }
     this.logger.info(
       { eventDetails, calendarId: this.sessionCalendarId },
-      "createCalendarEvent called", 
+      "createCalendarEvent called",
     );
     try {
       const event = {
         summary: eventDetails.summary,
         description: eventDetails.description,
-        start: { dateTime: eventDetails.start, timeZone: "UTC" }, 
+        start: { dateTime: eventDetails.start, timeZone: "UTC" },
         end: { dateTime: eventDetails.end, timeZone: "UTC" },
       };
       const response = await this.calendar.events.insert({
@@ -127,7 +129,7 @@ class GoogleCalendarEventsTool {
     }
     this.logger.info(
       { eventId, calendarId: this.sessionCalendarId },
-      "deleteCalendarEvent called", 
+      "deleteCalendarEvent called",
     );
     try {
       await this.calendar.events.delete({
@@ -141,7 +143,7 @@ class GoogleCalendarEventsTool {
         { err, eventId },
         "Failed to delete Google Calendar event",
       );
-      if (err.code === 404 || err.code === 410) { 
+      if (err.code === 404 || err.code === 410) {
         this.logger.warn(
           `Event ${eventId} not found or already gone. Considering deletion successful.`,
         );
