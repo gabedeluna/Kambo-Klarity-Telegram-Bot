@@ -470,12 +470,10 @@ describe("GoogleCalendarTool", () => {
     });
 
     it("should filter by max_bookings_per_day", async () => {
-      jest
-        .spyOn(toolInstance, "getAvailabilityRule")
-        .mockResolvedValue({
-          ...mockAvailabilityRule,
-          max_bookings_per_day: 1,
-        });
+      jest.spyOn(toolInstance, "getAvailabilityRule").mockResolvedValue({
+        ...mockAvailabilityRule,
+        max_bookings_per_day: 1,
+      });
       const eventStartNYT = set(
         toZonedTime(new Date("2024-07-16T00:00:00Z"), practitionerTz),
         { hours: 10 },

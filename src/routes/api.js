@@ -5,7 +5,8 @@
  */
 
 const express = require("express");
-const apiHandler = require("../handlers/apiHandler"); // Import the handler
+const apiHandler = require("../handlers/apiHandler"); // Main API handler
+const sessionTypesApiHandler = require("../handlers/api/sessionTypesApiHandler"); // Handler for session type specific APIs
 
 let prisma, logger, telegramNotifier, bot, googleCalendarTool; // Added bot and googleCalendarTool
 // let agentExecutor; // Keep commented out if planned for future use
@@ -48,6 +49,9 @@ function initialize(deps) {
     bot,
     googleCalendarTool,
   }); // Pass bot and googleCalendarTool
+
+  // Initialize the sessionTypesApiHandler, passing only the logger
+  sessionTypesApiHandler.initialize({ logger });
 }
 
 /**
@@ -69,6 +73,9 @@ function getRouter() {
 
   // Route to get calendar availability
   router.get("/calendar/availability", apiHandler.getAvailability); // New route
+
+  // Route to get session type details by ID
+  router.get("/session-types/:id", sessionTypesApiHandler.getSessionTypeById);
 
   logger.info("API routes configured.");
   return router;
