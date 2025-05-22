@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Book Kambo Session</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&family=Manrope%3Awght%40400%3B500%3B700%3B800&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+    <style>
+      .time-scroll-container {
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+        mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+      }
+      /* Hide scrollbar for a cleaner look */
+      #timeSlotList::-webkit-scrollbar {
+        display: none; /* Safari and Chrome */
+      }
+      #timeSlotList {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+      }
+      /* Highlight the selected time slot with a gradient effect */
+      .time-slot-item {
+        transition: color 0.2s ease;
+      }
+      
+      /* We'll use these classes for the gradient effect */
+      .time-slot-item.approaching-center {
+        color: #a3c99a !important;
+      }
+      .time-slot-item.near-center {
+        color: #d1eecc !important;
+      }
+      .time-slot-item.at-center {
+        color: white !important;
+      }
+    </style>
+</head>
+<body style='font-family: Manrope, "Noto Sans", sans-serif;' class="overflow-hidden">
+    <div class="relative flex size-full min-h-screen flex-col bg-[#162013] dark justify-between group/design-root">
+      <div> <!-- Main content wrapper -->
+        
+        <div class="@container"> 
+          <div class="@[480px]:px-2 @[480px]:pt-2 @[480px]:pb-1"> 
+            <div
+              class="w-full bg-no-repeat bg-cover flex flex-col justify-end overflow-hidden bg-[#162013] @[480px]:rounded-lg min-h-[140px]" 
+              style="background-image: url('KamboFrog.png'); background-position: center -120px;"
+            ></div>
+          </div>
+        </div>
+
+        <div class="text-center px-2 pt-4 pb-0 mb-6"> 
+          <p class="text-white text-md font-semibold" id="sessionTypeNamePlaceholder">Session Type Name</p>
+          <p class="text-gray-400 text-xs" id="sessionTypeDurationPlaceholder">(Duration)</p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-1 px-4 py-0"> 
+          <div class="flex min-w-72 flex-1 flex-col gap-0 pb-1"> 
+            <div class="flex items-center p-0 justify-between">
+              <button id="prevMonthButton" aria-label="Previous Month">
+                <div class="text-white flex size-8 items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" fill="currentColor" viewBox="0 0 256 256" stroke="currentColor" stroke-width="8">
+                    <path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path>
+                  </svg>
+                </div>
+              </button>
+              <p id="currentMonthYear" class="text-white text-xl font-bold leading-tight flex-1 text-center">July 2024</p> 
+              <button id="nextMonthButton" aria-label="Next Month">
+                <div class="text-white flex size-8 items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" fill="currentColor" viewBox="0 0 256 256" stroke="currentColor" stroke-width="8">
+                    <path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path>
+                  </svg>
+                </div>
+              </button>
+            </div>
+            <div class="grid grid-cols-7">
+              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">S</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">M</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">T</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">W</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">T</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">F</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">S</p>
+              <button class="h-10 w-full text-white col-start-4 text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">1</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">2</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">3</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">4</div></button>
+              <button class="h-10 w-full text-[#162013] text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full bg-[#53d22c]">5</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">6</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">7</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">8</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">9</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">10</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">11</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">12</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">13</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">14</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">15</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">16</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">17</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">18</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">19</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">20</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">21</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">22</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">23</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">24</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">25</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">26</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">27</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">28</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">29</div></button>
+              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">30</div></button>
+            </div>
+          </div>
+        </div>
+
+        <section class="booking-summary px-2 py-3 mt-3 text-center">
+            <p id="selectedBookingInfo" class="text-white text-md font-bold">Select a date and time</p>
+        </section>
+
+        <!-- Time Scroller -->
+        <div class="relative h-36 overflow-hidden time-scroll-container w-full px-2 my-1 mb-0"> 
+          
+          <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-[#2e4328] rounded-md pointer-events-none z-0"></div> 
+          
+          <div id="timeSlotList" class="absolute inset-0 overflow-y-auto snap-y snap-mandatory text-center py-[56px] z-10"> 
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">09:00 AM</div> 
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">10:00 AM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">11:00 AM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">12:00 PM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">01:00 PM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">02:00 PM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">03:00 PM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">04:00 PM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">05:00 PM</div>
+          </div>
+        </div>
+        <!-- End Time Scroller -->
+
+      </div>
+
+      <div class="mt-2">
+        <div class="flex justify-stretch">
+          <div class="flex flex-1 gap-2 flex-wrap px-2 pt-0 pb-6 justify-between"> 
+            <button id="submitBookingButton" class="flex flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#53d22c] text-[#162013] text-base font-bold leading-normal tracking-[0.015em]">
+              <span class="truncate">Submit</span>
+            </button>
+            <button id="cancelBookingButton" class="flex flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#2e4328] text-white text-base font-bold leading-normal tracking-[0.015em]">
+              <span class="truncate">Cancel Booking</span>
+            </button>
+          </div>
+        </div>
+        <div class="h-8 bg-[#162013]"></div> 
+      </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        // Disable the swipe-down gesture that collapses or closes the Mini App
+        if (tg.isVersionAtLeast('7.7')) {
+          tg.disableVerticalSwipes();
+          console.log("Vertical swipes disabled for Telegram WebApp.");
+        }
+
+        let telegramId = null;
+        let initialSessionTypeId = null; 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            telegramId = urlParams.get('telegramId');
+            initialSessionTypeId = urlParams.get('sessionTypeId');
+            
+            // Setup time slot selection highlighting with gradient effect
+            const timeSlotList = document.getElementById('timeSlotList');
+            const timeSlots = document.querySelectorAll('.time-slot-item');
+            
+            // Add scroll event listener to create gradient highlighting effect
+            if (timeSlotList) {
+                timeSlotList.addEventListener('scroll', () => {
+                    const containerRect = timeSlotList.getBoundingClientRect();
+                    const containerCenterY = containerRect.top + containerRect.height / 2;
+                    
+                    timeSlots.forEach(slot => {
+                        // Remove all highlight classes
+                        slot.classList.remove('at-center', 'near-center', 'approaching-center');
+                        
+                        // Calculate distance from center
+                        const rect = slot.getBoundingClientRect();
+                        const slotCenterY = rect.top + rect.height / 2;
+                        const distance = Math.abs(slotCenterY - containerCenterY);
+                        
+                        // Apply appropriate class based on distance from center
+                        if (distance < 10) {
+                            slot.classList.add('at-center');
+                        } else if (distance < 25) {
+                            slot.classList.add('near-center');
+                        } else if (distance < 40) {
+                            slot.classList.add('approaching-center');
+                        }
+                    });
+                });
+                
+                // Trigger initial highlight
+                timeSlotList.dispatchEvent(new Event('scroll'));
+            }
+
+            // Placeholder: Populate session type name and duration
+            // In a real app, you'd fetch this based on initialSessionTypeId
+            const sessionTypeNameEl = document.getElementById('sessionTypeNamePlaceholder');
+            const sessionTypeDurationEl = document.getElementById('sessionTypeDurationPlaceholder');
+            if (sessionTypeNameEl && sessionTypeDurationEl && initialSessionTypeId) {
+                // Example:
+                if (initialSessionTypeId === '1hr-kambo') {
+                    sessionTypeNameEl.textContent = '1 Hour Kambo';
+                    sessionTypeDurationEl.textContent = '(60 mins)';
+                } else if (initialSessionTypeId === '3hr-kambo') {
+                    sessionTypeNameEl.textContent = '3 Hour Kambo (3x3)';
+                    sessionTypeDurationEl.textContent = '(approx 180-240 mins)';
+                } else {
+                    sessionTypeNameEl.textContent = 'Selected Session';
+                    sessionTypeDurationEl.textContent = '(Duration Varies)';
+                }
+            }
+
+
+            console.log('Calendar App Loaded. TG ID:', telegramId, 'SessionTypeID:', initialSessionTypeId);
+
+            if (!telegramId || !initialSessionTypeId) {
+                const errorContainer = document.createElement('div');
+                errorContainer.style.color = 'white';
+                errorContainer.style.padding = '20px';
+                errorContainer.style.textAlign = 'center';
+                errorContainer.innerHTML = '<p>Error: Missing required booking information. Please start over from Telegram.</p>';
+                
+                document.body.innerHTML = ''; 
+                document.body.appendChild(errorContainer);
+                document.body.style.display = 'flex';
+                document.body.style.alignItems = 'center';
+                document.body.style.justifyContent = 'center';
+
+                if (tg.BackButton && tg.BackButton.isVisible) {
+                    tg.BackButton.hide(); 
+                }
+                return;
+            }
+            
+            if (tg.BackButton) {
+                tg.BackButton.show();
+                tg.BackButton.onClick(() => {
+                    console.log("Telegram BackButton clicked");
+                    tg.close();
+                });
+            }
+
+            const backButton = document.getElementById('backButton'); 
+            const cancelBookingButton = document.getElementById('cancelBookingButton'); 
+
+            if (backButton) {
+                backButton.addEventListener('click', () => {
+                    console.log("Header Back Button clicked");
+                    tg.close();
+                });
+            }
+
+            if (cancelBookingButton) {
+                cancelBookingButton.addEventListener('click', () => {
+                    console.log("Cancel Booking Button clicked");
+                    tg.close();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

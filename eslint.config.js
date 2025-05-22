@@ -47,7 +47,7 @@ module.exports = [
 
   // Configuration specifically for test files
   {
-    files: ["tests/**/*.test.js"], // Correct path for test files
+    files: ["tests/**/*.js"], // Include all test files and setup files
     languageOptions: {
       globals: {
         ...globals.jest, // Includes Jest globals like describe, it, expect, jest

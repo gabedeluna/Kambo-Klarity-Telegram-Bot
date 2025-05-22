@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Never create a file over 500 lines. Always check the line count of any new file you create or file you edit after you are done, if it is over 500 then find a way to intellegently break up that file into modules. 
+

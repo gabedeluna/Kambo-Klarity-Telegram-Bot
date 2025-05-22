@@ -13,22 +13,20 @@
   },
   "overrides": [
     {
-      "files": [
-        "tests/**/*.js", // Include helpers if any
-        "tests/**/*.test.js" // Specific test files
-      ],
+      "files": ["tests/**/*.js"],
+      "env": {
+        "jest": true
+      },
       "globals": {
         "describe": "readonly",
         "it": "readonly",
         "before": "readonly",
         "after": "readonly",
         "beforeEach": "readonly",
-        "afterEach": "readonly"
+        "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly"
       }
-      // Add test-specific rules here if needed, e.g.:
-      // "rules": {
-      //   "no-unused-expressions": "off" // Often needed for chai assertions
-      // }
     }
   ]
 }
