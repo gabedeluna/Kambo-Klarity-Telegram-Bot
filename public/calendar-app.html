@@ -33,15 +33,36 @@
         transition: color 0.2s ease;
       }
       
-      /* We'll use these classes for the gradient effect */
-      .time-slot-item.approaching-center {
-        color: #a3c99a !important;
+      /* Time slot styling - removed auto-highlighting classes */
+      .time-slot-item.selected {
+        background-color: #53d22c !important;
+        color: #162013 !important;
+        border-radius: 8px;
       }
-      .time-slot-item.near-center {
-        color: #d1eecc !important;
+      
+      /* Calendar day styling */
+      .calendar-day {
+        transition: all 0.2s ease;
       }
-      .time-slot-item.at-center {
-        color: white !important;
+      .calendar-day.available {
+        background-color: rgba(46, 67, 40, 0.6);
+        border: 1px solid #2e4328;
+      }
+      .calendar-day.selected {
+        background-color: #53d22c;
+        color: #162013;
+      }
+      .calendar-day:hover {
+        background-color: rgba(46, 67, 40, 0.3);
+      }
+      .calendar-day.selected:hover {
+        background-color: #53d22c;
+      }
+      
+      /* Loading state */
+      .loading {
+        opacity: 0.6;
+        pointer-events: none;
       }
     </style>
 </head>
@@ -58,8 +79,8 @@
           </div>
         </div>
 
-        <div class="text-center px-2 pt-4 pb-0 mb-6"> 
-          <p class="text-white text-md font-semibold" id="sessionTypeNamePlaceholder">Session Type Name</p>
+        <div class="text-center px-2 pt-4 pb-0 mb-4"> 
+          <p class="text-white text-xl font-bold leading-tight" id="sessionTypeNamePlaceholder">Loading...</p>
           <p class="text-gray-400 text-xs" id="sessionTypeDurationPlaceholder">(Duration)</p>
         </div>
 
@@ -73,7 +94,7 @@
                   </svg>
                 </div>
               </button>
-              <p id="currentMonthYear" class="text-white text-xl font-bold leading-tight flex-1 text-center">July 2024</p> 
+              <p id="currentMonthYear" class="text-white text-xl font-bold leading-tight flex-1 text-center">Loading...</p> 
               <button id="nextMonthButton" aria-label="Next Month">
                 <div class="text-white flex size-8 items-center justify-center">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" fill="currentColor" viewBox="0 0 256 256" stroke="currentColor" stroke-width="8">
@@ -82,67 +103,37 @@
                 </div>
               </button>
             </div>
-            <div class="grid grid-cols-7">
-              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">S</p>
-              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">M</p>
-              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">T</p>
-              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">W</p>
-              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">T</p>
-              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">F</p>
-              <p class="text-white text-sm font-extrabold leading-normal flex h-10 w-full items-center justify-center pb-0.5">S</p>
-              <button class="h-10 w-full text-white col-start-4 text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">1</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">2</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">3</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">4</div></button>
-              <button class="h-10 w-full text-[#162013] text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full bg-[#53d22c]">5</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">6</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">7</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">8</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">9</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">10</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">11</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">12</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">13</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">14</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">15</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">16</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">17</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">18</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">19</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">20</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">21</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">22</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">23</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">24</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">25</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">26</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">27</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">28</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">29</div></button>
-              <button class="h-10 w-full text-white text-sm font-medium leading-normal"><div class="flex size-full items-center justify-center rounded-full">30</div></button>
+            <!-- Dynamic Calendar Grid -->
+            <div id="calendarGrid" class="grid grid-cols-7">
+              <!-- Day headers -->
+              <p class="text-white text-sm font-extrabold leading-normal flex h-8 w-full items-center justify-center">S</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-8 w-full items-center justify-center">M</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-8 w-full items-center justify-center">T</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-8 w-full items-center justify-center">W</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-8 w-full items-center justify-center">T</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-8 w-full items-center justify-center">F</p>
+              <p class="text-white text-sm font-extrabold leading-normal flex h-8 w-full items-center justify-center">S</p>
+              <!-- Calendar days will be dynamically inserted here -->
             </div>
           </div>
         </div>
 
-        <section class="booking-summary px-2 py-3 mt-3 text-center">
-            <p id="selectedBookingInfo" class="text-white text-md font-bold">Select a date and time</p>
+        <section class="booking-summary px-2 py-1 mt-1 text-center h-12 flex items-center justify-center" style="display: none;">
+            <p id="selectedBookingInfo" class="text-white text-lg font-bold">Select a date and time</p>
         </section>
 
+        <!-- Message when no date selected -->
+        <div id="selectDateMessage" class="text-center py-4 px-4">
+            <p class="text-[#5a844d] text-lg font-bold">Select an available day</p>
+        </div>
+
         <!-- Time Scroller -->
-        <div class="relative h-36 overflow-hidden time-scroll-container w-full px-2 my-1 mb-0"> 
+        <div id="timePickerContainer" class="relative h-36 overflow-hidden time-scroll-container w-full px-2 mt-0 mb-2" style="display: none;"> 
           
-          <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-[#2e4328] rounded-md pointer-events-none z-0"></div> 
+          <div id="selectorBar" class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-[#2e4328] rounded-md pointer-events-none z-0 transition-colors duration-300"></div> 
           
           <div id="timeSlotList" class="absolute inset-0 overflow-y-auto snap-y snap-mandatory text-center py-[56px] z-10"> 
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">09:00 AM</div> 
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">10:00 AM</div>
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">11:00 AM</div>
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">12:00 PM</div>
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">01:00 PM</div>
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">02:00 PM</div>
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">03:00 PM</div>
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">04:00 PM</div>
-            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">05:00 PM</div>
+            <div class="snap-center h-12 flex items-center justify-center text-lg font-bold text-[#5a844d] time-slot-item">Select a date first</div>
           </div>
         </div>
         <!-- End Time Scroller -->
@@ -152,10 +143,10 @@
       <div class="mt-2">
         <div class="flex justify-stretch">
           <div class="flex flex-1 gap-2 flex-wrap px-2 pt-0 pb-6 justify-between"> 
-            <button id="submitBookingButton" class="flex flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#53d22c] text-[#162013] text-base font-bold leading-normal tracking-[0.015em]">
-              <span class="truncate">Submit</span>
+            <button id="submitBookingButton" disabled class="flex flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-gray-600 text-white text-base font-bold leading-normal tracking-[0.015em] disabled:cursor-not-allowed">
+              <span>Book</span>
             </button>
-            <button id="cancelBookingButton" class="flex flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#2e4328] text-white text-base font-bold leading-normal tracking-[0.015em]">
+            <button id="cancelBookingButton" class="flex flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-gray-600 text-white text-base font-bold leading-normal tracking-[0.015em]">
               <span class="truncate">Cancel Booking</span>
             </button>
           </div>
@@ -165,6 +156,7 @@
     </div>
 
     <script>
+        // Initialize Telegram WebApp
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.ready();
@@ -174,114 +166,11 @@
           tg.disableVerticalSwipes();
           console.log("Vertical swipes disabled for Telegram WebApp.");
         }
-
-        let telegramId = null;
-        let initialSessionTypeId = null; 
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            telegramId = urlParams.get('telegramId');
-            initialSessionTypeId = urlParams.get('sessionTypeId');
-            
-            // Setup time slot selection highlighting with gradient effect
-            const timeSlotList = document.getElementById('timeSlotList');
-            const timeSlots = document.querySelectorAll('.time-slot-item');
-            
-            // Add scroll event listener to create gradient highlighting effect
-            if (timeSlotList) {
-                timeSlotList.addEventListener('scroll', () => {
-                    const containerRect = timeSlotList.getBoundingClientRect();
-                    const containerCenterY = containerRect.top + containerRect.height / 2;
-                    
-                    timeSlots.forEach(slot => {
-                        // Remove all highlight classes
-                        slot.classList.remove('at-center', 'near-center', 'approaching-center');
-                        
-                        // Calculate distance from center
-                        const rect = slot.getBoundingClientRect();
-                        const slotCenterY = rect.top + rect.height / 2;
-                        const distance = Math.abs(slotCenterY - containerCenterY);
-                        
-                        // Apply appropriate class based on distance from center
-                        if (distance < 10) {
-                            slot.classList.add('at-center');
-                        } else if (distance < 25) {
-                            slot.classList.add('near-center');
-                        } else if (distance < 40) {
-                            slot.classList.add('approaching-center');
-                        }
-                    });
-                });
-                
-                // Trigger initial highlight
-                timeSlotList.dispatchEvent(new Event('scroll'));
-            }
-
-            // Placeholder: Populate session type name and duration
-            // In a real app, you'd fetch this based on initialSessionTypeId
-            const sessionTypeNameEl = document.getElementById('sessionTypeNamePlaceholder');
-            const sessionTypeDurationEl = document.getElementById('sessionTypeDurationPlaceholder');
-            if (sessionTypeNameEl && sessionTypeDurationEl && initialSessionTypeId) {
-                // Example:
-                if (initialSessionTypeId === '1hr-kambo') {
-                    sessionTypeNameEl.textContent = '1 Hour Kambo';
-                    sessionTypeDurationEl.textContent = '(60 mins)';
-                } else if (initialSessionTypeId === '3hr-kambo') {
-                    sessionTypeNameEl.textContent = '3 Hour Kambo (3x3)';
-                    sessionTypeDurationEl.textContent = '(approx 180-240 mins)';
-                } else {
-                    sessionTypeNameEl.textContent = 'Selected Session';
-                    sessionTypeDurationEl.textContent = '(Duration Varies)';
-                }
-            }
-
-
-            console.log('Calendar App Loaded. TG ID:', telegramId, 'SessionTypeID:', initialSessionTypeId);
-
-            if (!telegramId || !initialSessionTypeId) {
-                const errorContainer = document.createElement('div');
-                errorContainer.style.color = 'white';
-                errorContainer.style.padding = '20px';
-                errorContainer.style.textAlign = 'center';
-                errorContainer.innerHTML = '<p>Error: Missing required booking information. Please start over from Telegram.</p>';
-                
-                document.body.innerHTML = ''; 
-                document.body.appendChild(errorContainer);
-                document.body.style.display = 'flex';
-                document.body.style.alignItems = 'center';
-                document.body.style.justifyContent = 'center';
-
-                if (tg.BackButton && tg.BackButton.isVisible) {
-                    tg.BackButton.hide(); 
-                }
-                return;
-            }
-            
-            if (tg.BackButton) {
-                tg.BackButton.show();
-                tg.BackButton.onClick(() => {
-                    console.log("Telegram BackButton clicked");
-                    tg.close();
-                });
-            }
-
-            const backButton = document.getElementById('backButton'); 
-            const cancelBookingButton = document.getElementById('cancelBookingButton'); 
-
-            if (backButton) {
-                backButton.addEventListener('click', () => {
-                    console.log("Header Back Button clicked");
-                    tg.close();
-                });
-            }
-
-            if (cancelBookingButton) {
-                cancelBookingButton.addEventListener('click', () => {
-                    console.log("Cancel Booking Button clicked");
-                    tg.close();
-                });
-            }
-        });
     </script>
+    
+    <!-- Calendar API Module -->
+    <script src="calendar-api.js"></script>
+    <!-- Calendar App JavaScript -->
+    <script src="calendar-app.js"></script>
 </body>
 </html>

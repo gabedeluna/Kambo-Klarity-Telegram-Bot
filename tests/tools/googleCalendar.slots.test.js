@@ -4,7 +4,8 @@ const { addDays } = require("date-fns");
 const {
   mockLogger,
   mockPrisma,
-  mockCalendarEvents,
+  _mockCalendarEvents,
+  mockCalendarFreeBusy,
   setupEnvironment,
   teardownEnvironment,
   clearAllMocks,
@@ -79,8 +80,15 @@ describe("GoogleCalendarTool - Slot Finding", () => {
     });
 
     it("should find available slots when no conflicts exist", async () => {
-      // Mock empty calendar responses (no existing events)
-      mockCalendarEvents.list.mockResolvedValue({ data: { items: [] } });
+      // Mock empty FreeBusy response (no busy times)
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: [] },
+            "test-personal-calendar@example.com": { busy: [] },
+          },
+        },
+      });
 
       // Use a future Monday to ensure it has availability rules
       const futureMondayStr = getNextMonday();
@@ -92,16 +100,19 @@ describe("GoogleCalendarTool - Slot Finding", () => {
       });
 
       expect(result.length).toBeGreaterThan(0);
-      // The method makes 2 calls per day (session + personal calendar)
-      expect(mockCalendarEvents.list).toHaveBeenCalledTimes(2);
+      // The method makes 1 FreeBusy call for all calendars
+      expect(mockCalendarFreeBusy.query).toHaveBeenCalledTimes(1);
 
-      // Verify calendar API calls
-      expect(mockCalendarEvents.list).toHaveBeenCalledWith({
-        calendarId: "test-session-calendar@example.com",
-        timeMin: expect.any(String),
-        timeMax: expect.any(String),
-        singleEvents: true,
-        orderBy: "startTime",
+      // Verify FreeBusy API call
+      expect(mockCalendarFreeBusy.query).toHaveBeenCalledWith({
+        resource: {
+          timeMin: expect.any(String),
+          timeMax: expect.any(String),
+          items: [
+            { id: "test-session-calendar@example.com" },
+            { id: "test-personal-calendar@example.com" },
+          ],
+        },
       });
     });
 
@@ -109,16 +120,20 @@ describe("GoogleCalendarTool - Slot Finding", () => {
       // Use a future Monday
       const futureMondayStr = getNextMonday();
 
-      // Create a mock event that would be in Chicago time zone during business hours
-      const existingEvent = {
-        summary: "Existing Meeting",
-        start: { dateTime: `${futureMondayStr}T20:00:00.000Z` }, // 3 PM Chicago time (UTC-5/6)
-        end: { dateTime: `${futureMondayStr}T21:00:00.000Z` }, // 4 PM Chicago time
+      // Create a mock busy time that would be in Chicago time zone during business hours
+      const busyTime = {
+        start: `${futureMondayStr}T20:00:00.000Z`, // 3 PM Chicago time (UTC-5/6)
+        end: `${futureMondayStr}T21:00:00.000Z`, // 4 PM Chicago time
       };
 
-      mockCalendarEvents.list
-        .mockResolvedValueOnce({ data: { items: [existingEvent] } }) // Session calendar
-        .mockResolvedValueOnce({ data: { items: [] } }); // Personal calendar
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: [] },
+            "test-personal-calendar@example.com": { busy: [busyTime] },
+          },
+        },
+      });
 
       const result = await googleCalendarTool.findFreeSlots({
         startDateRange: `${futureMondayStr}T00:00:00.000Z`,
@@ -129,14 +144,14 @@ describe("GoogleCalendarTool - Slot Finding", () => {
       // Should have slots, but exclude the conflicting time
       expect(result.length).toBeGreaterThan(0);
 
-      // Check that no slot directly conflicts with the existing event
+      // Check that no slot directly conflicts with the busy time
       const directConflicts = result.filter((slot) => {
         const slotStart = new Date(slot);
         const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
-        const eventStart = new Date(existingEvent.start.dateTime);
-        const eventEnd = new Date(existingEvent.end.dateTime);
+        const busyStart = new Date(busyTime.start);
+        const busyEnd = new Date(busyTime.end);
 
-        return slotStart < eventEnd && slotEnd > eventStart;
+        return slotStart < busyEnd && slotEnd > busyStart;
       });
 
       expect(directConflicts).toHaveLength(0);
@@ -146,20 +161,20 @@ describe("GoogleCalendarTool - Slot Finding", () => {
       // Use a future Monday
       const futureMondayStr = getNextMonday();
 
-      // Mock calendar response with max bookings already reached (4 Kambo sessions)
-      const existingEvents = Array.from({ length: 4 }, (_, i) => ({
-        summary: `Kambo Session ${i + 1}`,
-        start: {
-          dateTime: `${futureMondayStr}T${String(15 + i * 2).padStart(2, "0")}:00:00.000Z`,
-        },
-        end: {
-          dateTime: `${futureMondayStr}T${String(16 + i * 2).padStart(2, "0")}:00:00.000Z`,
-        },
+      // Mock FreeBusy response with max bookings already reached (4 Kambo sessions)
+      const busyTimes = Array.from({ length: 4 }, (_, i) => ({
+        start: `${futureMondayStr}T${String(15 + i * 2).padStart(2, "0")}:00:00.000Z`,
+        end: `${futureMondayStr}T${String(16 + i * 2).padStart(2, "0")}:00:00.000Z`,
       }));
 
-      mockCalendarEvents.list
-        .mockResolvedValueOnce({ data: { items: existingEvents } }) // Session calendar
-        .mockResolvedValueOnce({ data: { items: [] } }); // Personal calendar
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: busyTimes },
+            "test-personal-calendar@example.com": { busy: [] },
+          },
+        },
+      });
 
       const result = await googleCalendarTool.findFreeSlots({
         startDateRange: `${futureMondayStr}T00:00:00.000Z`,
@@ -183,6 +198,16 @@ describe("GoogleCalendarTool - Slot Finding", () => {
       });
       mockPrisma.availabilityRule.findFirst.mockResolvedValue(mockRule);
 
+      // Mock empty FreeBusy response
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: [] },
+            "test-personal-calendar@example.com": { busy: [] },
+          },
+        },
+      });
+
       // Find next Saturday
       const today = new Date();
       const daysUntilSaturday = (6 - today.getDay() + 7) % 7 || 7;
@@ -203,7 +228,7 @@ describe("GoogleCalendarTool - Slot Finding", () => {
 
     it("should handle calendar API errors gracefully", async () => {
       const calendarError = new Error("Calendar API Error");
-      mockCalendarEvents.list.mockRejectedValue(calendarError);
+      mockCalendarFreeBusy.query.mockRejectedValue(calendarError);
 
       // Use a future Monday
       const futureMondayStr = getNextMonday();
@@ -220,7 +245,7 @@ describe("GoogleCalendarTool - Slot Finding", () => {
           errObj: calendarError,
           message: "Calendar API Error",
         }),
-        "[SlotGenDebug] GCal Fetch Error",
+        "Critical error in findFreeSlots method",
       );
     });
 
@@ -260,7 +285,15 @@ describe("GoogleCalendarTool - Slot Finding", () => {
       });
       mockPrisma.availabilityRule.findFirst.mockResolvedValue(mockRule);
 
-      mockCalendarEvents.list.mockResolvedValue({ data: { items: [] } });
+      // Mock empty FreeBusy response
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: [] },
+            "test-personal-calendar@example.com": { busy: [] },
+          },
+        },
+      });
 
       // Try to book for tomorrow (less than 48 hours)
       const tomorrow = addDays(new Date(), 1);

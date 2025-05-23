@@ -8,7 +8,7 @@ const readline = require("node:readline").createInterface({
   input: process.stdin,
   output: process.stdout,
 });
-const commandRegistry = require("./src/commands/registry"); // Assumes script is in root
+const commandRegistry = require("../src/commands/registry"); // Assumes script is in root
 
 // Initialize Telegraf bot and Prisma client
 const bot = new Telegraf(process.env.TG_TOKEN);

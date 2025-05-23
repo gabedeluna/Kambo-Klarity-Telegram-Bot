@@ -1,10 +1,10 @@
 // Load environment variables first
-require("./src/core/env"); // Assuming this file loads dotenv and sets up process.env
+require("../src/core/env"); // Assuming this file loads dotenv and sets up process.env
 
-const prisma = require("./src/core/prisma");
-const bot = require("./src/core/bot");
+const prisma = require("../src/core/prisma");
+const bot = require("../src/core/bot");
 // const { getCommandsForScope } = require('./src/commands/registry'); // No longer needed
-const logger = require("./src/core/logger"); // Assuming a logger exists
+const logger = require("../src/core/logger"); // Assuming a logger exists
 
 /**
  * @async

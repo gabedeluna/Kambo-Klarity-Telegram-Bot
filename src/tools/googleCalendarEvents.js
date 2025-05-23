@@ -81,13 +81,34 @@ class GoogleCalendarEventsTool {
       { eventDetails, calendarId: this.sessionCalendarId },
       "createCalendarEvent called",
     );
+
     try {
+      // Get availability rules to check buffer time
+      const ConfigUtils = require("./calendar/configUtils");
+      const configUtils = new ConfigUtils(this.prisma, this.logger);
+      const rules = await configUtils.getAvailabilityRule();
+
+      let eventStart = eventDetails.start;
+      let eventEnd = eventDetails.end;
+
+      // If buffer time is 0, reduce event end time by 1 minute to prevent FreeBusy merging
+      if (rules.buffer_time_minutes === 0) {
+        const endDate = new Date(eventDetails.end);
+        endDate.setMinutes(endDate.getMinutes() - 1);
+        eventEnd = endDate.toISOString();
+
+        this.logger.info(
+          `[ZeroBuffer] Reduced event end time by 1 minute: ${eventDetails.end} -> ${eventEnd}`,
+        );
+      }
+
       const event = {
         summary: eventDetails.summary,
         description: eventDetails.description,
-        start: { dateTime: eventDetails.start, timeZone: "UTC" },
-        end: { dateTime: eventDetails.end, timeZone: "UTC" },
+        start: { dateTime: eventStart, timeZone: "UTC" },
+        end: { dateTime: eventEnd, timeZone: "UTC" },
       };
+
       const response = await this.calendar.events.insert({
         calendarId: this.sessionCalendarId,
         resource: event,

@@ -19,8 +19,13 @@ const mockCalendarEvents = {
   list: jest.fn(),
 };
 
+const mockCalendarFreeBusy = {
+  query: jest.fn(),
+};
+
 const mockCalendar = {
   events: mockCalendarEvents,
+  freebusy: mockCalendarFreeBusy,
 };
 
 jest.mock("googleapis", () => ({
@@ -76,6 +81,7 @@ const clearAllMocks = () => {
   // Reset mock implementations
   mockJWT.mockClear();
   mockCalendarEvents.list.mockClear();
+  mockCalendarFreeBusy.query.mockClear();
   mockPrisma.availabilityRule.findFirst.mockClear();
 
   // Clear logger calls
@@ -111,6 +117,7 @@ module.exports = {
   mockLogger,
   mockPrisma,
   mockCalendarEvents,
+  mockCalendarFreeBusy,
   mockCalendar,
   mockJWT,
   setupEnvironment,
