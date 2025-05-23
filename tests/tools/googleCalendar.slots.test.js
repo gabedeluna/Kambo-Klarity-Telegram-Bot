@@ -4,7 +4,7 @@ const { addDays } = require("date-fns");
 const {
   mockLogger,
   mockPrisma,
-  _mockCalendarEvents,
+  mockCalendarEvents,
   mockCalendarFreeBusy,
   setupEnvironment,
   teardownEnvironment,

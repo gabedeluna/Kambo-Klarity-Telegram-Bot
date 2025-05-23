@@ -1,7 +1,7 @@
-const _GoogleCalendarTool = require("../../src/tools/googleCalendar");
-const FreeBusyUtils = require("../../src/tools/calendar/freeBusyUtils");
-const ConfigUtils = require("../../src/tools/calendar/configUtils");
-const SlotGenerator = require("../../src/tools/calendar/slotGenerator");
+const GoogleCalendarTool = require('../../src/tools/googleCalendar');
+const FreeBusyUtils = require('../../src/tools/calendar/freeBusyUtils');
+const ConfigUtils = require('../../src/tools/calendar/configUtils');
+const SlotGenerator = require('../../src/tools/calendar/slotGenerator');
 
 // Mock dependencies
 const mockLogger = {
@@ -23,64 +23,67 @@ const mockCalendar = {
   },
 };
 
-describe("FreeBusy API Performance Tests", () => {
+describe('FreeBusy API Performance Tests', () => {
   let freeBusyUtils;
   let configUtils;
   let slotGenerator;
-  let _googleCalendarTool;
+  let googleCalendarTool;
 
-  const mockSessionCalendarId = "session@example.com";
-  const mockPersonalCalendarId = "personal@example.com";
+  const mockSessionCalendarId = 'session@example.com';
+  const mockPersonalCalendarId = 'personal@example.com';
 
   beforeEach(() => {
     jest.clearAllMocks();
-
+    
     // Setup mock environment variables
     process.env.GOOGLE_CALENDAR_ID = mockSessionCalendarId;
     process.env.GOOGLE_PERSONAL_CALENDAR_ID = mockPersonalCalendarId;
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = "/path/to/credentials.json";
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = '/path/to/credentials.json';
 
     // Initialize utility classes
     freeBusyUtils = new FreeBusyUtils(
       mockCalendar,
       mockSessionCalendarId,
       mockPersonalCalendarId,
-      mockLogger,
+      mockLogger
     );
 
     configUtils = new ConfigUtils(mockPrisma, mockLogger);
     slotGenerator = new SlotGenerator(freeBusyUtils, configUtils, mockLogger);
 
-    const dependencies = {
+    // Mock GoogleCalendarTool constructor to avoid auth issues in tests
+    googleCalendarTool = {
+      freeBusyUtils,
+      configUtils,
+      slotGenerator,
       logger: mockLogger,
-      prisma: mockPrisma,
+      sessionCalendarId: mockSessionCalendarId,
+      personalCalendarId: mockPersonalCalendarId,
     };
-
-    _googleCalendarTool = new _GoogleCalendarTool(dependencies);
   });
 
-  describe("FreeBusyUtils", () => {
-    test("should fetch busy times for multiple calendars efficiently", async () => {
+  describe('FreeBusyUtils', () => {
+    test('should fetch busy times for multiple calendars efficiently', async () => {
       const mockFreeBusyResponse = {
         data: {
           calendars: {
             [mockSessionCalendarId]: {
               busy: [
                 {
-                  start: "2024-01-15T10:00:00Z",
-                  end: "2024-01-15T11:30:00Z",
+                  start: '2024-01-15T10:00:00Z',
+                  end: '2024-01-15T11:30:00Z',
                 },
                 {
-                  start: "2024-01-15T14:00:00Z",
-                  end: "2024-01-15T15:30:00Z",
+                  start: '2024-01-15T14:00:00Z',
+                  end: '2024-01-15T15:30:00Z',
                 },
               ],
             },
             [mockPersonalCalendarId]: {
               busy: [
                 {
-                  start: "2024-01-15T12:00:00Z",
-                  end: "2024-01-15T13:00:00Z",
+                  start: '2024-01-15T12:00:00Z',
+                  end: '2024-01-15T13:00:00Z',
                 },
               ],
             },
@@ -90,8 +93,8 @@ describe("FreeBusy API Performance Tests", () => {
 
       mockCalendar.freebusy.query.mockResolvedValue(mockFreeBusyResponse);
 
-      const timeMin = "2024-01-15T00:00:00Z";
-      const timeMax = "2024-01-15T23:59:59Z";
+      const timeMin = '2024-01-15T00:00:00Z';
+      const timeMax = '2024-01-15T23:59:59Z';
 
       const startTime = Date.now();
       const busyTimes = await freeBusyUtils.fetchBusyTimes(timeMin, timeMax);
@@ -112,8 +115,8 @@ describe("FreeBusy API Performance Tests", () => {
       // Verify results
       expect(busyTimes).toHaveLength(3);
       expect(busyTimes[0]).toEqual({
-        start: "2024-01-15T10:00:00Z",
-        end: "2024-01-15T11:30:00Z",
+        start: '2024-01-15T10:00:00Z',
+        end: '2024-01-15T11:30:00Z',
         calendarId: mockSessionCalendarId,
       });
 
@@ -124,7 +127,7 @@ describe("FreeBusy API Performance Tests", () => {
       console.log(`FreeBusy API call completed in ${executionTime}ms`);
     });
 
-    test("should handle empty busy times gracefully", async () => {
+    test('should handle empty busy times gracefully', async () => {
       const mockFreeBusyResponse = {
         data: {
           calendars: {
@@ -137,61 +140,61 @@ describe("FreeBusy API Performance Tests", () => {
       mockCalendar.freebusy.query.mockResolvedValue(mockFreeBusyResponse);
 
       const busyTimes = await freeBusyUtils.fetchBusyTimes(
-        "2024-01-15T00:00:00Z",
-        "2024-01-15T23:59:59Z",
+        '2024-01-15T00:00:00Z',
+        '2024-01-15T23:59:59Z'
       );
 
       expect(busyTimes).toHaveLength(0);
       expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Total busy periods found: 0"),
+        expect.stringContaining('Total busy periods found: 0')
       );
     });
 
-    test("should count Kambo sessions correctly", () => {
+    test('should count Kambo sessions correctly', () => {
       const busyTimes = [
         {
-          start: "2024-01-15T10:00:00Z",
-          end: "2024-01-15T11:30:00Z",
+          start: '2024-01-15T10:00:00Z',
+          end: '2024-01-15T11:30:00Z',
           calendarId: mockSessionCalendarId,
         },
         {
-          start: "2024-01-15T14:00:00Z",
-          end: "2024-01-15T15:30:00Z",
+          start: '2024-01-15T14:00:00Z',
+          end: '2024-01-15T15:30:00Z',
           calendarId: mockSessionCalendarId,
         },
         {
-          start: "2024-01-15T12:00:00Z",
-          end: "2024-01-15T13:00:00Z",
+          start: '2024-01-15T12:00:00Z',
+          end: '2024-01-15T13:00:00Z',
           calendarId: mockPersonalCalendarId, // Should not be counted
         },
       ];
 
-      const dayInPractitionerTz = new Date("2024-01-15T00:00:00");
-      const practitionerTz = "America/Chicago";
+      const dayInPractitionerTz = new Date('2024-01-15T00:00:00');
+      const practitionerTz = 'America/Chicago';
 
       const count = freeBusyUtils.countKamboSessionsForDay(
         busyTimes,
         dayInPractitionerTz,
-        practitionerTz,
+        practitionerTz
       );
 
       expect(count).toBe(2); // Only session calendar events
     });
   });
 
-  describe("ConfigUtils", () => {
-    test("should fetch availability rules from database", async () => {
+  describe('ConfigUtils', () => {
+    test('should fetch availability rules from database', async () => {
       const mockRule = {
         id: 1,
         is_default: true,
         weekly_availability: JSON.stringify({
-          MON: [{ start: "09:00", end: "17:00" }],
-          TUE: [{ start: "09:00", end: "17:00" }],
-          WED: [{ start: "09:00", end: "17:00" }],
-          THU: [{ start: "09:00", end: "17:00" }],
-          FRI: [{ start: "09:00", end: "17:00" }],
+          MON: [{ start: '09:00', end: '17:00' }],
+          TUE: [{ start: '09:00', end: '17:00' }],
+          WED: [{ start: '09:00', end: '17:00' }],
+          THU: [{ start: '09:00', end: '17:00' }],
+          FRI: [{ start: '09:00', end: '17:00' }],
         }),
-        practitioner_timezone: "America/Chicago",
+        practitioner_timezone: 'America/Chicago',
         max_advance_days: 60,
         min_notice_hours: 24,
         buffer_time_minutes: 30,
@@ -204,41 +207,41 @@ describe("FreeBusy API Performance Tests", () => {
       const rule = await configUtils.getAvailabilityRule();
 
       expect(rule.weekly_availability).toEqual({
-        MON: [{ start: "09:00", end: "17:00" }],
-        TUE: [{ start: "09:00", end: "17:00" }],
-        WED: [{ start: "09:00", end: "17:00" }],
-        THU: [{ start: "09:00", end: "17:00" }],
-        FRI: [{ start: "09:00", end: "17:00" }],
+        MON: [{ start: '09:00', end: '17:00' }],
+        TUE: [{ start: '09:00', end: '17:00' }],
+        WED: [{ start: '09:00', end: '17:00' }],
+        THU: [{ start: '09:00', end: '17:00' }],
+        FRI: [{ start: '09:00', end: '17:00' }],
       });
-      expect(rule.practitioner_timezone).toBe("America/Chicago");
+      expect(rule.practitioner_timezone).toBe('America/Chicago');
     });
 
-    test("should fallback to environment variables when database unavailable", async () => {
+    test('should fallback to environment variables when database unavailable', async () => {
       mockPrisma.availabilityRule.findFirst.mockResolvedValue(null);
-
+      
       process.env.TEMP_WEEKLY_AVAILABILITY_JSON = JSON.stringify({
-        MON: [{ start: "10:00", end: "16:00" }],
+        MON: [{ start: '10:00', end: '16:00' }],
       });
-      process.env.PRACTITIONER_TIMEZONE = "America/New_York";
+      process.env.PRACTITIONER_TIMEZONE = 'America/New_York';
 
       const rule = await configUtils.getAvailabilityRule();
 
       expect(rule.weekly_availability).toEqual({
-        MON: [{ start: "10:00", end: "16:00" }],
+        MON: [{ start: '10:00', end: '16:00' }],
       });
-      expect(rule.practitioner_timezone).toBe("America/New_York");
+      expect(rule.practitioner_timezone).toBe('America/New_York');
     });
   });
 
-  describe("SlotGenerator Integration", () => {
-    test("should generate slots using FreeBusy API efficiently", async () => {
+  describe('SlotGenerator Integration', () => {
+    test('should generate slots using FreeBusy API efficiently', async () => {
       // Mock availability rules
       const mockRule = {
         weekly_availability: {
-          MON: [{ start: "09:00", end: "17:00" }],
-          TUE: [{ start: "09:00", end: "17:00" }],
+          MON: [{ start: '09:00', end: '17:00' }],
+          TUE: [{ start: '09:00', end: '17:00' }],
         },
-        practitioner_timezone: "America/Chicago",
+        practitioner_timezone: 'America/Chicago',
         max_advance_days: 60,
         min_notice_hours: 24,
         buffer_time_minutes: 30,
@@ -255,8 +258,8 @@ describe("FreeBusy API Performance Tests", () => {
             [mockSessionCalendarId]: {
               busy: [
                 {
-                  start: "2024-01-15T15:00:00Z", // 9 AM Chicago time
-                  end: "2024-01-15T16:30:00Z", // 10:30 AM Chicago time
+                  start: '2024-01-15T15:00:00Z', // 9 AM Chicago time
+                  end: '2024-01-15T16:30:00Z',   // 10:30 AM Chicago time
                 },
               ],
             },
@@ -271,8 +274,8 @@ describe("FreeBusy API Performance Tests", () => {
 
       const startTime = Date.now();
       const slots = await slotGenerator.findFreeSlots({
-        startDateRange: "2024-01-15T00:00:00",
-        endDateRange: "2024-01-16T23:59:59",
+        startDateRange: '2024-01-15T00:00:00',
+        endDateRange: '2024-01-16T23:59:59',
         sessionDurationMinutes: 90,
       });
       const endTime = Date.now();
@@ -282,7 +285,7 @@ describe("FreeBusy API Performance Tests", () => {
 
       // Verify slots were generated
       expect(Array.isArray(slots)).toBe(true);
-
+      
       // Performance check
       const executionTime = endTime - startTime;
       console.log(`Slot generation completed in ${executionTime}ms`);
@@ -293,17 +296,17 @@ describe("FreeBusy API Performance Tests", () => {
     });
   });
 
-  describe("Performance Comparison", () => {
-    test("should demonstrate FreeBusy API efficiency vs multiple individual calls", async () => {
+  describe('Performance Comparison', () => {
+    test('should demonstrate FreeBusy API efficiency vs multiple individual calls', async () => {
       const mockRule = {
         weekly_availability: {
-          MON: [{ start: "09:00", end: "17:00" }],
-          TUE: [{ start: "09:00", end: "17:00" }],
-          WED: [{ start: "09:00", end: "17:00" }],
-          THU: [{ start: "09:00", end: "17:00" }],
-          FRI: [{ start: "09:00", end: "17:00" }],
+          MON: [{ start: '09:00', end: '17:00' }],
+          TUE: [{ start: '09:00', end: '17:00' }],
+          WED: [{ start: '09:00', end: '17:00' }],
+          THU: [{ start: '09:00', end: '17:00' }],
+          FRI: [{ start: '09:00', end: '17:00' }],
         },
-        practitioner_timezone: "America/Chicago",
+        practitioner_timezone: 'America/Chicago',
         max_advance_days: 60,
         min_notice_hours: 24,
         buffer_time_minutes: 30,
@@ -327,8 +330,8 @@ describe("FreeBusy API Performance Tests", () => {
       // Test FreeBusy API approach (current implementation)
       const freeBusyStartTime = Date.now();
       await slotGenerator.findFreeSlots({
-        startDateRange: "2024-01-15T00:00:00",
-        endDateRange: "2024-01-21T23:59:59", // 7 days
+        startDateRange: '2024-01-15T00:00:00',
+        endDateRange: '2024-01-21T23:59:59', // 7 days
         sessionDurationMinutes: 90,
       });
       const freeBusyEndTime = Date.now();
@@ -348,26 +351,21 @@ describe("FreeBusy API Performance Tests", () => {
       for (let day = 0; day < 7; day++) {
         await freeBusyUtils.fetchBusyTimes(
           `2024-01-${15 + day}T00:00:00Z`,
-          `2024-01-${15 + day}T23:59:59Z`,
+          `2024-01-${15 + day}T23:59:59Z`
         );
       }
       const oldApproachEndTime = Date.now();
       const oldApproachTime = oldApproachEndTime - oldApproachStartTime;
 
       console.log(`Old approach simulation: ${oldApproachTime}ms for 7 days`);
-      console.log(
-        `API calls made: ${mockCalendar.freebusy.query.mock.calls.length}`,
-      );
+      console.log(`API calls made: ${mockCalendar.freebusy.query.mock.calls.length}`);
 
       // FreeBusy should be more efficient (fewer API calls)
       expect(mockCalendar.freebusy.query).toHaveBeenCalledTimes(7);
-
+      
       // Log the efficiency gain
-      const efficiencyGain = (
-        ((oldApproachTime - freeBusyTime) / oldApproachTime) *
-        100
-      ).toFixed(1);
+      const efficiencyGain = ((oldApproachTime - freeBusyTime) / oldApproachTime * 100).toFixed(1);
       console.log(`Efficiency gain: ${efficiencyGain}% reduction in API calls`);
     });
   });
-});
+}); 
