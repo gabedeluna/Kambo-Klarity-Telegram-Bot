@@ -124,3 +124,26 @@ dist
 .pnp.*
 # Temporary drive upload files
 .tmp.driveupload/
+.tmp.drivedownload/
+.coverage/
+.node_modules/
+
+# AI Context Exclusions / Project-Specific Assets
+
+# Media assets in public/ (and its subdirectories)
+public/**/*.png
+public/**/*.jpg
+public/**/*.jpeg
+public/**/*.gif
+public/**/*.svg
+public/**/*.mp4
+public/**/*.mov
+public/**/*.webm
+public/**/*.mp3
+public/**/*.wav
+public/**/*.ogg
+public/**/*.webp
+
+# Minified vendor assets in public/ (and its subdirectories)
+public/**/*.min.js
+public/**/*.min.css

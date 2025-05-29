@@ -49,56 +49,174 @@ The system must automate practitioner tasks, empower admins via Telegram, and pr
 
 ---
 
-## 4 Folder Layout (target)
+## 4 Folder Layout (Actual - 2025-05-29)
 
-src/
-├─ core/ # env, prisma, bot, logger singletons, sessionTypes (DB helper)
-├─ tools/ # LangChain tools (stateManager, telegramNotifier, googleCalendar, analysis, etc.)
-├─ graph/ # LangGraph node/edge definitions (booking, analysis flows)
-├─ commands/
-│  ├─ client/  # Client-specific command handlers
-│  ├─ admin/   # Admin-specific command handlers
-│  ├─ registry.js
-│  └─ handlers.js # Shared or common handler logic/stubs (if any)
-├─ routes/ # Express routers (forms, admin mini-app, APIs)
-├─ config/ # Static config (e.g., initial roles, prompt templates)
-├─ errors/ # Custom error class definitions
-├─ middleware/ # Custom Express middleware (auth, error handling, update routing)
-├─ memory/ # LangChain memory management components
-├─ automations/ # Scheduled jobs (reminders, analysis triggers, session end detection)
-├─ views/ # (Optional) Templates for web-apps if not using static HTML/JS entirely
-├─ app.js # Express + Telegraf wiring + global middleware
+[`src/`](src/)
+├─ [`src/app.js`](src/app.js:0) # Main application setup: Express app, Telegraf bot wiring, global middleware.
+├─ [`src/commands/`](src/commands/) # Bot command handlers and related logic.
+│  ├─ [`src/commands/.gitkeep`](src/commands/.gitkeep:0) # Placeholder to ensure Git tracks the directory.
+│  ├─ [`src/commands/handlers.js`](src/commands/handlers.js:0) # Shared or common logic for command handlers.
+│  ├─ [`src/commands/registry.js`](src/commands/registry.js:0) # Maps command strings to their respective handler functions, often role-based.
+│  └─ [`src/commands/client/`](src/commands/client/) # Command handlers specific to client users.
+│     └─ [`src/commands/client/book.js`](src/commands/client/book.js:0) # Handler for the client '/book' command to initiate session booking.
+├─ [`src/config/`](src/config/) # Static configuration files for the application.
+│  ├─ [`src/config/.gitkeep`](src/config/.gitkeep:0) # Placeholder to ensure Git tracks the directory.
+│  └─ [`src/config/sessionTypes.json`](src/config/sessionTypes.json:0) # Static JSON configuration for session types (may be superseded by DB).
+├─ [`src/core/`](src/core/) # Core singleton modules providing essential services.
+│  ├─ [`src/core/.gitkeep`](src/core/.gitkeep:0) # Placeholder to ensure Git tracks the directory.
+│  ├─ [`src/core/bot.js`](src/core/bot.js:0) # Singleton Telegraf bot instance.
+│  ├─ [`src/core/env.js`](src/core/env.js:0) # Loads, validates, and provides access to environment variables.
+│  ├─ [`src/core/logger.js`](src/core/logger.js:0) # Singleton for structured application logging (e.g., using Pino).
+│  ├─ [`src/core/prisma.js`](src/core/prisma.js:0) # Singleton Prisma client instance for database interaction.
+│  └─ [`src/core/sessionTypes.js`](src/core/sessionTypes.js:0) # Helper module for managing session types (fetching from DB, etc.).
+├─ [`src/errors/`](src/errors/) # Custom error class definitions for consistent error handling.
+│  ├─ [`src/errors/AppError.js`](src/errors/AppError.js:0) # Base custom application error class.
+│  └─ [`src/errors/NotFoundError.js`](src/errors/NotFoundError.js:0) # Custom error for 'Resource Not Found' scenarios.
+├─ [`src/handlers/`](src/handlers/) # Handlers for various types of incoming requests or events (non-command specific).
+│  ├─ [`src/handlers/apiHandler.js`](src/handlers/apiHandler.js:0) # General handler for incoming API requests.
+│  ├─ [`src/handlers/callbackQueryHandler.js`](src/handlers/callbackQueryHandler.js:0) # Handles Telegram callback queries (e.g., from inline buttons).
+│  ├─ [`src/handlers/commandHandler.js`](src/handlers/commandHandler.js:0) # Central handler for parsing and dispatching bot commands.
+│  ├─ [`src/handlers/registrationHandler.js`](src/handlers/registrationHandler.js:0) # Manages user registration processes and related logic.
+│  └─ [`src/handlers/api/`](src/handlers/api/) # Handlers specific to API endpoints.
+│     └─ [`src/handlers/api/sessionTypesApiHandler.js`](src/handlers/api/sessionTypesApiHandler.js:0) # API handler for requests related to session types.
+├─ [`src/middleware/`](src/middleware/) # Express and Telegraf middleware functions.
+│  ├─ [`src/middleware/errorHandler.js`](src/middleware/errorHandler.js:0) # Global Express error handling middleware.
+│  ├─ [`src/middleware/errorHandlerMiddleware.js`](src/middleware/errorHandlerMiddleware.js:0) # (Potentially another or more specific error handler for Express).
+│  ├─ [`src/middleware/loggingMiddleware.js`](src/middleware/loggingMiddleware.js:0) # Middleware for logging incoming requests.
+│  ├─ [`src/middleware/rateLimiterMiddleware.js`](src/middleware/rateLimiterMiddleware.js:0) # Middleware for implementing rate limiting on requests.
+│  ├─ [`src/middleware/updateRouter.js`](src/middleware/updateRouter.js:0) # Main Telegraf router; directs updates based on message type/state.
+│  └─ [`src/middleware/userLookup.js`](src/middleware/userLookup.js:0) # Middleware to fetch or create user data and attach to request/context.
+├─ [`src/routes/`](src/routes/) # Express route definitions for the web server.
+│  ├─ [`src/routes/.gitkeep`](src/routes/.gitkeep:0) # Placeholder to ensure Git tracks the directory.
+│  ├─ [`src/routes/api.js`](src/routes/api.js:0) # Defines general API routes.
+│  ├─ [`src/routes/booking.js`](src/routes/booking.js:0) # Defines API routes related to the booking process.
+│  ├─ [`src/routes/forms.js`](src/routes/forms.js:0) # Defines routes for serving and handling web forms.
+│  └─ [`src/routes/sessions.js`](src/routes/sessions.js:0) # Defines API routes related to sessions.
+└─ [`src/tools/`](src/tools/) # Utility modules, including LangChain tools and external service integrations.
+   ├─ [`src/tools/.gitkeep`](src/tools/.gitkeep:0) # Placeholder to ensure Git tracks the directory.
+   ├─ [`src/tools/googleCalendar.js`](src/tools/googleCalendar.js:0) # Tool for interacting with the Google Calendar API (finding slots, creating events).
+   ├─ [`src/tools/googleCalendarEvents.js`](src/tools/googleCalendarEvents.js:0) # Helper module or specific event logic for the googleCalendar.js tool.
+   ├─ [`src/tools/stateManager.js`](src/tools/stateManager.js:0) # LangChain tool for managing persistent user state and profile data in the database.
+   ├─ [`src/tools/telegramNotifier.js`](src/tools/telegramNotifier.js:0) # LangChain tool for sending various types of messages and notifications via Telegraf.
+   └─ [`src/tools/calendar/`](src/tools/calendar/) # Utilities and helpers specifically for calendar-related functionalities.
+      ├─ [`src/tools/calendar/configUtils.js`](src/tools/calendar/configUtils.js:0) # Utility functions for calendar configuration.
+      ├─ [`src/tools/calendar/freeBusyUtils.js`](src/tools/calendar/freeBusyUtils.js:0) # Utility functions for handling free/busy logic with calendars.
+      └─ [`src/tools/calendar/slotGenerator.js`](src/tools/calendar/slotGenerator.js:0) # Logic for generating available time slots based on various rules.
 
-bin/
-├─ server.js # Starts the Express server
-└─ set_admin.js # Script to designate an admin user
-└─ set_default_commands.js # Script to set default Telegram commands
-docs/
-├─ architecture.md
-├─ ...
+[`bin/`](bin/) # Executable scripts for server operations, setup, and testing.
+├─ [`bin/server.js`](bin/server.js:0) # Main script to start the application's Express server.
+├─ [`bin/set_webhook.js`](bin/set_webhook.js:0) # Script to configure the Telegram bot's webhook URL.
+├─ [`bin/test_find_slots_v2.js`](bin/test_find_slots_v2.js:0) # Test script for version 2 of the 'find free slots' functionality.
+└─ [`bin/test_sessionTypes_module.js`](bin/test_sessionTypes_module.js:0) # Test script for the `core/sessionTypes.js` module.
 
+[`docs/`](docs/) # Project documentation files.
+└─ [`docs/architecture.md`](docs/architecture.md:0) # Document describing the overall architecture of the application.
 
-.env # Ignored env vars
-.gitignore
-eslint.config.js
-package.json
-package-lock.json
-PLANNING.md # This file
-TASK.md
-prisma/
-├── schema.prisma     # Database schema definition
-└── migrations/       # Database migration history
+[`prisma/`](prisma/) # Prisma ORM configuration, schema, and migration files.
+├─ [`prisma/schema.prisma`](prisma/schema.prisma:0) # Defines the database schema, models, and relations.
+└─ [`prisma/migrations/`](prisma/migrations/) # Contains all database migration files generated by Prisma.
+   ├─ [`prisma/migrations/migration_lock.toml`](prisma/migrations/migration_lock.toml:0) # Prisma's mechanism to prevent concurrent migration applications.
+   ├─ [`prisma/migrations/20250511073739_add_session_type_model/`](prisma/migrations/20250511073739_add_session_type_model/) # Folder for a specific migration.
+   │  └─ [`migration.sql`](prisma/migrations/20250511073739_add_session_type_model/migration.sql:0) # The SQL script for the 'add_session_type_model' migration.
+   ├─ [`prisma/migrations/20250511074832_refactor_timestamps_and_model_names/`](prisma/migrations/20250511074832_refactor_timestamps_and_model_names/)
+   │  └─ [`migration.sql`](prisma/migrations/20250511074832_refactor_timestamps_and_model_names/migration.sql:0) # SQL for 'refactor_timestamps_and_model_names' migration.
+   ├─ [`prisma/migrations/20250515131856_remove_conversation_fields/`](prisma/migrations/20250515131856_remove_conversation_fields/)
+   │  └─ [`migration.sql`](prisma/migrations/20250515131856_remove_conversation_fields/migration.sql:0) # SQL for 'remove_conversation_fields' migration.
+   ├─ [`prisma/migrations/20250515141336_added/`](prisma/migrations/20250515141336_added/)
+   │  └─ [`migration.sql`](prisma/migrations/20250515141336_added/migration.sql:0) # SQL for 'added' migration (name could be more descriptive).
+   ├─ [`prisma/migrations/20250516065742_add_availability_rules/`](prisma/migrations/20250516065742_add_availability_rules/)
+   │  └─ [`migration.sql`](prisma/migrations/20250516065742_add_availability_rules/migration.sql:0) # SQL for 'add_availability_rules' migration.
+   └─ [`prisma/migrations/20250516224617_add_slot_increment_to_rules/`](prisma/migrations/20250516224617_add_slot_increment_to_rules/)
+      └─ [`migration.sql`](prisma/migrations/20250516224617_add_slot_increment_to_rules/migration.sql:0) # SQL for 'add_slot_increment_to_rules' migration.
 
-public/
-└── ...               # Static assets for web forms (HTML, CSS, JS)
+[`public/`](public/) # Static assets served to clients (HTML, CSS, JavaScript, images for web apps).
+├─ [`public/background-for-calendar.png`](public/background-for-calendar.png:0) # Background image asset for the calendar interface.
+├─ [`public/backgroundVideo.mov`](public/backgroundVideo.mov:0) # Background video asset in MOV format.
+├─ [`public/backgroundVideo.webm`](public/backgroundVideo.webm:0) # Background video asset in WebM format.
+├─ [`public/calendar-api.js`](public/calendar-api.js:0) # Client-side JavaScript for interacting with calendar-related APIs.
+├─ [`public/calendar-app.html`](public/calendar-app.html:0) # HTML structure for the calendar web application.
+├─ [`public/calendar-app.js`](public/calendar-app.js:0) # Client-side JavaScript logic for the calendar web application.
+├─ [`public/calendar-data.js`](public/calendar-data.js:0) # Client-side JavaScript for managing or providing data to the calendar app.
+├─ [`public/calendar-ui.js`](public/calendar-ui.js:0) # Client-side JavaScript focused on the user interface of the calendar app.
+├─ [`public/frog.png`](public/frog.png:0) # Image asset (frog.png).
+├─ [`public/pristine.min.js`](public/pristine.min.js:0) # Minified client-side JavaScript library (Pristine) for form validation.
+├─ [`public/registration-form.css`](public/registration-form.css:0) # CSS styles for the user registration web form.
+├─ [`public/registration-form.html`](public/registration-form.html:0) # HTML structure for the user registration web form.
+├─ [`public/waiver-form.css`](public/waiver-form.css:0) # CSS styles for the waiver web form.
+└─ [`public/waiver-form.html`](public/waiver-form.html:0) # HTML structure for the waiver web form.
 
-.env                  # Environment variables (ignored by git)
-.gitignore            # Git ignore rules
-package.json          # Project dependencies and scripts
-README.md             # Project overview and setup guide
-PLANNING.md           # This file
-TASK.md               # Current sprint task list
+[`scripts/`](scripts/) # Utility or maintenance scripts not part of the main application flow.
+├─ [`scripts/benchmark-freebusy.js`](scripts/benchmark-freebusy.js:0) # Script for benchmarking the FreeBusy API performance.
+├─ [`scripts/demote_admin_users.js`](scripts/demote_admin_users.js:0) # Script to change user roles from admin to a standard user.
+└─ [`scripts/set_all_commands.js`](scripts/set_all_commands.js:0) # Script to set or update all registered Telegram bot commands.
 
+[`tests/`](tests/) # Automated test files (unit, integration). Structure mirrors `src/`.
+├─ [`tests/sample.test.js`](tests/sample.test.js:0) # An example or placeholder test file.
+├─ [`tests/setupTests.js`](tests/setupTests.js:0) # Configuration or setup script executed before tests run.
+├─ [`tests/commands/`](tests/commands/)
+│  ├─ [`tests/commands/handlers.test.js`](tests/commands/handlers.test.js:0) # Tests for `src/commands/handlers.js`.
+│  └─ [`tests/commands/client/`](tests/commands/client/)
+│     └─ [`tests/commands/client/book.test.js`](tests/commands/client/book.test.js:0) # Tests for `src/commands/client/book.js`.
+├─ [`tests/core/`](tests/core/)
+│  ├─ [`tests/core/bot.test.js`](tests/core/bot.test.js:0) # Tests for `src/core/bot.js`.
+│  ├─ [`tests/core/env.test.js`](tests/core/env.test.js:0) # Tests for `src/core/env.js`.
+│  ├─ [`tests/core/logger.test.js`](tests/core/logger.test.js:0) # Tests for `src/core/logger.js`.
+│  ├─ [`tests/core/prisma.test.js`](tests/core/prisma.test.js:0) # Tests for `src/core/prisma.js`.
+│  └─ [`tests/core/sessionTypes.test.js`](tests/core/sessionTypes.test.js:0) # Tests for `src/core/sessionTypes.js`.
+├─ [`tests/handlers/`](tests/handlers/)
+│  ├─ [`tests/handlers/apiHandler.test.js`](tests/handlers/apiHandler.test.js:0) # Tests for `src/handlers/apiHandler.js`.
+│  ├─ [`tests/handlers/callbackQueryHandler.test.js`](tests/handlers/callbackQueryHandler.test.js:0) # Tests for `src/handlers/callbackQueryHandler.js`.
+│  ├─ [`tests/handlers/commandHandler.test.js`](tests/handlers/commandHandler.test.js:0) # Tests for `src/handlers/commandHandler.js`.
+│  └─ [`tests/handlers/registrationHandler.test.js`](tests/handlers/registrationHandler.test.js:0) # Tests for `src/handlers/registrationHandler.js`.
+├─ [`tests/middleware/`](tests/middleware/)
+│  ├─ [`tests/middleware/errorHandler.test.js`](tests/middleware/errorHandler.test.js:0) # Tests for `src/middleware/errorHandler.js`.
+│  ├─ [`tests/middleware/errorHandlerMiddleware.test.js`](tests/middleware/errorHandlerMiddleware.test.js:0) # Tests for `src/middleware/errorHandlerMiddleware.js`.
+│  ├─ [`tests/middleware/loggingMiddleware.test.js`](tests/middleware/loggingMiddleware.test.js:0) # Tests for `src/middleware/loggingMiddleware.js`.
+│  ├─ [`tests/middleware/rateLimiterMiddleware.test.js`](tests/middleware/rateLimiterMiddleware.test.js:0) # Tests for `src/middleware/rateLimiterMiddleware.js`.
+│  ├─ [`tests/middleware/updateRouter.test.js`](tests/middleware/updateRouter.test.js:0) # Tests for `src/middleware/updateRouter.js`.
+│  └─ [`tests/middleware/userLookup.test.js`](tests/middleware/userLookup.test.js:0) # Tests for `src/middleware/userLookup.js`.
+├─ [`tests/routes/`](tests/routes/)
+│  ├─ [`tests/routes/api.test.js`](tests/routes/api.test.js:0) # Tests for `src/routes/api.js`.
+│  ├─ [`tests/routes/booking.test.js`](tests/routes/booking.test.js:0) # Tests for `src/routes/booking.js`.
+│  ├─ [`tests/routes/forms.test.js`](tests/routes/forms.test.js:0) # Tests for `src/routes/forms.js`.
+│  ├─ [`tests/routes/sessions.test.js`](tests/routes/sessions.test.js:0) # Tests for `src/routes/sessions.js`.
+│  └─ [`tests/routes/api/`](tests/routes/api/) # Tests for specific API route handlers.
+│     ├─ [`tests/routes/api/getUserDataApi.test.js`](tests/routes/api/getUserDataApi.test.js:0) # Tests for an API endpoint that gets user data.
+│     ├─ [`tests/routes/api/submitWaiverApi.test.js`](tests/routes/api/submitWaiverApi.test.js:0) # Tests for the API endpoint that submits waiver data.
+│     └─ [`tests/routes/api/waiverCompletedWebhook.test.js`](tests/routes/api/waiverCompletedWebhook.test.js:0) # Tests for the waiver completed webhook handler.
+└─ [`tests/tools/`](tests/tools/)
+   ├─ [`tests/tools/freeBusyApi.integration.js`](tests/tools/freeBusyApi.integration.js:0) # Integration tests for the FreeBusy API.
+   ├─ [`tests/tools/freeBusyApi.performance.test.js`](tests/tools/freeBusyApi.performance.test.js:0) # Performance tests for the FreeBusy API.
+   ├─ [`tests/tools/googleCalendar.availability.test.js`](tests/tools/googleCalendar.availability.test.js:0) # Tests for Google Calendar availability logic.
+   ├─ [`tests/tools/googleCalendar.constructor.test.js`](tests/tools/googleCalendar.constructor.test.js:0) # Tests for the constructor of the Google Calendar tool.
+   ├─ [`tests/tools/googleCalendar.edgeCases.slots.test.js`](tests/tools/googleCalendar.edgeCases.slots.test.js:0) # Edge case tests for Google Calendar slot generation.
+   ├─ [`tests/tools/googleCalendar.edgeCases.timezone.test.js`](tests/tools/googleCalendar.edgeCases.timezone.test.js:0) # Edge case tests for Google Calendar timezone handling.
+   ├─ [`tests/tools/googleCalendar.generator.test.js`](tests/tools/googleCalendar.generator.test.js:0) # Tests for the Google Calendar slot generator logic.
+   ├─ [`tests/tools/googleCalendar.setup.js`](tests/tools/googleCalendar.setup.js:0) # Setup file specific to Google Calendar tests.
+   ├─ [`tests/tools/googleCalendar.slots.test.js`](tests/tools/googleCalendar.slots.test.js:0) # Tests for Google Calendar slot logic.
+   ├─ [`tests/tools/googleCalendarEvents.test.js`](tests/tools/googleCalendarEvents.test.js:0) # Tests for `src/tools/googleCalendarEvents.js`.
+   ├─ [`tests/tools/stateManager.test.js`](tests/tools/stateManager.test.js:0) # Tests for `src/tools/stateManager.js`.
+   └─ [`tests/tools/telegramNotifier.test.js`](tests/tools/telegramNotifier.test.js:0) # Tests for `src/tools/telegramNotifier.js`.
+
+# Root Level Configuration & Project Files
+[`eslintrc.json`](.eslintrc.json:0) # ESLint configuration for JavaScript code linting.
+[`.gitignore`](.gitignore:0) # Specifies intentionally untracked files that Git should ignore.
+[`.prettierrc.json`](.prettierrc.json:0) # Prettier configuration for consistent code formatting.
+[`.windsurfrules`](.windsurfrules:0) # Custom rules file (purpose specific to project tooling, possibly AI related).
+[`babel.config.js`](babel.config.js:0) # Babel configuration for JavaScript transpilation (e.g., for Jest compatibility).
+[`CALENDAR_IMPLEMENTATION.md`](CALENDAR_IMPLEMENTATION.md:0) # Markdown document detailing the calendar feature implementation.
+[`eslint.config.js`](eslint.config.js:0) # Alternative or newer ESLint configuration file (project might use multiple).
+[`FREEBUSY_API_PERFORMANCE_REPORT.md`](FREEBUSY_API_PERFORMANCE_REPORT.md:0) # Performance report for the FreeBusy API integration.
+[`FREEBUSY_IMPLEMENTATION_GUIDE.md`](FREEBUSY_IMPLEMENTATION_GUIDE.md:0) # Guide for implementing the FreeBusy API.
+[`generate_mcp_yaml.py`](generate_mcp_yaml.py:0) # Python script to generate MCP (Model Context Protocol) YAML configuration.
+[`JEST_INTEGRATION_PLAN.md`](JEST_INTEGRATION_PLAN.md:0) # Planning document for integrating the Jest testing framework.
+[`jest.config.js`](jest.config.js:0) # Jest configuration file for test runner settings.
+[`package-lock.json`](package-lock.json:0) # Records exact versions of all installed npm dependencies.
+[`package.json`](package.json:0) # Project manifest: lists dependencies, scripts, and metadata.
+[`PLANNING.md`](PLANNING.md:0) # This main project planning and strategy document.
+[`pre-commit.hook.disabled`](pre-commit.hook.disabled:0) # A pre-commit git hook that is currently disabled.
+[`README.md`](README.md:0) # General project overview, setup instructions, and usage guide.
+[`TASK.md`](TASK.md:0) # Document for tracking current development tasks or sprint goals.
 ---
 
 ## 5 Phased Roadmap (**Highly Detailed from Phase 6 Onwards**)

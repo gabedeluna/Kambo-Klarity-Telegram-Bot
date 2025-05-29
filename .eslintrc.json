@@ -27,6 +27,20 @@
         "beforeAll": "readonly",
         "afterAll": "readonly"
       }
+    },
+    {
+      "files": ["public/**/*.js"],
+      "env": {
+        "browser": true,
+        "es2021": true
+      },
+      "rules": {
+        "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+        "no-undef": "warn"
+      },
+      "globals": {
+        "Telegram": "readonly"
+      }
     }
   ]
 }

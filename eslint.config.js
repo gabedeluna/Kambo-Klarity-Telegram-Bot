@@ -63,6 +63,26 @@ module.exports = [
     },
   },
 
+  // Configuration specifically for public/client-side files
+  {
+    files: ["public/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: "script", // Client-side scripts
+      globals: {
+        ...globals.browser, // Includes browser globals like window, document
+        Telegram: "readonly", // Telegram WebApp API
+      },
+    },
+    rules: {
+      "no-unused-vars": [
+        "warn", // Relax to warnings for client-side code
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "no-undef": "warn", // Relax to warnings for cross-file dependencies
+    },
+  },
+
   // Apply Prettier overrides last
   eslintConfigPrettier,
 ];
