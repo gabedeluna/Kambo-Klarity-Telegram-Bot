@@ -62,16 +62,16 @@ function initialize(deps) {
  * @example Response Body (Success)
  * {
  *   "success": true,
- *   "firstName": "John",
- *   "lastName": "Doe",
- *   "email": "john.doe@example.com",
- *   "phone": "+1234567890",
- *   "dob": "1990-05-15", // YYYY-MM-DD
- *   "appointmentDateTime": "Tuesday, May 20, 2025 - 10:00 AM Central Daylight Time", // User-friendly display
- *   "rawAppointmentDateTime": "2025-05-20T15:00:00.000Z", // ISO string
- *   "emergencyFirstName": "Jane",
- *   "emergencyLastName": "Doe",
- *   "emergencyPhone": "+1987654321"
+ *   "data": {
+ *     "firstName": "John",
+ *     "lastName": "Doe",
+ *     "email": "john.doe@example.com",
+ *     "phoneNumber": "123-456-7890",
+ *     "dateOfBirth": "1990-01-15", // YYYY-MM-DD
+ *     "emergencyContactFirstName": "Jane",
+ *     "emergencyContactLastName": "Doe",
+ *     "emergencyContactPhone": "987-654-3210"
+ *   }
  * }
  */
 async function getUserDataApi(req, res) {
@@ -100,7 +100,6 @@ async function getUserDataApi(req, res) {
         email: true,
         phone_number: true,
         date_of_birth: true,
-        booking_slot: true, // The temp slot
         em_first_name: true,
         em_last_name: true,
         em_phone_number: true,
@@ -125,64 +124,24 @@ async function getUserDataApi(req, res) {
   }
 
   try {
-    const centralTimeZone = "America/Chicago"; // TODO: Move to config?
-
     // Safely format date of birth, handling null
     // Format the Date object directly in UTC to avoid timezone shifts
     const dobFormatted = user.date_of_birth
       ? formatInTimeZone(user.date_of_birth, "UTC", "yyyy-MM-dd")
       : "";
 
-    // Safely format booking slot, handling null
-    let formattedAppointment = "Not Scheduled";
-    let rawAppointment = user.booking_slot
-      ? user.booking_slot.toISOString()
-      : null; // Keep raw ISO string
-
-    if (rawAppointment) {
-      try {
-        // Parse the ISO string (assumed UTC from DB) and format in Central Time
-        const appointmentDate = toDate(rawAppointment);
-        if (!isNaN(appointmentDate.getTime())) {
-          // Check if it's a valid date
-          formattedAppointment = formatInTimeZone(
-            appointmentDate,
-            centralTimeZone,
-            "EEEE, MMMM d, yyyy - h:mm aa zzzz",
-          );
-        } else {
-          logger.warn(
-            { bookingSlotRaw: user.booking_slot, telegramId },
-            "Invalid booking_slot format received from DB.",
-          );
-          rawAppointment = null; // Invalidate raw appointment if parsing failed
-        }
-      } catch (dateParseError) {
-        logger.error(
-          {
-            err: dateParseError,
-            bookingSlotRaw: user.booking_slot,
-            telegramId,
-          },
-          "Error parsing booking_slot.",
-        );
-        rawAppointment = null; // Invalidate raw appointment if parsing failed
-        // Keep formattedAppointment as 'Not Scheduled'
-      }
-    }
-
     const responseData = {
       success: true,
-      firstName: user.first_name || "",
-      lastName: user.last_name || "",
-      email: user.email || "",
-      phone: user.phone_number || "",
-      dob: dobFormatted, // YYYY-MM-DD
-      appointmentDateTime: formattedAppointment, // User-friendly display string
-      rawAppointmentDateTime: rawAppointment, // ISO string for form submission if needed
-      emergencyFirstName: user.em_first_name || "",
-      emergencyLastName: user.em_last_name || "",
-      emergencyPhone: user.em_phone_number || "",
+      data: {
+        firstName: user.first_name || "",
+        lastName: user.last_name || "",
+        email: user.email || "",
+        phoneNumber: user.phone_number || "",
+        dateOfBirth: dobFormatted, // YYYY-MM-DD
+        emergencyContactFirstName: user.em_first_name || "",
+        emergencyContactLastName: user.em_last_name || "",
+        emergencyContactPhone: user.em_phone_number || "",
+      },
     };
 
     res.status(200).json(responseData);
@@ -191,8 +150,6 @@ async function getUserDataApi(req, res) {
       { err: formatErr, telegramId, userRawData: user },
       "Error formatting user data for API.",
     );
-    // Send potentially unformatted or default data, or an error?
-    // Let's send 500 for now if formatting fails unexpectedly.
     res
       .status(500)
       .json({ success: false, message: "Error processing user data." });
@@ -628,10 +585,45 @@ async function getAvailability(req, res, _next) {
   }
 }
 
+/**
+ * Handles GET /api/sessions requests.
+ * Fetches all active session types for the calendar component.
+ *
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {Function} next - The Express next middleware function.
+ * @returns {Promise<void>} Sends a JSON response with session types or an error.
+ * @response {200} {object} Successfully fetched session types. { sessionTypes: Array<object> }
+ * @response {500} {object} Internal server error. { success: false, message: string }
+ */
+async function getSessionTypes(req, res, _next) {
+  logger.info("GET /api/sessions called for session types");
+
+  try {
+    const sessionTypes = await prisma.sessionType.findMany({
+      where: { active: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    logger.info(`Successfully fetched ${sessionTypes.length} session types`);
+    res.status(200).json({ sessionTypes });
+  } catch (error) {
+    logger.error(
+      { err: error },
+      "Error fetching session types from /api/sessions",
+    );
+    res.status(500).json({
+      success: false,
+      message: "An internal error occurred while fetching session types.",
+    });
+  }
+}
+
 module.exports = {
   initialize,
   getUserDataApi,
   submitWaiverApi,
   waiverCompletedWebhook,
   getAvailability, // Add new handler
+  getSessionTypes, // Add session types handler
 };

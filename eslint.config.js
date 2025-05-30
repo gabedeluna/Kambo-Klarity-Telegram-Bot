@@ -14,6 +14,7 @@ module.exports = [
       "node_modules/**",
       "dist/**",
       "coverage/**",
+      ".next/**", // Ignore Next.js build directory
     ],
   },
   // Apply recommended rules globally

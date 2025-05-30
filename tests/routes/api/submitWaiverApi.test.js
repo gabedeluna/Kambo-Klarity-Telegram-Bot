@@ -38,6 +38,10 @@ const botMock = {
   },
 };
 
+const googleCalendarToolMock = {
+  createCalendarEvent: jest.fn(),
+};
+
 // Mock date-fns-tz - not directly used by submitWaiverApi but good to keep if other parts of apiHandler use it
 jest.mock("date-fns-tz", () => ({
   ...jest.requireActual("date-fns-tz"),
@@ -56,6 +60,7 @@ describe("API Handler - submitWaiverApi", () => {
       logger: loggerMock,
       telegramNotifier: telegramNotifierMock,
       bot: botMock,
+      googleCalendarTool: googleCalendarToolMock,
     });
   });
 

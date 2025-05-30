@@ -32,20 +32,23 @@ The system must automate practitioner tasks, empower admins via Telegram, and pr
 | P-6 | Structured Logging & Error Handling                                     | enhances debuggability and production stability        |
 | P-7 | Observable AI Interactions                                              | facilitates debugging and evaluation of agent behavior |
 | P-8 | Through Manual Verification                                             | ensures features meet requirements across key scenarios|
+| P-9 | MVP First, Then Iterate                                                 | deliver core value quickly, then enhance               |
 
 ---
 
 ## 3 Tech Stack
 
-- **Runtime:** Node 18+, ES2020 (CommonJS)
-- **Bot:** Telegraf (Telegram)
-- **Web:** Express 4 – serves mini-apps and API routes
-- **DB:** PostgreSQL via Prisma singleton `core/prisma.js`
-- **AI:** LangChain JS + LangGraph. LLM selected via AI_PROVIDER env var ('openai' for GPT-4.1, 'gemini' for Gemini 2.5 Flash). Agent via createToolCallingAgent
-- **Lint/Format:** ESLint (`recommended`) + Prettier
-- **Logging:** Pino via singleton `core/logger.js`
-- **AI Observability:** LangSmith
-- **Testing:** Jest (Unit & Integration Tests). Manual Verification for E2E and exploratory testing.
+-   **Runtime:** Node.js 18+, ES2020 (CommonJS)
+-   **Bot:** Telegraf (Telegram)
+-   **Web Framework:** Express 4 – serves WebApps (HTML/CSS/JS) and API routes.
+-   **Database:** PostgreSQL via Prisma singleton `core/prisma.js`.
+-   **Frontend (Mini-Apps):** HTML, CSS (Tailwind CSS via CDN for rapid styling), Vanilla JavaScript.
+-   **Scheduling Engine Core:** Custom logic using `date-fns`, `date-fns-tz`, interacting with Google Calendar API.
+-   **Lint/Format:** ESLint (`recommended`) + Prettier.
+-   **Logging:** Pino via singleton `core/logger.js`.
+-   **Google API:** `googleapis`, `google-auth-library` (for Service Account auth).
+-   **Payments:** Telegram Payments API (via Telegraf).
+-   **Testing:** Manual Verification (Functional, Happy Path, Edge Case, Error Path scenarios defined per feature). Supertest for API endpoint integration tests.
 
 ---
 
@@ -96,8 +99,8 @@ The system must automate practitioner tasks, empower admins via Telegram, and pr
    ├─ [`src/tools/.gitkeep`](src/tools/.gitkeep:0) # Placeholder to ensure Git tracks the directory.
    ├─ [`src/tools/googleCalendar.js`](src/tools/googleCalendar.js:0) # Tool for interacting with the Google Calendar API (finding slots, creating events).
    ├─ [`src/tools/googleCalendarEvents.js`](src/tools/googleCalendarEvents.js:0) # Helper module or specific event logic for the googleCalendar.js tool.
-   ├─ [`src/tools/stateManager.js`](src/tools/stateManager.js:0) # LangChain tool for managing persistent user state and profile data in the database.
-   ├─ [`src/tools/telegramNotifier.js`](src/tools/telegramNotifier.js:0) # LangChain tool for sending various types of messages and notifications via Telegraf.
+   ├─ [`src/tools/stateManager.js`](src/tools/stateManager.js:0) # tool for managing persistent user state and profile data in the database.
+   ├─ [`src/tools/telegramNotifier.js`](src/tools/telegramNotifier.js:0) # tool for sending various types of messages and notifications via Telegraf.
    └─ [`src/tools/calendar/`](src/tools/calendar/) # Utilities and helpers specifically for calendar-related functionalities.
       ├─ [`src/tools/calendar/configUtils.js`](src/tools/calendar/configUtils.js:0) # Utility functions for calendar configuration.
       ├─ [`src/tools/calendar/freeBusyUtils.js`](src/tools/calendar/freeBusyUtils.js:0) # Utility functions for handling free/busy logic with calendars.
@@ -229,11 +232,275 @@ The system must automate practitioner tasks, empower admins via Telegram, and pr
 | **4 LangGraph Flow**          | Orchestrating Booking Conversation                                                                                         | ✅ **Completed:** `bookingGraph` state, nodes (using initialized tools/agent), conditional edges defined and assembled into a runnable graph. Basic graph execution manually verified.                                                                |
 | **5 Routing & Server Merge**  | Unifying Server & Activating Basic Bot Interaction                                                                         | ✅ **Completed:** `userLookup` & `updateRouter` middleware implemented. `bookingGraph` integrated for `BOOKING` state messages. Static file serving for forms. Form API/submission routes (`/submit-registration`, `/api/user-data`, `/api/submit-waiver`, `/waiver-completed`) implemented. Legacy server code removed. |
 |                               |                                                                                                                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| **6 Admin Essentials & Booking Activation** | **Overall Goal:** Establish basic admin controls, fully activate the AI-driven client booking flow, and transition session type management to the database (read-only from bot commands, full CRUD via future dashboard). |
-|                               | **6.1 Admin Role & Command Infrastructure Setup**                                                                          | **Features:** Designate admin users; set up routing for commands based on role. <br> **Milestones:** `bin/set_admin.js` script successfully assigns 'admin' DB role and calls `telegramNotifier.setRoleSpecificCommands` to update admin's Telegram command menu. `src/middleware/updateRouter.js` correctly delegates commands to `commandHandler.handleCommand`. Distinct `/help` handlers (stubs with role-specific text replies) for 'client' and 'admin' exist and are correctly invoked. `src/middleware/updateRouter.js` correctly delegates commands to `commandHandler.handleCommand`. Manually verified. |
-|                               | **6.2 Session Type DB Foundation & Read Access**                                                                           | **Features:** Move session type definitions to a database table for dynamic management. <br> **Milestones:** `SessionType` model defined in `prisma/schema.prisma` (id, label, durationMinutes, description, price, active). Migration run. Initial session types populated into DB. `src/core/sessionTypes.js` refactored: `getAll()` fetches active types from `prisma.sessionType`, `getById()` implemented. *(CRUD functions for internal/dashboard use added, but no Telegram commands for add/del/update in this phase)*. |
-|                               | **6.3 Activate `/book` Command to Full AI Booking Flow**                                                                   | **Features:** Enable clients to initiate booking via /book, select session type, converse with AI agent to find/confirm a slot, receive a waiver link, and understand the next steps. Admin is notified of tentative booking. <br> Milestones: <br> 1. /book client command handler (src/commands/client/book.js) implemented: calls telegramNotifier.sendSessionTypeSelector tool. <br> 2. sendSessionTypeSelector tool (updated in PH6.4) uses DB-driven session types, sends selector message, stores message_id in user.edit_msg_id. <br> 3. callbackQueryHandler processes session type selection: sets user state (BOOKING, session_type, active_session_id), clears user.edit_msg_id, invokes bookingGraph (first turn via bookingAgent.runBookingAgent). The agent's first response (e.g., "Let's book your {session_type}. I'm retrieving your profile...") edits the selector message. <br> 4. Agent/Graph Conversation (Core): User interacts with agent (which uses getUserProfileData, getUserPastSessions, findFreeSlots stub). Agent acknowledges first-time/returning user, suggests slots based on history (if any) or general availability. User and agent finalize a date/time. <br> 5. Booking Finalization (Agent/Graph Actions): Upon user confirmation of a slot: Agent/Graph calls stateManager.storeBookingData (saves confirmedSlot to user's booking_slot). Then calls googleCalendar.createCalendarEvent (stub - saves fake googleEventId in graph state). <br> 6. Waiver Sending (Agent/Graph Action): Agent/Graph calls telegramNotifier.sendWaiverLink tool. This tool sends a new message with "Complete Your Booking - Waiver Form" button (URL to waiver form, includes telegramId, sessionType, and the newly created sessionId). The message_id of this waiver link message is stored in user.edit_msg_id. <br> 7. Agent Concludes Pre-Waiver Flow: Agent informs user: "Your slot {Date/Time} is held. Please complete the waiver form sent in the next message to confirm your booking." Graph ends this interaction. <br> 8. Admin Notification (Tentative Booking): After waiver link is sent, telegramNotifier.sendAdminNotification is called: "Client {Name} has tentatively booked {Session Type} for {Date/Time}. Awaiting waiver." <br> 9. Manual end-to-end flow verification successful. These are mostly completed in Phase 5 but are critical prerequisites for the full booking loop. <br> ✔️ /api/submit-waiver handler processes form data, creates Session record (status 'WAIVER_SUBMITTED'), updates User record (emergency contacts, clears booking_slot). (PH5-09) <br> ✔️ /api/submit-waiver handler notifies admin of waiver submission (e.g., "Client {Name} submitted waiver for {Date/Time} session. Awaiting final confirmation message edit."). (Part of PH5-09) <br> ✔️ /waiver-completed webhook handler (called internally by /api/submit-waiver if merged, or by form system) updates Session status to 'CONFIRMED', clears user.edit_msg_id, and edits the waiver link message to "✅ Booking Confirmed! Your session for {Date/Time} is set." (PH5-10). <br> ✔️ Admin Notification (Final Confirmation): After the /waiver-completed webhook successfully edits the client's message, it also sends a final notification to the admin: "Booking for {Client Name}, {Session Type} on {Date/Time} is NOW CONFIRMED. [Deep link stub to dashboard session view: `/admin_dashboard#/sessions/<sessionId>]". |
-|                               | **6.4 Update Session Type Selector & Admin View Commands**                                                                 | **Features:** Ensure session selector uses DB. Provide basic admin views via Telegram. <br> **Milestones:** `telegramNotifier.sendSessionTypeSelector` tool refactored to use `core/sessionTypes.getAll({ active: true })`. `/sessions` admin command (view only) implemented, queries `sessions` table, replies with formatted list. `/dashboard` admin command implemented, sends WebApp button for future Admin Dashboard. |
+PH6 Tasks up to PH6-10 (New V3)	Admin roles, DB SessionTypes, /book command leads to WebApp button via refined sendSessionTypeSelector (respects can_book_3x3), Live GCal findFreeSlots tool fully implemented with DB rules and dual GCal checks.	✅ Done
+PH6-11: GET /api/calendar/availability	API endpoint providing available slots is implemented.	✅ Done
+PH6-12: GET /api/session-types/:id	API endpoint providing details for a specific session type is implemented.	✅ Done
+PH6-13: Calendar Mini-App Static Shell	public/calendar-app.html & CSS created, visually matching mockup, basic JS for URL param parsing and tg.close() on "Cancel".	✅ Done
+PHASE 6A: MVP - Client Booking Core via Calendar APP	Goal: Enable a single client to fully book a session: select type via bot -> open calendar app -> pick date/time -> transition to waiver app -> submit waiver. Session created in DB & GCal. Admin notified. Bot message updates to final confirmation (frog pic).	🚧 Active
+Sub-Tasks for Phase 6A detailed in Section 11	- PH6-14: calendar-app.html JS to fetch initial session details & display availability dynamically. <br>- PH6-15: calendar-app.html JS to transition to waiver-form.html on slot selection, passing context. <br>- PH6-16: waiver-form.html JS to receive context, pre-fill, and prepare for submission. <br>- PH6-17: POST /api/submit-waiver (major refactor): Creates Session (status CONFIRMED), creates GCal event, edits original bot message to "Frog Pic + Booking Confirmed!", notifies admin, responds to waiver form with redirect to placeholder "Invite Friends" page or a simple "Thank You" page for this MVP.	
+PHASE 6B: "Invite Friends" - Initial Setup & Invite Generation	Goal: Allow the primary booker, after their own booking is fully confirmed, to generate and see shareable invite links for friends via a dedicated WebApp page.	⏳ Upcoming
+Sub-Tasks for Phase 6B detailed in Section 11	- DB updates for AvailabilityRule.max_group_invites & new SessionInvite table. <br>- POST /api/submit-waiver (PH6-17) redirect target changed to invite-friends.html. <br>- API GET /api/sessions/:sessionId/invite-context for invite-friends.html. <br>- invite-friends.html (shell, initial data load, "Finish" button). <br>- API POST /api/sessions/:sessionId/generate-invite-token. <br>- invite-friends.html JS for dynamic invite link UI ("+" button, stepper). <br>- Bot message (from PH6-17) now gets an "[Invite Friends]" button linking to invite-friends.html if invites remain. edit_msg_id management for this.	
+PHASE 6C: "Invite Friends" - Sharing & Friend Acceptance (Basic)	Goal: Enable primary user to share invite links. Enable friend to see invite details and indicate acceptance/decline, initiating their onboarding. Bot interaction for friend via deep links.	⏳ Upcoming
+Sub-Tasks for Phase 6C detailed in Section 11	- invite-friends.html JS for "Share on Telegram" (openTelegramLink), "Share Other" (navigator.share), "Copy Link" buttons. UI updates on share. <br>- join-session.html (shell, display invite details from API). <br>- API GET /api/session-invites/:token/details. <br>- API POST /api/session-invites/:token/respond (handles accept/decline, returns deep links for bot). <br>- join-session.html JS to call respond API and redirect to bot. <br>- Bot /start deep link handling (reg_invite_..., waiver_invite_...). <br>- Friend completes registration (if new) then waiver. <br>- /api/submit-waiver handles friend's waiver, updates SessionInvite, notifies original inviter & admin.
+
+
+10. MVP Definition (Phase 6A Focus)
+The Minimum Viable Product for client-facing booking (Phase 6A) includes:
+User registration (registration-form.html).
+Client uses /book command.
+Bot presents eligible session types (as WebApp buttons opening calendar-app.html). edit_msg_id stored.
+calendar-app.html fetches session details and real-time availability (from GCal via APIs), allows date/time selection.
+Client selects slot, calendar-app.html transitions within the WebApp to waiver-form.html, passing context.
+Client submits waiver-form.html.
+Backend (POST /api/submit-waiver):
+Creates Session in DB (status CONFIRMED).
+Creates event in GOOGLE_CALENDAR_ID.
+Notifies admin.
+Edits the original bot message (from step 3, using stored edit_msg_id) to the final "Frog Pic + Booking Confirmed!" message. This message does not yet have an "Invite Friends" button for the pure MVP. edit_msg_id is cleared.
+Responds to waiver-form.html with a success indication, allowing it to show a simple "Thank You, Booking Confirmed!" message and then tg.close().
+This pure MVP for Phase 6A deliberately defers the invite-friends.html redirect and the "Invite Friends" button on the bot message to Phase 6B to ensure the core booking loop is perfect first.
+11. Feature Details & Explanations (Phase 6A Onwards)
+This section now details the granular tasks and features for each phase, starting from the current point (post-PH6-13 equivalent).
+PHASE 6A: MVP - Client Booking Core via Calendar APP
+PH6-14: Calendar Mini-App: Fetch Initial Session Details & Display Availability
+Goal: Make calendar-app.html dynamic: load initial session data, fetch & display available slots for the current month, enable month navigation, and allow visual selection of a date/time.
+Details:
+JS in calendar-app.html on load:
+Parses telegramId, initialSessionTypeId from URL.
+Calls GET /api/session-types/:initialSessionTypeId (PH6-12) to get label, durationMinutes. Displays these. Stores durationMinutes.
+Calls GET /api/calendar/availability (PH6-11) for current month using stored durationMinutes.
+Renders calendar grid: dynamically generates day cells, marks days with available slots.
+Renders time slots: populates scrollable time list (#timeSlotList) for the current/selected day with available times (formatted to user local time). Scroll highlighting effect applies.
+Month Navigation: "Prev/Next Month" buttons re-fetch availability for the new month and re-render calendar/slots.
+Day Selection: Clicking a day updates time slot list for that day.
+Time Slot Selection: Clicking a time slot updates "Booking for..." summary text, stores selected UTC ISO, and enables "Submit" button (text "Book for {Time}").
+Acceptance: Calendar accurately displays session info & availability. Month nav works. Date/time selection updates UI correctly.
+PH6-15: Calendar Mini-App: Transition to Waiver Form on "Submit"
+Goal: When user confirms a slot in calendar-app.html, transition them directly to waiver-form.html within the WebApp.
+Details:
+JS in calendar-app.html: Modify "Submit" button (#submitBookingButton) click handler.
+When clicked (and a slot is selected):
+Gather telegramId, initialSessionTypeId, and the selectedTimeSlotISO (UTC).
+Perform a client-side redirect: window.location.href = 'waiver-form.html?telegramId=' + tgId + '&sessionTypeId=' + sTypeId + '&appointmentDateTimeISO=' + slotISO;.
+Acceptance: Clicking "Submit" in calendar app navigates to waiver-form.html with correct parameters in URL. No backend booking API call yet.
+PH6-16: Waiver Form: Adapt to Receive & Use Calendar Data
+Goal: waiver-form.html must now use context passed from calendar-app.html.
+Details:
+JS in waiver-form.html:
+On load, parse telegramId, sessionTypeId, appointmentDateTimeISO from its own URL. Store these.
+Fetch user details via GET /api/user-data?telegramId=X for pre-filling name, email etc.
+Fetch session type label via GET /api/session-types/:sessionTypeId (PH6-12) using parsed sessionTypeId.
+Display context to user: "You are booking: {Session Label} for {Formatted Appointment Date/Time}."
+Include telegramId, sessionTypeId, appointmentDateTimeISO as hidden fields in the form POST data.
+Acceptance: Waiver form displays correct booking context. Hidden fields are correctly populated for submission.
+PH6-17: API & Waiver Submit: Create Session, GCal Event, Edit Bot Msg to Final Confirmation
+Goal: The main booking transaction. Waiver submission creates the session, books GCal, confirms to user via bot message edit, and notifies admin.
+Details for POST /api/submit-waiver (in apiHandler.js):
+Receive form data, including hidden telegramId, sessionTypeId, appointmentDateTimeISO.
+Create Session Record: In Prisma, create a new Session with status CONFIRMED. Store telegram_id, session_type_id_fk (foreign key to SessionType.id), appointment_datetime (parsed from appointmentDateTimeISO and stored as UTC DateTime), full liability_form_data (JSON of waiver fields).
+Create Google Calendar Event: Call googleCalendarTool.createCalendarEvent({ start: appointmentDateTimeISO, end: calculatedEndTimeISO, summary: "{Client Name} - {Session Label}", description: "Booked via Kambo Klarity Bot" }). Store returned googleEventId on the Session record.
+Fetch user.edit_msg_id (from Users table - this ID points to the original "Choose Session Type" WebApp button message sent by /book).
+Fetch SessionType.label for sessionTypeId.
+Edit Bot Message: Use telegramNotifier to edit the message at user.edit_msg_id.
+New content: Frog picture (requires sending photo with caption, or using HTML in message). Text: "✅ Your {SessionTypeLabel} session is confirmed for {Formatted Date & Time in Practitioner TZ}! We look forward to seeing you."
+No buttons on this message for the MVP.
+Clear edit_msg_id: Update Users table to set edit_msg_id = null for this user (as the booking confirmation message chain is complete for MVP).
+Notify Admin: "CONFIRMED BOOKING: Client {Name} (TGID {ID}) for {SessionType} on {Date} at {Time}. Waiver submitted."
+Respond to waiver-form.html with { success: true, message: "Booking Confirmed!" }.
+JS in waiver-form.html: On receiving this success response, display a "Booking Confirmed! Thank you." message and then call tg.close().
+Acceptance: Session in DB, GCal event created. Original bot message edited to final confirmation. Admin notified. Waiver form closes.
+PHASE 6B: "Invite Friends" - Initial Setup & Invite Generation (Post-MVP)
+PH6-18 (was PH6-19): DB Updates for Invites
+Goal: Prepare database for storing invite settings and individual invites.
+Details:
+Modify AvailabilityRule: Add max_group_invites Int @default(3) @NotDbNull. Update seed data for this new field.
+Create SessionInvite model: id String @id @default(uuid()), parentSessionId Int (FK to Session.id), inviteToken String @unique, status String @default("pending") (values: 'pending', 'accepted_by_friend', 'declined_by_friend', 'waiver_completed_by_friend'), friendTelegramId BigInt? @unique (unique per parentSessionId if a friend can only accept one slot per main booking), friendNameOnWaiver String?, createdAt DateTime @default(now()), updatedAt DateTime @updatedAt.
+Run npx prisma migrate dev.
+Acceptance: DB schema updated.
+PH6-19 (was PH6-17 part): /api/submit-waiver Redirects to invite-friends.html
+Goal: After primary user's waiver, transition them to the invite page.
+Details for POST /api/submit-waiver (PH6-17):
+Modify the response to waiver-form.html. Instead of just success, respond with:
+{ success: true, message: "Booking Confirmed!", redirectTo: '/invite-friends.html?sessionId=' + newSession.id + '&telegramId=' + telegramId }
+JS in waiver-form.html (PH6-18 in old list): Modify to handle this:
+If data.redirectTo exists, then window.location.href = data.redirectTo;
+Acceptance: After waiver submission, browser navigates to invite-friends.html with correct params.
+PH6-20: API: GET /api/sessions/:sessionId/invite-context for Invite Page
+Goal: Provide invite-friends.html with necessary data to render its initial state.
+Details:
+Route: GET /api/sessions/:sessionId/invite-context (ensure telegramId is also passed as query param for auth, to verify this session belongs to the requesting user).
+Handler:
+Validate sessionId and telegramId. Fetch Session by id, confirm session.telegram_id matches req.query.telegramId.
+Fetch the single AvailabilityRule to get max_group_invites.
+Fetch all SessionInvite records where parentSessionId matches req.params.sessionId.
+Respond: { success: true, data: { maxInvites: rule.max_group_invites, sessionDetails: { typeLabel: session.type.label, apptTimeFormatted: format(session.appointment_datetime) }, existingInvites: [{ token: si.inviteToken, status: si.status, friendName: si.friendNameOnWaiver }] } }.
+Acceptance: API returns correct context data for the invite page.
+PH6-21: Invite Page: Static Shell & Initial Data Load (invite-friends.html)
+Goal: Create the invite-friends.html page structure and load initial invite state.
+Details:
+public/invite-friends.html & CSS: Styled like other WebApps.
+Layout: "Booking Confirmed!" header. "Kambo is better with friends..." text. Info about group discount (static text for now). Display max_group_invites. Dynamic area for invite link sections. "Finish" button.
+JS:
+Parse sessionId, telegramId from URL.
+Call GET /api/sessions/:sessionId/invite-context (PH6-20).
+Display maxInvites.
+For each existingInvite from API: render a (disabled/greyed out) invite link section: "Invite Sent to {friendName}" or "Invite {status}". Show its "Share..." buttons as disabled.
+If existingInvites.length < maxInvites, show the stepper UI (from PH6-IF1) and the dynamic placeholder link UI (PH6-IF2), initially set to generate 1 new invite if no existing invites, or 0 if some exist but less than max.
+Acceptance: Page loads, displays session context, max_group_invites, shows existing shared invites correctly, and presents UI to add new invites if limit not reached.
+PH6-22: API: POST /api/sessions/:sessionId/generate-invite-token
+Goal: Backend logic for the "+" button or stepper increment on invite-friends.html.
+Details:
+Route: POST /api/sessions/:sessionId/generate-invite-token. (Authenticated for telegramId owning the session).
+Handler:
+Fetch Session and its SessionInvites. Fetch AvailabilityRule.max_group_invites.
+If count(SessionInvites) >= max_group_invites, return error "Max invites reached".
+Generate a new unique inviteToken (UUID).
+Create new SessionInvite record (status 'pending', linked to parentSessionId).
+Respond: { success: true, newInvite: { token: newInviteToken, status: "pending" } }.
+Acceptance: API generates a new invite token and DB record if within limits.
+PH6-23: Invite Page: Dynamic Invite Link Generation via Stepper/"+"
+Goal: Make the stepper UI on invite-friends.html functional.
+Details:
+JS in invite-friends.html:
+Stepper UI (from PH6-IF1 concept). + button is active if current_shown_invites < maxInvites. - button active if current_shown_invites > count_of_actually_shared_invites.
+Clicking + on stepper (or an "Add Invite" button):
+Calls POST /api/sessions/:sessionId/generate-invite-token (PH6-22).
+On success, dynamically appends a new "Invite Link X" UI section. This section contains:
+Placeholder text: "[Shareable Link for Friend X]".
+Hidden input storing the newInvite.token.
+"Share on Telegram", "Share via Other", "Copy Link" buttons (initially active).
+Decrementing stepper removes the last added, unshared invite UI section. Shared/used links are not removed by stepper.
+Acceptance: Stepper correctly adds/removes UI sections for potential invites. API is called for each new potential invite.
+PH6-24 (was PH6-26 part): Bot Message Edit After Waiver for "Invite Friends" Button
+Goal: The bot message (frog pic) needs an "Invite Friends" button if applicable.
+Details for POST /api/submit-waiver (PH6-17):
+After creating Session and GCal event:
+Fetch AvailabilityRule.max_group_invites.
+If max_group_invites > 0:
+The "Invite Friends" WebApp button is added to the bot message. URL: invite-friends.html?sessionId=NEW_SESSION_ID&telegramId=X.
+The edit_msg_id for the user is updated to point to this message (with the frog pic and invite button).
+Else (if max_group_invites == 0 or feature disabled):
+No "Invite Friends" button.
+user.edit_msg_id is cleared.
+Acceptance: Bot confirmation message after waiver conditionally shows "Invite Friends" button. edit_msg_id is managed correctly.
+PHASE 6C: "Invite Friends" - Sharing & Friend Acceptance
+PH6-25 (was PH6-IF5): Invite Page: "Share on Telegram" (switchInlineQuery) & Bot Handler
+Goal: Implement the premium Telegram sharing experience.
+Details:
+invite-friends.html JS: "Share on Telegram" button next to a generated (but not yet shared) invite link:
+Retrieves the invite_token associated with this UI section.
+Calls window.Telegram.WebApp.switchInlineQuery('@YOUR_BOT_USERNAME', 'kbinvite_' + invite_token).
+On successful switch (difficult to detect directly, assume user acts), update this link's UI section to "Shared via Telegram ✔️", disable its share buttons, move to top.
+Bot Backend (updateRouter.js or new specific handler module):
+Implement bot.on('inline_query', async (ctx) => { ... });.
+If ctx.inlineQuery.query starts with kbinvite_, parse the invite_token.
+Fetch SessionInvite by invite_token. Fetch parent Session for details (type, date/time). Fetch original inviter's name (from Session.user.first_name).
+Construct InlineQueryResultArticle:
+title: "{InviterFirstName} has invited you to a Kambo session!"
+description: "{SessionTypeLabel} on {FormattedDate} at {FormattedTime}."
+thumb_url: (Optional) URL to your KamboFrog.png.
+input_message_content:
+message_text: "You've been invited by {InviterFirstName} to their Kambo session: {SessionTypeLabel} on {FormattedDate} at {FormattedTime}. Will you join?"
+reply_markup: Inline keyboard with two callback buttons:
+[Accept Invite (data: accept_invite_${invite_token})]
+[Decline Invite (data: decline_invite_${invite_token})]
+ctx.answerInlineQuery([resultArticle]).
+Acceptance: "Share on Telegram" button triggers inline query UI. Bot responds with a selectable rich article. Recipient gets a message with Accept/Decline buttons. Inviter's UI updates.
+PH6-26 (was PH6-IF6): Invite Page: "Share via Other" (navigator.share) & "Copy Link" Buttons
+Goal: Provide standard sharing options.
+Details for invite-friends.html JS:
+"Share via Other" button:
+Constructs share URL: YOUR_FORM_URL/join-session.html?token={invite_token}.
+Calls navigator.share({ title: "Kambo Session Invite", text: "Join my Kambo session!", url: shareUrl }).
+On success/initiation, update link UI to "Shared ✔️", disable buttons, move to top.
+If navigator.share is undefined, gracefully degrade (e.g., alert "Use Copy Link").
+"Copy Link" button:
+Constructs share URL as above.
+Copies URL to clipboard.
+Update link UI to "Link Copied ✔️", disable buttons, move to top. Provide brief visual feedback.
+Acceptance: Native share dialog appears or link is copied. UI updates to reflect shared status.
+PH6-27 (was PH6-IF7): Friend Flow: public/join-session.html Page (Static Shell & Data Load)
+Goal: Create the landing page for an invited friend.
+Details:
+public/join-session.html & CSS: Styled like other WebApps.
+Layout: "You've been invited!" header. Placeholders for "Invited by {Name} to {SessionType} on {Date} at {Time}." "[Accept Invite]" and "[Decline Invite]" buttons.
+JS:
+Parse token (invite_token) from URL.
+If no token, show error.
+Call new API GET /api/session-invites/:token/details to fetch invite context.
+Populate placeholders with inviterName, sessionTypeLabel, appointmentDateTimeFormatted.
+Acceptance: Page loads, parses token, calls API, displays correct invite details. Buttons are present.
+PH6-28 (was PH6-IF8 & PH6-IF10 part 1): API: GET /api/session-invites/:token/details
+Goal: Backend for join-session.html to get context.
+Details:
+Route: GET /api/session-invites/:token/details.
+Handler:
+Find SessionInvite by inviteToken. If not found or already 'accepted'/'declined', return appropriate error/status.
+Fetch parent Session and its User (the inviter).
+Fetch SessionType for label.
+Respond: { success: true, data: { inviterName: user.firstName, sessionTypeLabel: type.label, appointmentDateTimeFormatted: format(session.appointmentDateTime), parentSessionId: session.id, sessionTypeId: session.sessionTypeIdFk } }.
+Acceptance: API returns necessary details for join-session.html.
+PH6-29 (was PH6-IF10 part 2 & PH6-IF11): API: POST /api/session-invites/:token/respond & join-session.html JS Buttons
+Goal: Friend accepts/declines invite; join-session.html calls API, API processes and gives deep link.
+API (POST /api/session-invites/:token/respond):
+Input: invite_token (from URL param), JSON body { response: 'accepted' | 'declined' }.
+Handler:
+Find SessionInvite by token. Validate it's 'pending'.
+Update SessionInvite.status to response value.
+If response === 'accepted':
+Notify original inviter: "{Friend's placeholder name/ID} is considering your invite!"
+Notify admin.
+Respond to join-session.html with JSON: { success: true, action: 'proceedToBot', deepLink: 'https://t.me/YOUR_BOT_NAME?start=reg_or_waiver_for_invite_' + invite_token }. (The reg_or_waiver_for_invite_ prefix tells the bot to figure out if friend needs reg or just waiver).
+If response === 'declined':
+Notify original inviter: "{Friend's placeholder name/ID} declined your invite."
+Notify admin.
+Respond to join-session.html with JSON: { success: true, action: 'invite_declined', message: "Thank you for responding." }.
+join-session.html JS:
+"Accept Invite" button: POSTs to API with {response: 'accepted'}. On API success, if action === 'proceedToBot', then tg.openTelegramLink(response.deepLink) then tg.close().
+"Decline Invite" button: POSTs with {response: 'declined'}. On API success, show "Response sent", then tg.close().
+Acceptance: API updates SessionInvite. join-session.html correctly redirects friend to bot via deep link or shows decline confirmation and closes. Inviter/admin notified.
+PH6-30: Bot: Handle /start Deep Links for Friend Invite Acceptance
+Goal: Bot guides invited friend through next steps (reg/waiver).
+Details for /start command handler (in commandHandler.js or updateRouter.js):
+If ctx.startPayload matches reg_or_waiver_for_invite_TOKEN:
+Parse TOKEN (the invite_token).
+Find SessionInvite by token. Verify status is 'accepted_by_friend'.
+Store ctx.from.id (friend's Telegram ID) and ctx.from.first_name on the SessionInvite record (friendTelegramId, friendNameOnWaiver (initial name)).
+Check if friendTelegramId is an existing user in Users table.
+If new user: Send registration form link: registration-form.html?inviteToken=TOKEN&friendTelegramId=FRIEND_ID. Set user state: AWAITING_FRIEND_REG_FOR_INVITE_TOKEN.
+If existing user: Send waiver form link: waiver-form.html?inviteToken=TOKEN&friendTelegramId=FRIEND_ID&sessionId=PARENT_SESSION_ID&sessionTypeId=PARENT_SESSION_TYPE_ID. Set user state: AWAITING_FRIEND_WAIVER_FOR_INVITE_TOKEN.
+Acceptance: Deep link correctly triggers registration or waiver flow for the friend. SessionInvite updated with friend's TG ID.
+PH6-31: Friend Flow: Registration & Waiver Submission & Final Inviter Notification
+Goal: Friend completes their onboarding, original inviter gets final confirmation.
+Details for POST /submit-registration:
+If inviteToken is present in POST body: After successful registration, find SessionInvite. If state was AWAITING_FRIEND_REG..., auto-send waiver link (as in PH6-30 step 6).
+Details for POST /api/submit-waiver (further modification):
+If inviteToken is in POST body (and friendTelegramId):
+Find SessionInvite by inviteToken. Verify friendTelegramId matches.
+Update SessionInvite.status to waiver_completed_by_friend. Store liability_form_data associated with the friend (e.g., on SessionInvite or linked to their User record if they registered). Update friendNameOnWaiver if different from initial.
+Notify original inviter: "🎉 Congrats! {Friend's Name from Waiver} has fully joined your Kambo session on {Date}!"
+Notify admin: "FRIEND JOINED: {Friend's Name} for {Inviter}'s session ({Parent Session ID}) on {Date}."
+Respond success to waiver form (it can show "Thank you!" and then tg.close()).
+Acceptance: Friend registration leads to waiver. Friend waiver submission updates SessionInvite, notifies inviter & admin.
+PH6-32: Styling: Ensure All WebApp Pages are Cohesive
+Goal: Unified visual identity.
+Details: Review and update CSS for registration-form.html, waiver-form.html, calendar-app.html, invite-friends.html, join-session.html. Ensure consistent use of dark theme, fonts (Manrope, Noto Sans), button styles, spacing, and overall aesthetic inspired by the calendar mockup.
+Acceptance: All client-facing WebApp pages share a professional, cohesive look and feel.
+PH6-33 (was PH6-21): Documentation & Review for Phase 6 (Full Flow)
+Goal: Keep project documentation up-to-date.
+Details:
+Add JSDoc comments to all new public functions, classes, API handlers, and significant methods created in Phase 6.
+Update PLANNING.MD (this document, particularly Section 5 and 11) to reflect the final implemented logic for the calendar and invite flows.
+Update docs/architecture.md: Modify diagrams and descriptions for new APIs, WebApp pages, and their interactions.
+Create/Update detailed Manual Test Plan documents covering the entire end-to-end booking flow for a single user, AND the full "Invite Friends" flow (both inviter and invitee perspectives), including all edge cases.
+Acceptance: JSDoc is comprehensive. PLANNING.MD and architecture.md accurately reflect the implemented Phase 6. Manual test plans are thorough.
+PH6-34 (was PH6-22): Final Review & TASK.MD Updates for Phase 6
+Goal: Official completion of Phase 6.
+Details: Tick all Phase 6 task boxes in the active TASK.MD. Ensure "Discovered During Work" or "Insights & Decisions" sections are filled for Phase 6.
+Acceptance: All Phase 6 tasks are checked. TASK.MD is up to date.
+
+
+
 |                               |                                                                                                                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **7 GCal Live & Dashboard UI Shell** | **Overall Goal:** Integrate live Google Calendar for real bookings. Construct the non-functional UI shell for the Admin Dashboard, laying groundwork for rich admin interactions. |
 |                               | **7.1 Live Google Calendar Tooling (CRUD)**                                                                                | **Features:** Replace GCal stubs with real API calls for creating, reading, updating (implicitly via delete/create for changes), and deleting calendar events. <br> **Milestones:** `tools/googleCalendar.js`: `findFreeSlots`, `createCalendarEvent`, `deleteCalendarEvent` now use `googleapis` library (OAuth2 handled). `Session` DB schema stores `google_event_id`. `createCalendarEvent` tool stores this ID. Booking flow creates real GCal events. Cancellation logic (both pre-waiver by agent and post-waiver by `/cancel` command) correctly calls `deleteCalendarEvent`. MCP consulted. Manually verified. |
@@ -396,70 +663,7 @@ Prioritize user privacy and data security in all features.
 
 *(This section now requires comprehensive narratives for EACH sub-phase/deliverable listed in Section 5. I will provide the expanded details for the Admin Automations as examples, and you will need to apply this level of detail to ALL other features.)*
 
-**Phase 6: Admin Essentials & Booking Activation**
-*   **6.1 Admin Role & Command Infrastructure Setup:**
-    *   **Goal:** Securely designate administrative users and establish a system where Telegram commands are routed and executed based on the user's role (client or admin).
-    *   **`bin/set_admin.js` Script:** A command-line tool run by the project owner. Input: Telegram ID. Action: Updates the specified user's `role` to 'admin' in the `User` database table. It then immediately calls the `telegramNotifier.setRoleSpecificCommands` tool, providing the user's Telegram ID and their new 'admin' role. This ensures their Telegram command menu updates instantly to show admin commands. Error handling for non-existent user IDs or DB issues.
-    *   **`src/middleware/updateRouter.js`:** This Telegraf middleware receives context (`ctx`) after user lookup. It extracts the command (e.g., `/help` -> `help`) and the user's role from `ctx.state.user.role`. It then consults `src/commands/registry.js` looking *only* in the section for that specific role (e.g., `commandRegistry.admin['help']`). If a handler is found, it's executed. If not (command unknown for that role, or command doesn't exist), a "Unknown command or unauthorized..." message is sent.
-    *   **Distinct `/help` Handlers:** The `commandRegistry` defines separate `/help` entries for `client` and `admin`, pointing to different handler functions (e.g., `handleClientHelp`, `handleAdminHelp`). These handlers (initially stubs, then implemented to list relevant commands from the registry) provide role-tailored help messages.
-    *   **Integration with `updateRouter.js`:** The `updateRouterMiddleware` (from Phase 5) identifies if an incoming message is a command. If so, it delegates the `ctx` to `commandHandler.handleCommand`.
-    *   **Command Registry (`commands/registry.js`):**
-{{ ... }}
-*   **6.2 Session Type DB Foundation & Read Access:**
-    *   **Goal:** Move session type definitions (1hr Kambo, 3x3 Kambo etc.) from a static JSON file to a database table for dynamic management and to serve as the single source of truth.
-    *   **`SessionType` Prisma Model:** Define fields like `id` (String, e.g., "1hr-kambo"), `label` (String, "1 hr Kambo"), `durationMinutes` (Int), `description` (String), `price` (Decimal, optional), `active` (Boolean, default true). Migration creates the table.
-    *   **Initial Data Population:** A one-time script or manual DB operation to transfer data from the old `sessionTypes.json` into the new `SessionType` table.
-    *   **`core/sessionTypes.js` Refactor:** The existing helper is updated. `getAll()` now uses `prisma.sessionType.findMany({ where: { active: true } })` to fetch only active types for display to clients. `getById(id)` uses `prisma.sessionType.findUnique()`. Basic CRUD functions (`createType`, `updateType`, `deleteTypeOrDeactivate`) are added for future use by the Admin Dashboard (not exposed as Telegram commands).
-*   **6.3 Activate `/book` Command to Full AI Booking Flow:**
-    *   **Goal:** Enable clients to fully initiate booking via /book, converse with the AI agent to select and confirm a time slot, receive a waiver link, and complete the booking by submitting the waiver. Admins are notified at key stages.
-    *   **Client `/book` Trigger:** Client sends /book.  
-        Bot replies: "Please choose your session type:" with inline buttons (e.g., "1 hr Kambo," "3x3 Kambo") generated from active SessionTypes in the DB.  
-        The `message_id` of this selector message is stored in `User.edit_msg_id`.
-    *   **User Action (Selects Type):** Client clicks a session‑type button.
-    *   **System (`callbackQueryHandler`):**  
-        Acknowledges callback. Retrieves `User.edit_msg_id` (selectorMessageId).  
-        Generates new unique `sessionId`; stores it in `User.active_session_id`.  
-        Updates user state: `state='BOOKING'`, `session_type=selectedType`, sets `User.edit_msg_id = null`.  
-        Invokes `bookingGraph` via `bookingAgent.runBookingAgent` with input "User selected {session type label}. Please retrieve their profile and begin booking."  
-        The graph’s first output (e.g., “Hi {Name}, let's book your {session type}… Retrieving available slots…”) edits the `selectorMessageId`, replacing the buttons.
-    *   **System (Agent/Graph Conversation – `bookingGraph`):**  
-        User and agent converse. Agent may call:  
-            * `getUserProfileData`  
-            * `getUserPastSessions`  
-            * `findFreeSlots` (stub returns fake slots)  
-        Agent presents slots → user chooses → agent confirms.
-    *   **Upon Final Slot Confirmation:**  
-        * `stateManager.storeBookingData` saves chosen slot to `User.booking_slot`.  
-        * `googleCalendar.createCalendarEvent` (stub) returns `googleEventId`, kept in graph state.  
-        * `telegramNotifier.sendWaiverLink` constructs waiver URL  
-          `YOUR_FORM_URL/waiver-form.html?telegramId=X&sessionType=Y&sessionId=Z&appointmentDateTime=ISO_SLOT_START`  
-          and sends: “Great! Your slot for {Date} at {Time} is tentatively held. Please complete this waiver…” (WebApp button).  
-          That waiver‑link message’s `message_id` is stored in `User.edit_msg_id`.  
-        * Agent tells user: “I've sent you a link to the waiver form. Please complete it…”  
-        * `telegramNotifier.sendAdminNotification` alerts admins: “Client {Name}… has tentatively booked… Awaiting waiver.”
-    *   **Pre‑Waiver Cancellation (User types "cancel"):**  
-        Graph sees `googleEventId`; if present, calls `googleCalendar.deleteCalendarEvent`.  
-        Calls `stateManager.resetUserState` (clears booking fields).  
-        Agent confirms cancellation.
-    *   **User Action (Submits Waiver – Phase 5 logic):**  
-        User fills waiver web‑app → browser `POST /api/submit-waiver` (PH5‑09).  
-        Handler:  
-            * Creates `Session` (status `WAIVER_SUBMITTED`)  
-            * Updates `User` (emergency contacts, clears `booking_slot`)  
-            * Notifies admin (“Waiver submitted by…”)  
-        `/api/submit-waiver` triggers `/waiver-completed` (PH5‑10):  
-            * Receives `telegramId`, `sessionId`  
-            * Looks up `User.edit_msg_id` (waiver‑link message)  
-            * Gets `Session` details (`appointment_datetime`)  
-            * Sets `Session.session_status = 'CONFIRMED'`  
-            * Sets `User.edit_msg_id = null`  
-            * **Edits** waiver‑link message to: “✅ Booking Confirmed! …”  
-            * Sends final admin alert: “Booking for {Client Name}… is NOW CONFIRMED. View: /admin_dashboard#/sessions/<sessionId>”
 
-*   **6.4 Admin `/dashboard` Command & `/sessions` View:**
-    *   **Goal:** Provide admins access to the future web dashboard and a quick Telegram view of sessions.
-    *   **`/dashboard` Command Handler (`src/commands/admin/dashboard.js`):** When an admin sends `/dashboard`, this handler replies with a message containing a single WebApp button. The button's text is "Open Admin Dashboard" and its URL points to the future location of the admin mini-app (e.g., `config.FORM_URL/admin_dashboard`).
-    *   **`/sessions` Command Handler (`src/commands/admin/sessions.js`):** When an admin sends `/sessions`, this handler queries the `sessions` table in Prisma for upcoming (and perhaps recently past) sessions (e.g., `where: { appointment_datetime: { gte: oneWeekAgo, lte: oneMonthFromNow } }, orderBy: { appointment_datetime: 'asc' }`). It fetches relevant fields like client name (via relation to User), session type, date/time, status. It then formats this information into a readable text message (or multiple messages if long) and sends it to the admin.
 
 **Phase 7: Google Calendar Live & Dashboard UI Shell**
 *   **7.1 Live Google Calendar Tooling (CRUD):**

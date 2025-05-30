@@ -1,4 +1,4 @@
-const GoogleCalendarTool = require("../../src/tools/googleCalendar");
+const _GoogleCalendarTool = require("../../src/tools/googleCalendar");
 const FreeBusyUtils = require("../../src/tools/calendar/freeBusyUtils");
 const ConfigUtils = require("../../src/tools/calendar/configUtils");
 const SlotGenerator = require("../../src/tools/calendar/slotGenerator");
@@ -52,7 +52,7 @@ describe("FreeBusy API Performance Tests", () => {
     slotGenerator = new SlotGenerator(freeBusyUtils, configUtils, mockLogger);
 
     // Mock GoogleCalendarTool constructor to avoid auth issues in tests
-    googleCalendarTool = {
+    const _googleCalendarTool = {
       freeBusyUtils,
       configUtils,
       slotGenerator,

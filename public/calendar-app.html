@@ -43,7 +43,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(0, 0, 0, 0.1);
         z-index: -1;
       }
       
@@ -231,23 +231,21 @@
         color: #fef7cd !important;
       }
     </style>
+    <!-- Stagewise Development Toolbar (development only) -->
+    <script type="module" src="stagewise-working.js"></script>
 </head>
 <body style='font-family: Manrope, "Noto Sans", sans-serif;' class="overflow-hidden">
     <!-- Video Background -->
     <video class="video-background" autoplay muted loop playsinline>
-      <source src="backgroundVideo.mov" type="video/quicktime">
-      <source src="backgroundVideo.webm" type="video/webm">
-      <source src="backgroundVideo.mp4" type="video/mp4">
+      <source src="background_video_with_frog.mov" type="video/quicktime">
+      <source src="background_video_with_frog.webm" type="video/webm">
+      <source src="background_video_with_frog.mp4" type="video/mp4">
       <!-- Fallback for browsers that don't support video -->
       Your browser does not support the video tag.
     </video>
     
     <div class="relative flex size-full min-h-screen flex-col justify-between">
       
-      <!-- Frog Overlay - positioned exactly as shown in the design -->
-      <div class="fixed bottom-0 right-0 pointer-events-none z-50">
-        <img src="frog.png" alt="Kambo Frog" class="w-auto h-auto" style="width: 400px; height: auto;" />
-      </div>
       
       <!-- Main content wrapper -->
       <div class="flex-1 relative px-4 py-2 pt-6">

@@ -270,21 +270,35 @@ function setupEventListeners() {
             selectedSlot: selectedTimeSlotISO,
           });
 
-          // TODO: Implement actual booking submission in PH6-17
-          submitButton.querySelector("span").textContent = "Booking...";
+          // PH6-15: Transition to waiver form with booking context
+          submitButton.querySelector("span").textContent = "Proceeding...";
 
-          // Simulate booking process
-          setTimeout(() => {
-            showError(
-              "Booking submission will be implemented in the next phase.",
+          // Validate required parameters before transition
+          if (telegramId && initialSessionTypeId && selectedTimeSlotISO) {
+            const waiverFormUrl = `waiver-form.html?telegramId=${telegramId}&sessionTypeId=${initialSessionTypeId}&appointmentDateTimeISO=${selectedTimeSlotISO}`;
+
+            console.log(
+              "Transitioning to waiver form with URL:",
+              waiverFormUrl,
             );
+
+            // Navigate to waiver form
+            window.location.href = waiverFormUrl;
+          } else {
+            // This case should ideally be prevented by disabling button if data is missing
+            showError("Critical information missing. Cannot proceed.");
+            console.error("Missing data for waiver form transition:", {
+              telegramId,
+              initialSessionTypeId,
+              selectedTimeSlotISO,
+            });
 
             // Reset button state
             submitButton.disabled = false;
             submitButton.className =
               "btn-primary flex-1 h-12 text-base font-bold";
             submitButton.querySelector("span").textContent = originalText;
-          }, 1000);
+          }
         } else {
           // Slot is no longer available
           showError(

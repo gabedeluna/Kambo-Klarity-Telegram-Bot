@@ -40,6 +40,9 @@ const mockBot = {
     editMessageText: jest.fn(),
   },
 };
+const mockGoogleCalendarTool = {
+  createCalendarEvent: jest.fn(),
+};
 
 // Mock Express req/res objects
 const mockRequest = (query = {}, body = {}) => ({
@@ -87,10 +90,11 @@ describe("API Handler", () => {
           logger: mockLogger,
           telegramNotifier: mockTelegramNotifier,
           bot: mockBot,
+          googleCalendarTool: mockGoogleCalendarTool,
         }),
       ).not.toThrow();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "API Handler initialized successfully with Prisma, Logger, TelegramNotifier, and Bot.",
+        "API Handler initialized successfully with Prisma, Logger, TelegramNotifier, Bot, and GoogleCalendarTool.",
       );
     });
 
@@ -145,6 +149,7 @@ describe("API Handler", () => {
         logger: mockLogger,
         telegramNotifier: mockTelegramNotifier,
         bot: mockBot,
+        googleCalendarTool: mockGoogleCalendarTool,
       });
     });
 
@@ -209,7 +214,6 @@ describe("API Handler", () => {
         email: "john.doe@example.com",
         phone_number: "+1234567890",
         date_of_birth: new Date("1990-05-15T00:00:00.000Z"), // Stored as UTC
-        booking_slot: new Date("2025-05-20T15:00:00.000Z"), // UTC
         em_first_name: "Jane",
         em_last_name: "Doe",
         em_phone_number: "+1987654321",
@@ -226,24 +230,19 @@ describe("API Handler", () => {
         "UTC",
         "yyyy-MM-dd",
       ); // "1990-05-15"
-      const expectedAppointmentDateTime = formatInTimeZone(
-        mockUser.booking_slot,
-        "America/Chicago",
-        "EEEE, MMMM d, yyyy - h:mm aa zzzz",
-      );
 
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        firstName: "John",
-        lastName: "Doe",
-        email: "john.doe@example.com",
-        phone: "+1234567890",
-        dob: expectedDob,
-        appointmentDateTime: expectedAppointmentDateTime,
-        rawAppointmentDateTime: mockUser.booking_slot.toISOString(),
-        emergencyFirstName: "Jane",
-        emergencyLastName: "Doe",
-        emergencyPhone: "+1987654321",
+        data: {
+          firstName: "John",
+          lastName: "Doe",
+          email: "john.doe@example.com",
+          phoneNumber: "+1234567890",
+          dateOfBirth: expectedDob,
+          emergencyContactFirstName: "Jane",
+          emergencyContactLastName: "Doe",
+          emergencyContactPhone: "+1987654321",
+        },
       });
     });
 
@@ -254,7 +253,6 @@ describe("API Handler", () => {
         email: "test@example.com",
         phone_number: null,
         date_of_birth: null,
-        booking_slot: null,
         em_first_name: "Em",
         em_last_name: "Contact",
         em_phone_number: "111",
@@ -267,16 +265,16 @@ describe("API Handler", () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        firstName: "Test",
-        lastName: "User",
-        email: "test@example.com",
-        phone: "",
-        dob: "",
-        appointmentDateTime: "Not Scheduled",
-        rawAppointmentDateTime: null,
-        emergencyFirstName: "Em",
-        emergencyLastName: "Contact",
-        emergencyPhone: "111",
+        data: {
+          firstName: "Test",
+          lastName: "User",
+          email: "test@example.com",
+          phoneNumber: "",
+          dateOfBirth: "",
+          emergencyContactFirstName: "Em",
+          emergencyContactLastName: "Contact",
+          emergencyContactPhone: "111",
+        },
       });
     });
 
@@ -285,7 +283,6 @@ describe("API Handler", () => {
         first_name: "Bad",
         last_name: "Date",
         date_of_birth: "invalid-date-string", // Will cause formatInTimeZone to fail
-        booking_slot: new Date(),
       };
       mockPrisma.users.findUnique.mockResolvedValue(mockUser);
       // Let the actual date-fns/date-fns-tz logic throw an error with bad input
@@ -332,6 +329,7 @@ describe("API Handler", () => {
         logger: mockLogger,
         telegramNotifier: mockTelegramNotifier,
         bot: mockBot,
+        googleCalendarTool: mockGoogleCalendarTool,
       });
     });
 
@@ -485,6 +483,7 @@ describe("API Handler", () => {
         logger: mockLogger,
         telegramNotifier: mockTelegramNotifier,
         bot: mockBot,
+        googleCalendarTool: mockGoogleCalendarTool,
       });
     });
 

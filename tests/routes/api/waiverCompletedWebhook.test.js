@@ -38,6 +38,10 @@ const botMock = {
   },
 };
 
+const googleCalendarToolMock = {
+  createCalendarEvent: jest.fn(),
+};
+
 // Mock date-fns-tz functions
 jest.mock("date-fns-tz", () => ({
   ...jest.requireActual("date-fns-tz"),
@@ -56,6 +60,7 @@ describe("API Handler - waiverCompletedWebhook", () => {
       logger: loggerMock,
       telegramNotifier: telegramNotifierMock,
       bot: botMock,
+      googleCalendarTool: googleCalendarToolMock,
     });
   });
 

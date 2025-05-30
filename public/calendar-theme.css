@@ -1,0 +1,309 @@
+/* Calendar Theme Styles - Shared across forms */
+
+/* 
+  For development mode, include the stagewise toolbar by adding this script tag to your HTML:
+  <script type="module" src="stagewise-dev.js"></script>
+*/
+
+/* Prevent viewport resizing when keyboard appears */
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: 
+    url('background-for-calendar.png') center/cover no-repeat fixed,
+    linear-gradient(135deg, #1a4d2e 0%, #2d5016 30%, #1a3d0f 70%, #0f2408 100%);
+  min-height: 100vh;
+  height: 100%;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: Manrope, "Noto Sans", sans-serif;
+}
+
+/* Video background styling */
+.video-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  object-fit: cover;
+  z-index: -2;
+  /* Prevent resizing when keyboard appears */
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: -1;
+}
+
+.form-container {
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Form styling to match calendar */
+.form-control {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: #faf0e6 !important;
+  transition: all 0.3s ease;
+  padding: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: #53d22c;
+  box-shadow: 0 0 0 2px rgba(83, 210, 44, 0.3);
+  outline: none;
+}
+
+.form-control::placeholder {
+  color: rgba(245, 245, 220, 0.6);
+}
+
+.form-check-input {
+  accent-color: #53d22c;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Make checkboxes bigger and easier to tap on mobile */
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.form-check-input:checked {
+  background-color: #53d22c;
+  border-color: #53d22c;
+}
+
+/* Make the entire form-check area clickable for better mobile experience */
+.form-check {
+  position: relative;
+  padding: 16px;
+  margin: 8px 0;
+  cursor: pointer;
+  border-radius: 8px;
+  /* Make the hover effect permanent for better visibility */
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.form-check-label {
+  cursor: pointer;
+  line-height: 1.4;
+  padding-left: 4px;
+}
+
+/* Substance table specific styling */
+.substance-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.substance-table th,
+.substance-table td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 12px 16px;
+}
+
+.substance-table th:first-child,
+.substance-table td:first-child {
+  text-align: left;
+  width: 45%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.substance-table th:nth-child(2),
+.substance-table td:nth-child(2) {
+  width: 15%;
+}
+
+.substance-table th:nth-child(3),
+.substance-table td:nth-child(3) {
+  width: 15%;
+}
+
+.substance-table th:nth-child(4),
+.substance-table td:nth-child(4) {
+  width: 25%;
+}
+
+/* Make substance table checkboxes even more accessible but remove hover effects */
+.substance-check {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  margin: 0 auto;
+  display: block;
+}
+
+/* Remove hover effects from substance table form-checks */
+.substance-table .form-check {
+  background: transparent;
+  padding: 12px;
+  margin: 0;
+}
+
+.substance-table .form-check:hover {
+  background: transparent;
+}
+
+.btn-primary {
+  background: #53d22c;
+  color: #162013;
+  font-weight: 700;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(83, 210, 44, 0.3);
+  border: none;
+  padding: 14px 20px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.btn-primary:not(:disabled) {
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+  0% {
+    box-shadow: 0 4px 12px rgba(83, 210, 44, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(83, 210, 44, 0.6), 0 0 30px rgba(83, 210, 44, 0.4);
+  }
+  100% {
+    box-shadow: 0 4px 12px rgba(83, 210, 44, 0.3);
+  }
+}
+
+.btn-primary:hover {
+  background: #45b525;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(83, 210, 44, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  animation: none;
+}
+
+/* Text colors to match calendar */
+h1, h2, h3, h4, h5, h6 {
+  color: #fef7cd !important;
+}
+
+p, li, label, .form-check-label {
+  color: #faf0e6 !important;
+}
+
+.hint {
+  color: rgba(245, 245, 220, 0.8) !important;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.alert-success {
+  background: rgba(83, 210, 44, 0.2);
+  border: 1px solid rgba(83, 210, 44, 0.3);
+  border-radius: 16px;
+  color: #faf0e6;
+}
+
+.table {
+  color: #faf0e6;
+}
+
+.table th {
+  color: #fef7cd;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.table td {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Error styling */
+.error-outline {
+  border: 2px solid #ff453a !important;
+  box-shadow: 0 0 0 1px #ff453a;
+}
+
+.error-message {
+  color: #ff453a;
+  font-size: 14px;
+  margin-top: 4px;
+  display: none;
+  font-weight: 500;
+}
+
+.error-message.visible {
+  display: block;
+}
+
+.error {
+  color: #ff453a;
+  font-size: 14px;
+  margin-top: 4px;
+  display: none;
+  font-weight: 500;
+}
+
+.error.visible {
+  display: block;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Remove frog emoji styling */
+.frog-emoji {
+  display: none;
+} 

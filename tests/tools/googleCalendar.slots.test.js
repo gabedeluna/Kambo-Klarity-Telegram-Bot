@@ -4,7 +4,6 @@ const { addDays } = require("date-fns");
 const {
   mockLogger,
   mockPrisma,
-  mockCalendarEvents,
   mockCalendarFreeBusy,
   setupEnvironment,
   teardownEnvironment,
@@ -14,6 +13,9 @@ const {
 } = require("./googleCalendar.setup");
 
 const GoogleCalendarTool = require("../../src/tools/googleCalendar");
+
+// Mock calendar events for testing
+const _mockCalendarEvents = [];
 
 describe("GoogleCalendarTool - Slot Finding", () => {
   let googleCalendarTool;

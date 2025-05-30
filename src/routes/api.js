@@ -77,6 +77,9 @@ function getRouter() {
   // Route to get session type details by ID
   router.get("/session-types/:id", sessionTypesApiHandler.getSessionTypeById);
 
+  // Route to get all session types (for calendar component)
+  router.get("/sessions", apiHandler.getSessionTypes);
+
   logger.info("API routes configured.");
   return router;
 }

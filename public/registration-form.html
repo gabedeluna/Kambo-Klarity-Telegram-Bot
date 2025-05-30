@@ -2,132 +2,162 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Kambo Klarity Registration</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="/registration-form.css" />
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&family=Manrope%3Awght%40400%3B500%3B700%3B800&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+    <!-- Calendar Theme CSS -->
+    <link rel="stylesheet" href="calendar-theme.css" />
+    <!-- Stagewise Development Toolbar (development only) -->
+    <script type="module" src="stagewise-working.js"></script>
   </head>
-  <body>
-    <div class="container">
-      <span class="frog-emoji">🐸</span>
-      <h1>Kambo Klarity Registration</h1>
+  <body style='font-family: Manrope, "Noto Sans", sans-serif;'>
+    <!-- Video Background -->
+    <video class="video-background" autoplay muted loop playsinline>
+      <source src="backgroundVideo.mov" type="video/quicktime">
+      <source src="backgroundVideo.webm" type="video/webm">
+      <source src="backgroundVideo.mp4" type="video/mp4">
+      <!-- Fallback for browsers that don't support video -->
+      Your browser does not support the video tag.
+    </video>
+    
+    <div class="relative min-h-screen p-4">
+      <div class="form-container max-w-lg mx-auto p-6">
+        <span class="frog-emoji">🐸</span>
+        <h1 class="text-center mb-6 text-3xl font-bold">Kambo Klarity Registration</h1>
 
-      <form id="registrationForm" action="/submit-registration" method="POST">
-        <!-- Hidden field to store Telegram User ID -->
-        <input type="hidden" id="telegramId" name="telegramId" />
+        <form id="registrationForm" action="/submit-registration" method="POST">
+          <!-- Hidden field to store Telegram User ID -->
+          <input type="hidden" id="telegramId" name="telegramId" />
 
-        <div class="form-group">
-          <label for="firstName">First Name</label>
-          <input
-            type="text"
-            id="firstName"
-            name="firstName"
-            required
-            aria-required="true"
-          />
-          <div class="error" id="firstNameError">
-            Please enter your first name
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="lastName">Last Name</label>
-          <input
-            type="text"
-            id="lastName"
-            name="lastName"
-            required
-            aria-required="true"
-          />
-          <div class="error" id="lastNameError">
-            Please enter your last name
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            required
-            aria-required="true"
-          />
-          <div class="error" id="emailError">
-            Please enter a valid email address
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="phoneNumber">Phone Number</label>
-          <input
-            type="tel"
-            id="phoneNumber"
-            name="phoneNumber"
-            required
-            aria-required="true"
-          />
-          <div class="error" id="phoneNumberError">
-            Please enter a valid phone number
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="dateOfBirth">Date of Birth</label>
-          <input
-            type="date"
-            id="dateOfBirth"
-            name="dateOfBirth"
-            required
-            aria-required="true"
-          />
-          <div class="error" id="dateOfBirthError">
-            Please enter your date of birth
-          </div>
-          <div class="hint">Must be at least 18 years old</div>
-        </div>
-
-        <div class="form-group">
-          <label for="reasonForSeeking">Reason for Seeking Kambo</label>
-          <textarea
-            id="reasonForSeeking"
-            name="reasonForSeeking"
-            required
-            aria-required="true"
-            rows="4"
-          ></textarea>
-          <div class="error" id="reasonForSeekingError">
-            Please share your reason for seeking Kambo
-          </div>
-          <div class="hint">
-            Please share any health concerns or goals you have for your Kambo
-            journey
-          </div>
-        </div>
-
-        <div class="form-group">
-          <div class="form-check">
+          <div class="form-group">
+            <label for="firstName">First Name</label>
             <input
-              class="form-check-input"
-              type="checkbox"
-              id="isVeteranOrResponder"
-              name="is_veteran_or_responder"
-              value="true"
+              type="text"
+              id="firstName"
+              name="firstName"
+              class="form-control"
+              required
+              aria-required="true"
             />
-            <label class="form-check-label" for="isVeteranOrResponder">
-              I identify as a Military Veteran or First Responder. (Optional)
-            </label>
+            <div class="error" id="firstNameError">
+              Please enter your first name
+            </div>
           </div>
-          <div class="hint">
-            Checking this box helps us tailor potential future programs and
-            offers.
-          </div>
-        </div>
 
-        <button type="submit" class="button" id="submitButton">
-          Submit Registration
-        </button>
-      </form>
+          <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <input
+              type="text"
+              id="lastName"
+              name="lastName"
+              class="form-control"
+              required
+              aria-required="true"
+            />
+            <div class="error" id="lastNameError">
+              Please enter your last name
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="form-control"
+              required
+              aria-required="true"
+            />
+            <div class="error" id="emailError">
+              Please enter a valid email address
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="phoneNumber">Phone Number</label>
+            <input
+              type="tel"
+              id="phoneNumber"
+              name="phoneNumber"
+              class="form-control"
+              required
+              aria-required="true"
+            />
+            <div class="error" id="phoneNumberError">
+              Please enter a valid phone number
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="dateOfBirth">Date of Birth</label>
+            <input
+              type="date"
+              id="dateOfBirth"
+              name="dateOfBirth"
+              class="form-control"
+              required
+              aria-required="true"
+            />
+            <div class="error" id="dateOfBirthError">
+              Please enter your date of birth
+            </div>
+            <div class="hint">Must be at least 18 years old</div>
+          </div>
+
+          <div class="form-group">
+            <label for="reasonForSeeking">Reason for Seeking Kambo</label>
+            <textarea
+              id="reasonForSeeking"
+              name="reasonForSeeking"
+              class="form-control"
+              required
+              aria-required="true"
+              rows="4"
+            ></textarea>
+            <div class="error" id="reasonForSeekingError">
+              Please share your reason for seeking Kambo
+            </div>
+            <div class="hint">
+              Please share any health concerns or goals you have for your Kambo
+              journey
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="isVeteranOrResponder"
+                name="is_veteran_or_responder"
+                value="true"
+              />
+              <label class="form-check-label" for="isVeteranOrResponder">
+                I identify as a Military Veteran or First Responder. (Optional)
+              </label>
+            </div>
+            <div class="hint">
+              Checking this box helps us tailor potential future programs and
+              offers.
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary h-12 text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed" id="submitButton">
+            Submit Registration
+          </button>
+        </form>
+      </div>
     </div>
 
     <script>

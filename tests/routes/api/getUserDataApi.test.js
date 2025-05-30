@@ -39,6 +39,11 @@ const botMock = {
   },
 };
 
+const googleCalendarToolMock = {
+  // Not used by getUserDataApi, but part of apiHandler init
+  createCalendarEvent: jest.fn(),
+};
+
 // Mock date-fns-tz functions
 jest.mock("date-fns-tz", () => ({
   ...jest.requireActual("date-fns-tz"),
@@ -57,6 +62,7 @@ describe("API Handler - getUserDataApi", () => {
       logger: loggerMock,
       telegramNotifier: telegramNotifierMock,
       bot: botMock,
+      googleCalendarTool: googleCalendarToolMock,
     });
   });
 
@@ -155,7 +161,6 @@ describe("API Handler - getUserDataApi", () => {
       email: "john.doe@example.com",
       phone_number: "1234567890",
       date_of_birth: new Date("1990-01-15T00:00:00.000Z"), // UTC
-      booking_slot: new Date("2025-07-20T10:00:00.000Z"), // UTC
       em_first_name: "Jane",
       em_last_name: "Doe",
       em_phone_number: "0987654321",
@@ -168,12 +173,6 @@ describe("API Handler - getUserDataApi", () => {
         date.toISOString() === mockUser.date_of_birth.toISOString()
       ) {
         return "1990-01-15";
-      }
-      if (
-        formatString === "EEEE, MMMM d, yyyy - h:mm aa zzzz" &&
-        date.toISOString() === mockUser.booking_slot.toISOString()
-      ) {
-        return "Sunday, July 20, 2025 - 5:00 AM Central Daylight Time";
       }
       return jest
         .requireActual("date-fns-tz")
@@ -190,7 +189,6 @@ describe("API Handler - getUserDataApi", () => {
         email: true,
         phone_number: true,
         date_of_birth: true,
-        booking_slot: true,
         em_first_name: true,
         em_last_name: true,
         em_phone_number: true,
@@ -199,17 +197,16 @@ describe("API Handler - getUserDataApi", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      firstName: "John",
-      lastName: "Doe",
-      email: "john.doe@example.com",
-      phone: "1234567890",
-      dob: "1990-01-15",
-      appointmentDateTime:
-        "Sunday, July 20, 2025 - 5:00 AM Central Daylight Time",
-      rawAppointmentDateTime: "2025-07-20T10:00:00.000Z",
-      emergencyFirstName: "Jane",
-      emergencyLastName: "Doe",
-      emergencyPhone: "0987654321",
+      data: {
+        firstName: "John",
+        lastName: "Doe",
+        email: "john.doe@example.com",
+        phoneNumber: "1234567890",
+        dateOfBirth: "1990-01-15",
+        emergencyContactFirstName: "Jane",
+        emergencyContactLastName: "Doe",
+        emergencyContactPhone: "0987654321",
+      },
     });
     expect(loggerMock.info).toHaveBeenCalledWith(
       { telegramId: BigInt("12345") },
@@ -219,11 +216,6 @@ describe("API Handler - getUserDataApi", () => {
       mockUser.date_of_birth,
       "UTC",
       "yyyy-MM-dd",
-    );
-    expect(formatInTimeZone).toHaveBeenCalledWith(
-      expect.any(Date),
-      "America/Chicago",
-      "EEEE, MMMM d, yyyy - h:mm aa zzzz",
     );
   });
 
@@ -235,7 +227,6 @@ describe("API Handler - getUserDataApi", () => {
       email: "alice@example.com",
       phone_number: "1112223333",
       date_of_birth: null,
-      booking_slot: null,
       em_first_name: "Bob",
       em_last_name: "Smith",
       em_phone_number: "4445556666",
@@ -247,16 +238,16 @@ describe("API Handler - getUserDataApi", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      firstName: "Alice",
-      lastName: "Smith",
-      email: "alice@example.com",
-      phone: "1112223333",
-      dob: "",
-      appointmentDateTime: "Not Scheduled",
-      rawAppointmentDateTime: null,
-      emergencyFirstName: "Bob",
-      emergencyLastName: "Smith",
-      emergencyPhone: "4445556666",
+      data: {
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice@example.com",
+        phoneNumber: "1112223333",
+        dateOfBirth: "",
+        emergencyContactFirstName: "Bob",
+        emergencyContactLastName: "Smith",
+        emergencyContactPhone: "4445556666",
+      },
     });
     expect(formatInTimeZone).not.toHaveBeenCalled();
   });
@@ -267,7 +258,6 @@ describe("API Handler - getUserDataApi", () => {
       first_name: "John",
       last_name: "Doe",
       date_of_birth: new Date("1990-01-15T00:00:00.000Z"),
-      booking_slot: null,
     };
     prismaMock.users.findUnique.mockResolvedValue(mockUser);
 
@@ -300,7 +290,6 @@ describe("API Handler - getUserDataApi", () => {
       first_name: "Test",
       last_name: "User",
       date_of_birth: null,
-      booking_slot: "invalid-date-string",
       em_first_name: "Em",
       em_last_name: "Contact",
       em_phone_number: "123",
@@ -309,25 +298,21 @@ describe("API Handler - getUserDataApi", () => {
 
     await apiHandler.getUserDataApi(req, res);
 
-    // Current behavior: if booking_slot is a string, .toISOString() call on it will throw,
-    // leading to the outer catch (formatErr) and a 500 response.
-    expect(res.status).toHaveBeenCalledWith(500);
+    // With the new implementation, this should succeed since we removed booking_slot handling
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      success: false,
-      message: "Error processing user data.",
+      success: true,
+      data: {
+        firstName: "Test",
+        lastName: "User",
+        email: "",
+        phoneNumber: "",
+        dateOfBirth: "",
+        emergencyContactFirstName: "Em",
+        emergencyContactLastName: "Contact",
+        emergencyContactPhone: "123",
+      },
     });
-    // The loggerMock.error would be called by the catch(formatErr) block.
-    // The specific error would be a TypeError from calling .toISOString() on a string.
-    expect(loggerMock.error).toHaveBeenCalledWith(
-      expect.objectContaining({
-        err: expect.any(TypeError), // TypeError: user.booking_slot.toISOString is not a function
-        telegramId: BigInt("12345"),
-        userRawData: mockUserInvalidBooking,
-      }),
-      "Error formatting user data for API.",
-    );
-    // loggerMock.warn for "Invalid booking_slot format received from DB." would not be reached.
-    // formatInTimeZone for booking slot would also not be reached.
   });
 
   it("should handle error during booking_slot parsing gracefully", async () => {
@@ -336,40 +321,28 @@ describe("API Handler - getUserDataApi", () => {
       first_name: "Test",
       last_name: "User",
       date_of_birth: null,
-      booking_slot: new Date(),
       em_first_name: "Em",
       em_last_name: "Contact",
       em_phone_number: "123",
     };
     prismaMock.users.findUnique.mockResolvedValue(mockUserBookingError);
 
-    const parseError = new Error("Simulated parsing error");
-    formatInTimeZone.mockImplementation((date, tz, formatString) => {
-      if (formatString === "EEEE, MMMM d, yyyy - h:mm aa zzzz") {
-        throw parseError;
-      }
-      return jest
-        .requireActual("date-fns-tz")
-        .formatInTimeZone(date, tz, formatString);
-    });
-
     await apiHandler.getUserDataApi(req, res);
 
+    // With the new implementation, this should succeed since we removed booking_slot handling
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: true,
-        appointmentDateTime: "Not Scheduled",
-        rawAppointmentDateTime: null,
-      }),
-    );
-    expect(loggerMock.error).toHaveBeenCalledWith(
-      expect.objectContaining({
-        err: parseError,
-        bookingSlotRaw: mockUserBookingError.booking_slot,
-        telegramId: BigInt("12345"),
-      }),
-      "Error parsing booking_slot.",
-    );
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: {
+        firstName: "Test",
+        lastName: "User",
+        email: "",
+        phoneNumber: "",
+        dateOfBirth: "",
+        emergencyContactFirstName: "Em",
+        emergencyContactLastName: "Contact",
+        emergencyContactPhone: "123",
+      },
+    });
   });
 });

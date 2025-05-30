@@ -157,6 +157,15 @@ async function initializeApp(deps) {
   app.use(express.static(publicPath));
   logger.info(`Serving static files from: ${publicPath}`);
 
+  // Serve node_modules in development mode for stagewise toolbar
+  if (config.nodeEnv === "development") {
+    const nodeModulesPath = path.join(__dirname, "..", "node_modules");
+    app.use("/node_modules", express.static(nodeModulesPath));
+    logger.info(
+      `Serving node_modules from: ${nodeModulesPath} (development mode)`,
+    );
+  }
+
   // --- Initialize Routers before Mounting ---
   // Dependencies needed for formsRouter.initialize: logger, registrationHandler
   formsRouter.initialize({ logger, registrationHandler });
