@@ -1,3 +1,10 @@
+# Ai Memory
+mem0/
+
+#Starting openmemory
+start_openmemory.bat
+start_openmemory.ps1
+
 # Logs
 logs
 *.log

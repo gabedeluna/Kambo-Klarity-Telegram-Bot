@@ -3,151 +3,183 @@ description:
 globs: 
 alwaysApply: true
 ---
+*****
+Memory Management Guidelines
+You have access to OpenMemory MCP tools for persistent memory across sessions. Use these tools intelligently to build a knowledge base that improves development efficiency over time.
+When to Call add_memories()
+ALWAYS save memories when:
+Architectural Decisions:
+
+Choosing between technologies (PostgreSQL vs SQLite, FastAPI vs Flask)
+Database schema decisions and reasoning
+Component architecture and relationships
+Framework configurations and why they were chosen
+Security implementations and authentication flows
+
+Problem Solutions:
+
+Bug fixes that took >10 minutes to debug
+Performance issues and their solutions
+Integration challenges with external APIs
+Environment or deployment issues resolved
+Complex error handling implementations
+
+Development Patterns:
+
+Establishing coding conventions for the project
+Reusable code patterns or utilities created
+Testing strategies that work well
+Development workflow optimizations
+Configuration patterns that should be reused
+
+Project Context Changes:
+
+New requirements that affect architecture
+Scope changes or feature additions
+User feedback that influences design decisions
+Important project milestones or decisions
+
+How to structure add_memories() calls:
+CRITICAL: Provide complete information since OpenMemory cannot enhance or infer missing context.
+When saving memories, include ALL relevant details:
+
+Example memory creation triggers:
+When you help solve a database issue:
+Call add_memories() with:
+"DEBUG: Fixed telegram bot database connection timeout by increasing asyncpg pool timeout from 30s to 60s and adding connection retry logic. Issue occurred under high user load. Solution: pool_timeout=60, command_timeout=30, retry_attempts=3 with exponential backoff."
+When you help make an architectural choice:
+Call add_memories() with:
+"ARCHITECTURE: Chose Redis for session caching over in-memory storage. Reasoning: need persistence across bot restarts and multiple bot instances. Implementation: aioredis with 1-hour TTL, key pattern 'user:{id}:session'. Alternative considered: PostgreSQL sessions (rejected - too slow for frequent reads)."
+When you help configure development environment:
+Call add_memories() with:
+"CONFIG: Docker development setup for telegram bot with hot reload. Services: bot, postgres, redis, openmemory. Volume mapping /app for live code updates. Environment variables in .env.dev. Start with 'docker-compose -f docker-compose.dev.yml up'."
+When to Call search_memory()
+ALWAYS search before:
+Starting new implementations:
+
+Search for existing patterns: "similar to [current task]"
+Check for architectural decisions: "[technology] architecture"
+Look for related configurations: "[component] setup"
+
+Debugging issues:
+
+Search for similar problems: "[error type] [component]"
+Check previous solutions: "[technology] debugging"
+Look for configuration issues: "[service] configuration"
+
+Making architectural decisions:
+
+Review previous choices: "architecture decisions [component]"
+Check existing patterns: "[technology] implementation"
+Verify consistency: "[similar decision] reasoning"
+
+How to use search results:
+When search_memory() returns relevant information:
+
+Reference the previous decisions in your current work
+Maintain consistency with established patterns
+Build upon previous solutions rather than starting from scratch
+Update memories if new information invalidates old approaches
+
+Memory Search Patterns
+Use these query patterns for effective search:
+Problem-specific searches:
+
+"telegram bot [specific issue]"
+"database [operation] error"
+"docker [component] configuration"
+"async [specific problem]"
+
+Technology-specific searches:
+
+"postgresql setup"
+"redis configuration"
+"openmemory integration"
+"aiohttp implementation"
+
+Pattern-specific searches:
+
+"error handling pattern"
+"authentication flow"
+"message handler structure"
+"database connection management"
+
+Quality Control Rules
+Before saving memories, ensure:
+Completeness:
+
+Include the problem AND solution
+Explain WHY this approach was chosen
+Document key implementation details
+Note any trade-offs or limitations
+
+Searchability:
+
+Use consistent terminology
+Include technology names
+Add relevant keywords
+Use clear, descriptive language
+
+Future Value:
+
+Will this help in similar situations?
+Does it capture important context?
+Is it specific enough to be actionable?
+Does it build on existing knowledge?
+
+Memory Maintenance
+Regular memory hygiene:
+Update memories when:
+
+New information changes previous decisions
+Better solutions are discovered
+Requirements change affecting stored patterns
+Technology versions or best practices evolve
+
+Consolidate memories when:
+
+Multiple related memories could be combined
+Patterns emerge that should be documented
+Repetitive information can be simplified
+
+Integration with Development Workflow
+At the start of each session:
+
+Search for context related to current work
+Review recent architectural decisions
+Check for established patterns to follow
+
+During development:
+
+Save memories for non-obvious solutions
+Document configuration discoveries
+Record integration challenges and solutions
+
+At the end of sessions:
+
+Save any important discoveries
+Document incomplete work or next steps
+Update existing memories if needed
+
+Example Workflow
+User asks to implement user authentication:
+
+First, search: search_memory("authentication telegram bot")
+If no results: Design from scratch and save the approach
+If results found: Build on previous decisions and update if needed
+After implementation: Save the complete authentication pattern
+
+User reports a bug:
+
+First, search: search_memory("[error description] [component]")
+Check for similar issues: Review previous debugging approaches
+After fixing: Save the bug-solution pair with root cause analysis
+
+Remember: The goal is to build a searchable knowledge base that makes each development session more efficient than the last..
+*****
+
+
 Never create a file over 500 lines. Always check the line count of any new file you create or file you edit after you are done, if it is over 500 then find a way to intellegently break up that file into modules. example command to check count:(Get-Content public/waiver-form.html).Count 
 
-You are an expert in JavaScript, React, Node.js, Next.js App Router, Zustand, Shadcn UI, Radix UI, Tailwind, and Stylus.
 
-Code Style and Structure
-- Write concise, technical JavaScript code following Standard.js rules.
-- Use functional and declarative programming patterns; avoid classes.
-- Prefer iteration and modularization over code duplication.
-- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
-- Structure files: exported component, subcomponents, helpers, static content.
-
-Standard.js Rules
-- Use 2 space indentation.
-- Use single quotes for strings except to avoid escaping.
-- No semicolons (unless required to disambiguate statements).
-- No unused variables.
-- Add a space after keywords.
-- Add a space before a function declaration's parentheses.
-- Always use === instead of ==.
-- Infix operators must be spaced.
-- Commas should have a space after them.
-- Keep else statements on the same line as their curly braces.
-- For multi-line if statements, use curly braces.
-- Always handle the err function parameter.
-- Use camelcase for variables and functions.
-- Use PascalCase for constructors and React components.
-
-Naming Conventions
-- Use lowercase with dashes for directories (e.g., components/auth-wizard).
-- Favor named exports for components.
-
-React Best Practices
-- Use functional components with prop-types for type checking.
-- Use the "function" keyword for component definitions.
-- Implement hooks correctly (useState, useEffect, useContext, useReducer, useMemo, useCallback).
-- Follow the Rules of Hooks (only call hooks at the top level, only call hooks from React functions).
-- Create custom hooks to extract reusable component logic.
-- Use React.memo() for component memoization when appropriate.
-- Implement useCallback for memoizing functions passed as props.
-- Use useMemo for expensive computations.
-- Avoid inline function definitions in render to prevent unnecessary re-renders.
-- Prefer composition over inheritance.
-- Use children prop and render props pattern for flexible, reusable components.
-- Implement React.lazy() and Suspense for code splitting.
-- Use refs sparingly and mainly for DOM access.
-- Prefer controlled components over uncontrolled components.
-- Implement error boundaries to catch and handle errors gracefully.
-- Use cleanup functions in useEffect to prevent memory leaks.
-- Use short-circuit evaluation and ternary operators for conditional rendering.
-
-State Management
-- Use Zustand for global state management.
-- Lift state up when needed to share state between components.
-- Use context for intermediate state sharing when prop drilling becomes cumbersome.
-
-UI and Styling
-- Use Shadcn UI and Radix UI for component foundations.
-- Implement responsive design with Tailwind CSS; use a mobile-first approach.
-- Use Stylus as CSS Modules for component-specific styles:
-- Create a .module.styl file for each component that needs custom styling.
-- Use camelCase for class names in Stylus files.
-- Leverage Stylus features like nesting, variables, and mixins for efficient styling.
-- Implement a consistent naming convention for CSS classes (e.g., BEM) within Stylus modules.
-- Use Tailwind for utility classes and rapid prototyping.
-- Combine Tailwind utility classes with Stylus modules for a hybrid approach:
-- Use Tailwind for common utilities and layout.
-- Use Stylus modules for complex, component-specific styles.
-- Never use the @apply directive
-
-File Structure for Styling
-- Place Stylus module files next to their corresponding component files.
-- Example structure:
-components/
-Button/
-Button.js
-Button.module.styl
-Card/
-Card.js
-Card.module.styl
-
-Stylus Best Practices
-- Use variables for colors, fonts, and other repeated values.
-- Create mixins for commonly used style patterns.
-- Utilize Stylus' parent selector (&) for nesting and pseudo-classes.
-- Keep specificity low by avoiding deep nesting.
-
-Integration with React
-- Import Stylus modules in React components:
-import styles from './ComponentName.module.styl'
-- Apply classes using the styles object:
-<div className={styles.containerClass}>
-
-Performance Optimization
-- Minimize 'use client', 'useEffect', and 'useState'; favor React Server Components (RSC).
-- Wrap client components in Suspense with fallback.
-- Use dynamic loading for non-critical components.
-- Optimize images: use WebP format, include size data, implement lazy loading.
-- Implement route-based code splitting in Next.js.
-- Minimize the use of global styles; prefer modular, scoped styles.
-- Use PurgeCSS with Tailwind to remove unused styles in production.
-
-Forms and Validation
-- Use controlled components for form inputs.
-- Implement form validation (client-side and server-side).
-- Consider using libraries like react-hook-form for complex forms.
-- Use Zod or Joi for schema validation.
-
-Error Handling and Validation
-- Prioritize error handling and edge cases.
-- Handle errors and edge cases at the beginning of functions.
-- Use early returns for error conditions to avoid deeply nested if statements.
-- Place the happy path last in the function for improved readability.
-- Avoid unnecessary else statements; use if-return pattern instead.
-- Use guard clauses to handle preconditions and invalid states early.
-- Implement proper error logging and user-friendly error messages.
-- Model expected errors as return values in Server Actions.
-
-Accessibility (a11y)
-- Use semantic HTML elements.
-- Implement proper ARIA attributes.
-- Ensure keyboard navigation support.
-
-Testing
-- Test Driven Development! Write the test first, then code to pass the test. 
-- Write unit tests for components using Jest and React Testing Library.
-- Implement integration tests for critical user flows.
-- Use snapshot testing judiciously.
-
-Security
-- Sanitize user inputs to prevent XSS attacks.
-- Use dangerouslySetInnerHTML sparingly and only with sanitized content.
-
-Internationalization (i18n)
-- Use libraries like react-intl or next-i18next for internationalization.
-
-Key Conventions
-- Use 'nuqs' for URL search parameter state management.
-- Optimize Web Vitals (LCP, CLS, FID).
-- Limit 'use client':
-- Favor server components and Next.js SSR.
-- Use only for Web API access in small components.
-- Avoid for data fetching or state management.
-- Balance the use of Tailwind utility classes with Stylus modules:
-- Use Tailwind for rapid development and consistent spacing/sizing.
-- Use Stylus modules for complex, unique component styles.
-
-Follow Next.js docs for Data Fetching, Rendering, and Routing.
 

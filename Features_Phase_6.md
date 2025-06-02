@@ -61,6 +61,25 @@ It details the aesthetic principles, practical considerations, project context, 
 ## Feature Functional Briefs (Phase 6A, 6B, 6C)
 
 ---
+#### PH6-11.5: Enhance `SessionType` Model for Dynamic Flows
+
+**Goal:** Augment the `SessionType` database model and related logic to support dynamic waiver requirements and group invite capabilities per session type.
+
+**API Relationships:**
+*   Impacts `GET /api/session-types/:id` (PH6-12) - it will now return these new fields.
+*   Impacts `POST /api/gcal-placeholder-bookings` (DF-1) - this API will fetch these new fields to return to the client.
+*   Impacts any Admin API used to manage Session Types (future feature).
+
+**Detailed Requirements:**
+*   **Req A (DB Schema Update - `SessionType`):** Add the following fields to the `SessionType` model in [`prisma/schema.prisma`](prisma/schema.prisma:0):
+    *   `waiverType`: String (e.g., "KAMBO_V1", "NONE", "ALT_MODALITY_V1"). Default: "KAMBO_V1".
+    *   `allowsGroupInvites`: Boolean. Default: `false`.
+    *   `maxGroupSize`: Integer. Default: `1`. (Represents total participants including primary booker).
+*   **Req B (Migration):** Generate and apply Prisma migration.
+*   **Req C (Seed Data):** Update seed data for `SessionType` to include appropriate values for these new fields.
+*   **Req D (Core Logic Update):** Ensure [`src/core/sessionTypes.js`](src/core/sessionTypes.js:0) and any services fetching session types retrieve and handle these new fields.
+
+---
 ### PH6-14: Calendar Mini-App: Fetch Initial Session Details & Display Availability
 *(Goal and Acceptance Criteria as per [`PLANNING.md`](PLANNING.md:265). This feature is foundational for the MVP flow and its design aspects are critical, even if marked complete in [`TASK.md`](TASK.md:23).)*
 
@@ -197,6 +216,160 @@ It details the aesthetic principles, practical considerations, project context, 
 *   **Microcopy:** Clear labels for all fields. Contextual information in the `appointmentInfo` div is crucial.
 
 ---
+---
+### Detour Functionality: Enhanced GCal Placeholder Bookings & Dynamic Flow
+
+This set of features refines temporary slot reservations using Google Calendar events, manages their lifecycle (including a 15-minute expiry), and introduces dynamic routing after calendar selection based on `SessionType` properties.
+
+---
+#### DF-1: Backend - Enhanced GCal Placeholder Event Management
+
+**Goal:** Robustly create, manage, and automatically expire 15-minute placeholder bookings in Google Calendar.
+
+**API Relationships:**
+*   Modifies/Replaces: `POST /api/gcal-placeholder-bookings` (from previous DF-1).
+    *   Input: `telegramId`, `sessionTypeId`, `appointmentDateTimeISO`.
+    *   Output: `{ success: true, placeholderId: "googleEventId", expiresAt: "isoTimestamp", waiverType: "string", allowsGroupInvites: boolean, maxGroupSize: number, sessionTypeId: "string", appointmentDateTimeISO: "string" }`. (Returns data for dynamic routing).
+*   Modifies/Replaces: `DELETE /api/gcal-placeholder-bookings/{googleEventId}`.
+*   New Endpoint: `GET /api/slot-check?appointmentDateTimeISO=...&sessionTypeId=...&placeholderId=OPTIONAL_googleEventId`
+    *   Output: `{ status: "RESERVED" | "AVAILABLE" | "TAKEN" | "UNAVAILABLE", placeholderValid?: boolean }`
+*   Internal: Server-side Cron Job for **15-minute** expiry management.
+*   Utilizes: [`src/tools/googleCalendar.js`](src/tools/googleCalendar.js:0).
+
+**Detailed Requirements:**
+*   **Req A (Creation & Dynamic Info):** `POST /api/gcal-placeholder-bookings` creates a GCal event.
+    *   Title: "[PLACEHOLDER 15min] - Kambo Klarity - {SessionType Label} for {User}"
+    *   Duration: Actual session duration, but system treats as a 15-min hold.
+    *   Returns GCal `eventId` as `placeholderId`, calculated `expiresAt` (15 min from now), and fetched `SessionType.waiverType`, `SessionType.allowsGroupInvites`, `SessionType.maxGroupSize` for client-side routing.
+*   **Req B (Cancellation):** `DELETE /api/gcal-placeholder-bookings/{googleEventId}` deletes the GCal event.
+*   **Req C (Auto-Expiry Cron Job - 15 min):** Cron job deletes placeholder GCal events older than 15 minutes from their creation/intended start.
+*   **Req D (Slot Status Check API):** `GET /api/slot-check`
+    *   If `placeholderId` provided: Checks if the GCal placeholder event exists.
+    *   Checks Google Calendar if the actual slot is free from other *confirmed* bookings.
+    *   Returns status: "RESERVED" (placeholder valid), "AVAILABLE" (placeholder gone/invalid, but slot free), "TAKEN" (slot booked by another), "UNAVAILABLE" (slot blocked).
+
+---
+#### DF-2: Calendar App - Integrate Enhanced GCal Placeholder & Dynamic Redirect
+
+**Goal:** Modify calendar app to create a 15-min GCal placeholder and redirect dynamically based on `SessionType` properties.
+
+**API Relationships:**
+*   Calls `POST /api/gcal-placeholder-bookings`.
+
+**Detailed Requirements:**
+*   **Req A (API Call):** On "Submit", call `POST /api/gcal-placeholder-bookings`.
+*   **Req B (Dynamic Redirect Logic):** Based on `waiverType`, `allowsGroupInvites` from API response:
+    1.  If `waiverType !== "NONE"`: Redirect to `waiver-form.html?waiverType={...}&placeholderId={...}&sessionTypeId={...}&appointmentDateTimeISO={...}&allowsGroupInvites={...}&maxGroupSize={...}`.
+    2.  If `waiverType === "NONE"` AND `allowsGroupInvites === true`: Redirect to `invite-friends.html?placeholderId={...}&sessionTypeId={...}&appointmentDateTimeISO={...}&maxGroupSize={...}`.
+    3.  If `waiverType === "NONE"` AND `allowsGroupInvites === false`: Call new `POST /api/finalize-direct-booking` (with `placeholderId`). On success, show confirmation in calendar app & close.
+*   **Req C (Finalize Direct Booking API):** `POST /api/finalize-direct-booking`
+    *   Input: `placeholderId` (GCal `eventId`).
+    *   Process: Validates placeholder, converts GCal placeholder to a real GCal event, creates `Session` record, notifies admin/client (similar to PH6-17 but without waiver data).
+
+---
+#### DF-3: Waiver Form - Conditional Logic for Primary Booker vs. Invited Friend
+
+**Goal:** Implement distinct behaviors in `waiver-form.html` based on whether the user is a primary booker (with a `placeholderId`) or an invited friend (with an `inviteToken`). This includes reservation expiry handling and Telegram Back Button functionality.
+
+**API Relationships:**
+*   (Primary Booker) Calls `GET /api/slot-check`.
+*   (Primary Booker) Calls `DELETE /api/gcal-placeholder-bookings/{googleEventId}`.
+*   Utilizes `window.Telegram.WebApp.BackButton`.
+
+**Detailed Requirements:**
+*   **Req A (Parse All Relevant Params):** `waiver-form.html` (JS) parses `placeholderId` (GCal `eventId` for primary booker), `inviteToken` (for friend), `telegramId` (current user), `sessionTypeId`, `appointmentDateTimeISO`, `waiverType`, `allowsGroupInvites`, `maxGroupSize` from URL.
+*   **Req B (Conditional Logic on Load):**
+    *   **If `inviteToken` IS present (Friend's Flow):**
+        1.  `Telegram.WebApp.BackButton.show()`.
+        2.  Set `Telegram.WebApp.BackButton.onClick(() => Telegram.WebApp.close());`.
+        3.  Do NOT display 15-minute reservation limit/countdown.
+        4.  Pre-submission slot check (`GET /api/slot-check`) is NOT needed (slot is already confirmed by primary booker).
+    *   **If `inviteToken` IS NOT present (Primary Booker's Flow):**
+        1.  Display "Slot reserved for 15 minutes. Please complete by [time]." (Optional: client-side countdown).
+        2.  `Telegram.WebApp.BackButton.show()`.
+        3.  Set `Telegram.WebApp.BackButton.onClick(async () => { ... })` to:
+            *   Disable back button.
+            *   If `placeholderId` exists, call `DELETE /api/gcal-placeholder-bookings/{placeholderId}`.
+            *   Navigate user back to `calendar-app.html` (passing `telegramId`, `initialSessionTypeId`).
+            *   Handle API errors gracefully.
+        4.  **Pre-Submission Check:** Before submitting waiver, call `GET /api/slot-check` with `placeholderId`.
+            *   If status "TAKEN" or "UNAVAILABLE": Show error "Slot no longer available...", client calls `DELETE` for its `placeholderId` if expired, then `Telegram.WebApp.close()` or guide to back button.
+            *   If "RESERVED" or "AVAILABLE": Proceed with submission.
+*   **Req C (Submission Data):**
+    *   If primary booker: Include `placeholderId`, `allowsGroupInvites`, `maxGroupSize` in POST to `/api/submit-waiver`.
+    *   If friend: Include `inviteToken`, `allowsGroupInvites`, `maxGroupSize` (and friend's `telegramId` as the main `telegramId` for this submission) in POST to `/api/submit-waiver`.
+*   **Req D (Hide Back Button on Success):** On successful waiver submission (for both primary booker and friend), call `Telegram.WebApp.BackButton.hide()`.
+
+---
+#### DF-4: Backend - Adapt Waiver Submission for Enhanced GCal Placeholders & Expiry
+
+**Goal:** Modify waiver submission to robustly handle 15-min GCal placeholders, re-verify slot availability, and use `allowsGroupInvites` for next step.
+
+**API Relationships:**
+*   Modifies `POST /api/submit-waiver`.
+
+**Detailed Requirements:**
+*   **Req A (Receive Params):** API receives `placeholderId`, `allowsGroupInvites`, `maxGroupSize` along with waiver data.
+*   **Req B (Placeholder Path):** If `placeholderId` is present:
+    1.  **Attempt to Delete Placeholder GCal Event:** Call `googleCalendarTool.deleteCalendarEvent(placeholderId)`. If already gone, log and continue.
+    2.  **Final Slot Availability Check:** *Crucially*, before creating the new confirmed GCal event, query GCal to ensure the slot is still truly free.
+    3.  If slot NOT free: Return error to client (e.g., "Slot was taken while completing waiver. Please rebook.").
+    4.  If slot IS free: Proceed to create the *actual* GCal event, create `Session` record.
+    5.  **Conditional Redirect:** If `allowsGroupInvites` (from request or re-fetched `SessionType`) is true, include `redirectTo: '/invite-friends.html?sessionId={...}&maxGroupSize={...}'` in response.
+*   **Req C (No Placeholder Path):** Handle as before (e.g., for friend invites not using this flow).
+
+---
+#### DF-5: System - Cron Job for 15-min GCal Placeholders
+
+**Goal:** Ensure GCal placeholder events are cleared automatically after 15 minutes. (Graceful shutdown less critical if cron is robust).
+
+**Detailed Requirements:**
+*   **Req A (Cron Job - 15 min):** Cron job deletes placeholder GCal events (identified by title/property) older than 15 minutes.
+*   **Req B (Logging):** Log cron job actions.
+
+---
+### PH6-30: API & Waiver Submit: Handle Friend's Waiver (GCal Update - Description)
+*(Adapting from Details_Phase_6.md: PH6-30)*
+
+**Goal:** Modify `POST /api/submit-waiver` for invited friends to update the primary booker's Google Calendar event description with the friend's name.
+
+**API Relationships:**
+*   Modifies existing endpoint: `POST /api/submit-waiver`.
+*   Utilizes [`src/tools/googleCalendar.js`](src/tools/googleCalendar.js:0) to fetch and update GCal event.
+
+**Detailed Requirements:**
+*   **Req A (Trigger):** After a friend's waiver is successfully processed and `SessionInvite.status` is 'waiver_completed_by_friend'. This logic is part of the "friend's waiver path" within the main `/api/submit-waiver` handler.
+*   **Req B (Fetch GCal Event):** Retrieve the primary booker's GCal event using `parentSession.googleEventId` (obtained by including `parentSession` when fetching `SessionInvite` by token).
+*   **Req C (Update Description):**
+    *   Append the friend's name (from `SessionInvite.friendNameOnWaiver`) to the GCal event's description.
+    *   The description should maintain a list if multiple friends join (e.g., "Guests: Alice Smith, Bob Johnson"). The update logic should intelligently add to this list.
+    *   Use [`googleCalendarTool.updateCalendarEvent`](src/tools/googleCalendar.js:0) (or a similar patch/update method) to modify only the description if possible, or update the whole event with the modified description.
+*   **Req D (Error Handling):** Log errors if GCal update fails (e.g., event not found, API error), but do not fail the friend's booking confirmation itself. This is a secondary enhancement.
+
+---
+### PH6-30.5: Backend - Update GCal Event Title for Group Session
+
+**Goal:** After one or more friends confirm (complete waiver) for a session, update the primary booker's Google Calendar event title to reflect it's a group session.
+
+**API Relationships:**
+*   Triggered after `POST /api/submit-waiver` successfully processes a friend's waiver (PH6-30). This logic follows the description update.
+*   Utilizes [`src/tools/googleCalendar.js`](src/tools/googleCalendar.js:0).
+
+**Detailed Requirements:**
+*   **Req A (Trigger Condition):** When a `SessionInvite.status` becomes 'waiver_completed_by_friend'.
+*   **Req B (Check Confirmed Friends):** After processing a friend's waiver, count the total number of `SessionInvite` records for the `parentSessionId` that have `status: 'waiver_completed_by_friend'`.
+*   **Req C (Title Update Logic):**
+    *   If the count of confirmed friends is exactly 1 (i.e., the *first* friend has just confirmed):
+        *   Fetch the primary booker's GCal event using `parentSession.googleEventId`.
+        *   Check if the current GCal event title already indicates a group session (e.g., starts with "GROUP -").
+        *   If it does *not* already indicate a group session:
+            *   Construct the new title. Example: If original was "{Client Name} - {SessionType Label}", new title becomes "GROUP - {Client Name} & Friend(s) - {SessionType Label}".
+            *   Use [`googleCalendarTool.updateCalendarEvent`](src/tools/googleCalendar.js:0) to update the event's summary (title).
+    *   *(Note: Subsequent friend confirmations will update the GCal event description as per PH6-30, but typically won't need to change the title again once it's marked as "GROUP".)*
+*   **Req D (Idempotency):** The check (whether the title already indicates "GROUP") ensures this title change happens only once when the first friend confirms.
+*   **Req E (Error Handling):** Log errors if GCal title update fails. This is a secondary enhancement.
+
+---
 ### PH6-17: API & Waiver Submit: Create Session, GCal Event, Edit Bot Msg to Final Confirmation
 *(Goal and Acceptance Criteria as per [`PLANNING.md`](PLANNING.md:296))*
 
@@ -280,29 +453,29 @@ It details the aesthetic principles, practical considerations, project context, 
 *   **Consistency:** The booking journey, which started in the bot, also concludes with a final confirmation in the bot.
 
 ---
-### PH6-18 (was PH6-19): DB Updates for Invites
-*(Goal and Acceptance Criteria as per [`PLANNING.md`](PLANNING.md:313))*
+### PH6-18: DB Updates for Invites & Group Size Management
+*(Goal and Acceptance Criteria as per [`PLANNING.md`](PLANNING.md:313), adapted for `SessionType` control)*
 
-*   **Feature Goal:** Modify the database schema to support the "Invite Friends" functionality by adding capacity for group invites on availability rules and creating a new table to track individual session invites.
+*   **Feature Goal:** Modify database schema for "Invite Friends", with primary control of group invites residing in `SessionType`, and create `SessionInvite` table.
 *   **Primary Interaction:** N/A (Backend - Database Schema).
 *   **Impact on Design:**
-    *   **`AvailabilityRule.max_group_invites`:**
-        *   This new integer field (defaulting to a value like 3, not null) on the `AvailabilityRule` model in [`prisma/schema.prisma`](prisma/schema.prisma:0) determines how many additional guests a primary booker can invite for a session booked under that rule.
-        *   This directly impacts the UI of `invite-friends.html` (PH6-21, PH6-23) by setting the upper limit for generating invite links.
-        *   If `max_group_invites` is 0 or not set for a rule, the "Invite Friends" flow should be skipped or disabled for sessions booked under that rule.
-    *   **`SessionInvite` Model:**
-        *   This new table in [`prisma/schema.prisma`](prisma/schema.prisma:0) is central to tracking the lifecycle of each friend invitation.
+    *   **`SessionType` fields (from PH6-11.5):** `allowsGroupInvites` (boolean) and `maxGroupSize` (integer) are the primary drivers for invite functionality.
+    *   **`AvailabilityRule.max_group_size_override` (Optional New Field):**
+        *   Consider adding `max_group_size_override` (Integer, nullable) to `AvailabilityRule` in [`prisma/schema.prisma`](prisma/schema.prisma:0). If set, this value would override `SessionType.maxGroupSize` for sessions booked under this specific rule. This allows for exceptions (e.g., a specific practitioner on a specific day can handle larger/smaller groups for a standard session type).
+        *   The number of invites possible is `(effective maxGroupSize) - 1`.
+    *   **`SessionInvite` Model (remains crucial):**
         *   `id` (String, UUID, PK)
-        *   `parentSessionId` (Int, FK to `Session.id`): Links the invite to the primary booker's session.
-        *   `inviteToken` (String, Unique): A secure, unique token used in shareable links. Design consideration: ensure this token is sufficiently random and hard to guess.
-        *   `status` (String, default "pending"): Tracks the invite state (e.g., "pending", "accepted_by_friend", "declined_by_friend", "waiver_completed_by_friend"). This status will drive UI changes in `invite-friends.html` (PH6-21) and `join-session.html` (PH6-27), and logic in API handlers.
-        *   `friendTelegramId` (BigInt, Optional, Unique per `parentSessionId`): Stores the Telegram ID of the friend once they accept/interact via the bot. Making it unique per `parentSessionId` ensures one friend can't accept multiple slots for the same original booking.
-        *   `friendNameOnWaiver` (String, Optional): Captured when the friend completes their waiver.
-        *   `createdAt`, `updatedAt`: Standard timestamps.
-    *   **Migration:** Running `npx prisma migrate dev` applies these changes. Seed data for `AvailabilityRule.max_group_invites` needs to be updated.
+        *   `parentSessionId` (Int, FK to `Session.id`)
+        *   `inviteToken` (String, Unique)
+        *   `status` (String, default "pending")
+        *   `friendTelegramId` (BigInt, Optional, Unique per `parentSessionId`)
+        *   `friendNameOnWaiver` (String, Optional)
+        *   `friendLiabilityFormData` (Json, Optional) - To store friend's waiver data if it differs or needs separate tracking from the primary booker's waiver on the `Session` record.
+        *   `createdAt`, `updatedAt`
+    *   **Migration:** `npx prisma migrate dev`. Update seed data for `SessionType` (for `allowsGroupInvites`, `maxGroupSize`) and optionally `AvailabilityRule` (for `max_group_size_override`).
     *   **Design Implications:**
-        *   The existence and value of `max_group_invites` will determine if the "Invite Friends" button appears on the primary booker's confirmation message (PH6-24) and if the `invite-friends.html` page is accessible/functional.
-        *   The `SessionInvite` statuses will dictate what the primary booker sees on `invite-friends.html` (e.g., "Invite sent", "Accepted by {Name}", "Friend completed waiver") and what the invited friend sees on `join-session.html`.
+        *   `SessionType.allowsGroupInvites` and the effective `maxGroupSize` (considering `AvailabilityRule.max_group_size_override`) determine if "Invite Friends" button appears (PH6-24) and `invite-friends.html` functionality.
+        *   `SessionInvite` statuses drive UI updates (PH6-21, PH6-32) and friend flow logic.
 
 ---
 ### PH6-19 (was PH6-17 part): `/api/submit-waiver` Redirects to `invite-friends.html`
@@ -336,6 +509,31 @@ It details the aesthetic principles, practical considerations, project context, 
                 *   Call `tg.close()` after a short delay.
 *   **Animations:** Standard browser page load transition to `invite-friends.html`.
 *   **Error Prevention:** Ensures redirect only happens if the API explicitly provides the URL.
+
+---
+### PH6-29: Waiver Form: Friend-Specific Setup (Receiving `inviteToken`)
+*(Adapting from Details_Phase_6.md: PH6-29)*
+
+**Goal:** Ensure `public/waiver-form.html` correctly initializes for an invited friend, primarily by recognizing the `inviteToken` and setting up distinct behaviors.
+
+**API Relationships:** None directly for this setup; it consumes URL parameters.
+
+**Detailed Requirements:**
+*   **Req A (Parameter Parsing - Friend Context):** JavaScript in `waiver-form.html` must parse `inviteToken` from the URL. This token signifies the user is an invited friend. Other parameters like `telegramId` (friend's), `sessionTypeId`, `appointmentDateTimeISO` are also parsed.
+*   **Req B (Conditional Initialization - Friend's Flow):** As detailed in DF-3 (Req B - Friend's Flow):
+    *   If `inviteToken` is present:
+        *   The Telegram Back Button is configured to simply close the Mini App (`Telegram.WebApp.close()`).
+        *   No 15-minute reservation warnings or countdowns are displayed.
+        *   No pre-submission slot check (`GET /api/slot-check`) is performed for the friend.
+*   **Req C (Hidden Field for `inviteToken`):** The parsed `inviteToken` must be populated into a hidden input field (e.g., `<input type="hidden" id="inviteTokenValue" name="inviteToken">`) to be included in the waiver submission data.
+*   **Req D (User Data Pre-fill):** Pre-filling of the friend's known data (name, email, etc.) via `GET /api/user-data?telegramId={friend_telegramId}` should still occur as per PH6-16.
+
+---
+### PH6-XX: Admin Interface for Session Type Management (Placeholder)
+
+**Goal:** Provide an administrative interface (details TBD - could be bot commands or a separate web UI) for managing `SessionType` properties, including `waiverType`, `allowsGroupInvites`, and `maxGroupSize`.
+
+**Note:** This is a placeholder for a future feature. The specific implementation (bot commands, web interface) and detailed requirements will be defined later. Its existence is noted here due to its direct relationship with the dynamic booking flow logic introduced in Phase 6.
 
 ---
 *I will continue with PH6-20 through PH6-34 in the next message if this structure is correct and you'd like me to proceed.*
