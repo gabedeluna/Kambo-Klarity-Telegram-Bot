@@ -7,6 +7,8 @@
 const express = require("express");
 const apiHandler = require("../handlers/apiHandler"); // Main API handler
 const sessionTypesApiHandler = require("../handlers/api/sessionTypesApiHandler"); // Handler for session type specific APIs
+const bookingFlowApiHandler = require("../handlers/api/bookingFlowApiHandler"); // Handler for booking flow APIs
+const placeholderApiHandler = require("../handlers/api/placeholderApiHandler"); // Handler for placeholder booking APIs
 
 let prisma, logger, telegramNotifier, bot, googleCalendarTool; // Added bot and googleCalendarTool
 // let agentExecutor; // Keep commented out if planned for future use
@@ -52,6 +54,12 @@ function initialize(deps) {
 
   // Initialize the sessionTypesApiHandler, passing only the logger
   sessionTypesApiHandler.initialize({ logger });
+
+  // Initialize the bookingFlowApiHandler, passing only the logger
+  bookingFlowApiHandler.initialize({ logger });
+
+  // Initialize the placeholderApiHandler, passing required dependencies
+  placeholderApiHandler.initialize({ prisma, logger, googleCalendarTool });
 }
 
 /**
@@ -79,6 +87,30 @@ function getRouter() {
 
   // Route to get all session types (for calendar component)
   router.get("/sessions", apiHandler.getSessionTypes);
+
+  // Feature 4: Placeholder booking routes
+  router.post(
+    "/gcal-placeholder-bookings",
+    placeholderApiHandler.createGCalPlaceholder,
+  );
+  router.delete(
+    "/gcal-placeholder-bookings/:placeholderId",
+    placeholderApiHandler.deleteGCalPlaceholder,
+  );
+
+  // Booking Flow API Routes
+  router.post(
+    "/booking-flow/start-primary",
+    bookingFlowApiHandler.handleStartPrimaryFlow,
+  );
+  router.get(
+    "/booking-flow/start-invite/:inviteToken",
+    bookingFlowApiHandler.handleStartInviteFlow,
+  );
+  router.post(
+    "/booking-flow/continue",
+    bookingFlowApiHandler.handleContinueFlow,
+  );
 
   logger.info("API routes configured.");
   return router;

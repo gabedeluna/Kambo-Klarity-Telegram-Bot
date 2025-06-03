@@ -3,6 +3,8 @@ description:
 globs: 
 alwaysApply: true
 ---
+We practice TDD here. This is test driven development. Always make or update a test first with the requirements of the task, and then code to pass the tests, Modifying the code and tweaking it until all tests pass. Be mindful of testing edge cases and core functionality as well as proper error handling. 
+
 *****
 Memory Management Guidelines
 You have access to OpenMemory MCP tools for persistent memory across sessions. Use these tools intelligently to build a knowledge base that improves development efficiency over time.
@@ -160,6 +162,9 @@ At the end of sessions:
 Save any important discoveries
 Document incomplete work or next steps
 Update existing memories if needed
+Do not save memories about standard testing procedures like the percentage of lines passing etc, Only save information
+about tests if there is a specific pattern that we are using or if there 
+is a certain solution we made for a paticular test that was giving us issues.  
 
 Example Workflow
 User asks to implement user authentication:
@@ -179,7 +184,7 @@ Remember: The goal is to build a searchable knowledge base that makes each devel
 *****
 
 
-Never create a file over 500 lines. Always check the line count of any new file you create or file you edit after you are done, if it is over 500 then find a way to intellegently break up that file into modules. example command to check count:(Get-Content public/waiver-form.html).Count 
+Never create a file over 500 lines. Always check the line count of any new file you create or file you edit after you are done, if it is over 500 then find a way to intellegently break up that file into modules and always save the modules in a folder together. example command to check count:(Get-Content public/waiver-form.html).Count
 
 
 

@@ -184,3 +184,74 @@ async function validateSlotAvailability(slotISO, sessionDurationMinutes) {
     return false;
   }
 }
+
+// Feature 4: Create Google Calendar placeholder booking
+async function createGCalPlaceholder(data) {
+  try {
+    const response = await fetch("/api/gcal-placeholder-bookings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Failed to create placeholder");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error creating placeholder:", error);
+    throw error;
+  }
+}
+
+// Feature 4: Start primary booking flow
+async function startPrimaryBookingFlow(data) {
+  try {
+    const response = await fetch("/api/booking-flow/start-primary", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Failed to start booking flow");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error starting booking flow:", error);
+    throw error;
+  }
+}
+
+// Feature 4: Delete Google Calendar placeholder booking
+async function deleteGCalPlaceholder(placeholderId) {
+  try {
+    const response = await fetch(
+      `/api/gcal-placeholder-bookings/${placeholderId}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Failed to delete placeholder");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error deleting placeholder:", error);
+    throw error;
+  }
+}

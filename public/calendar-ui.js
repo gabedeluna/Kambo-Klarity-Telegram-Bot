@@ -31,6 +31,33 @@ function showError(message) {
   }, 5000);
 }
 
+function showSuccess(message) {
+  const successContainer = document.createElement("div");
+  successContainer.style.cssText = `
+        color: white;
+        padding: 20px;
+        text-align: center;
+        background: rgba(34, 197, 94, 0.9);
+        backdrop-filter: blur(10px);
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        max-width: 90%;
+        font-weight: 600;
+    `;
+  successContainer.innerHTML = `<p>${message}</p>`;
+  document.body.appendChild(successContainer);
+
+  setTimeout(() => {
+    successContainer.remove();
+  }, 5000);
+}
+
 function setLoading(isLoading) {
   const elements = [
     "calendarGrid",

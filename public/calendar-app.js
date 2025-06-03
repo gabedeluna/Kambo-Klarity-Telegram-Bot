@@ -233,7 +233,7 @@ function setupEventListeners() {
     }
   });
 
-  // Set up submit button with final validation
+  // Set up submit button with Feature 4: Two-step booking process
   document
     .getElementById("submitBookingButton")
     .addEventListener("click", async () => {
@@ -249,75 +249,133 @@ function setupEventListeners() {
       submitButton.disabled = true;
       submitButton.className =
         "btn-primary flex-1 h-12 text-base font-bold opacity-75";
-      submitButton.querySelector("span").textContent = "Validating...";
+      submitButton.querySelector("span").textContent = "Reserving slot...";
 
       try {
-        // Final validation check
-        console.log(
-          "Performing final slot validation for:",
-          selectedTimeSlotISO,
-        );
-        const isStillAvailable = await validateSlotAvailability(
-          selectedTimeSlotISO,
-          sessionDurationMinutes,
-        );
+        // Step 1: Create placeholder booking
+        console.log("Step 1: Creating placeholder for:", {
+          telegramId,
+          sessionTypeId: initialSessionTypeId,
+          appointmentDateTimeISO: selectedTimeSlotISO,
+        });
 
-        if (isStillAvailable) {
-          // Slot is still available - proceed with booking
-          console.log("Final validation passed. Submit booking:", {
-            telegramId,
-            sessionTypeId: initialSessionTypeId,
-            selectedSlot: selectedTimeSlotISO,
-          });
+        const placeholderResponse = await createGCalPlaceholder({
+          telegramId,
+          sessionTypeId: initialSessionTypeId,
+          appointmentDateTimeISO: selectedTimeSlotISO,
+        });
 
-          // PH6-15: Transition to waiver form with booking context
-          submitButton.querySelector("span").textContent = "Proceeding...";
+        if (
+          !placeholderResponse.success ||
+          !placeholderResponse.placeholderId ||
+          !placeholderResponse.sessionTypeDetails
+        ) {
+          throw new Error(
+            placeholderResponse.message || "Failed to reserve slot.",
+          );
+        }
 
-          // Validate required parameters before transition
-          if (telegramId && initialSessionTypeId && selectedTimeSlotISO) {
-            const waiverFormUrl = `waiver-form.html?telegramId=${telegramId}&sessionTypeId=${initialSessionTypeId}&appointmentDateTimeISO=${selectedTimeSlotISO}`;
+        console.log("Step 1 completed: Placeholder created", {
+          placeholderId: placeholderResponse.placeholderId,
+          sessionTypeDetails: placeholderResponse.sessionTypeDetails,
+        });
 
-            console.log(
-              "Transitioning to waiver form with URL:",
-              waiverFormUrl,
-            );
+        // Update loading state
+        submitButton.querySelector("span").textContent =
+          "Preparing your booking...";
 
-            // Navigate to waiver form
-            window.location.href = waiverFormUrl;
-          } else {
-            // This case should ideally be prevented by disabling button if data is missing
-            showError("Critical information missing. Cannot proceed.");
-            console.error("Missing data for waiver form transition:", {
-              telegramId,
-              initialSessionTypeId,
-              selectedTimeSlotISO,
-            });
+        // Step 2: Start booking flow
+        console.log("Step 2: Starting booking flow");
 
-            // Reset button state
-            submitButton.disabled = false;
-            submitButton.className =
-              "btn-primary flex-1 h-12 text-base font-bold";
-            submitButton.querySelector("span").textContent = originalText;
+        const flowStartResponse = await startPrimaryBookingFlow({
+          telegramId,
+          sessionTypeId: initialSessionTypeId,
+          appointmentDateTimeISO: selectedTimeSlotISO,
+          placeholderId: placeholderResponse.placeholderId,
+          initialSessionTypeDetails: placeholderResponse.sessionTypeDetails,
+        });
+
+        if (!flowStartResponse.success || !flowStartResponse.nextStep) {
+          // Attempt to clean up placeholder if flow start failed
+          console.log("Step 2 failed: Attempting to cleanup placeholder");
+          try {
+            await deleteGCalPlaceholder(placeholderResponse.placeholderId);
+            console.log("Placeholder cleanup successful");
+          } catch (cleanupError) {
+            console.error("Placeholder cleanup failed:", cleanupError);
+          }
+          throw new Error(
+            flowStartResponse.message || "Failed to start booking process.",
+          );
+        }
+
+        console.log("Step 2 completed: Flow started", {
+          flowToken: flowStartResponse.flowToken,
+          nextStep: flowStartResponse.nextStep,
+        });
+
+        // Handle the response from BookingFlowManager
+        if (
+          flowStartResponse.nextStep.type === "REDIRECT" &&
+          flowStartResponse.nextStep.url
+        ) {
+          // Construct full URL if needed (assuming relative URL from API)
+          const redirectUrl = flowStartResponse.nextStep.url.startsWith("http")
+            ? flowStartResponse.nextStep.url
+            : window.location.origin + flowStartResponse.nextStep.url;
+
+          console.log("Redirecting to:", redirectUrl);
+          window.location.href = redirectUrl;
+        } else if (flowStartResponse.nextStep.type === "COMPLETE") {
+          // Display completion message
+          const message =
+            flowStartResponse.nextStep.message ||
+            "Booking confirmed! You will receive a confirmation message shortly.";
+
+          // Show success message in the UI
+          showSuccess(message);
+
+          // Close WebApp if requested
+          if (flowStartResponse.nextStep.closeWebApp) {
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+              setTimeout(() => {
+                console.log("Closing Telegram WebApp");
+                tg.close();
+              }, 3000); // Give user time to read the message
+            }
           }
         } else {
-          // Slot is no longer available
-          showError(
-            "This time slot was just booked by someone else. Please select another time.",
-          );
+          throw new Error("Invalid response from booking flow manager.");
+        }
+      } catch (error) {
+        console.error("Booking submission error:", error);
 
-          // Reset button state
-          submitButton.disabled = false;
-          submitButton.className =
-            "btn-primary flex-1 h-12 text-base font-bold";
-          submitButton.querySelector("span").textContent = originalText;
+        // Determine appropriate error message
+        let errorMessage = "Could not complete your booking. Please try again.";
+        if (
+          error.message.includes("slot") &&
+          error.message.includes("available")
+        ) {
+          errorMessage =
+            "This time slot was just booked by someone else. Please select another time.";
 
           // Refresh the month data and day's slots with fresh API data
           const dateString = getDateString(selectedDate);
-          await refreshMonthDataAndSlots(dateString);
+          try {
+            await refreshMonthDataAndSlots(dateString);
+          } catch (refreshError) {
+            console.error("Error refreshing slot data:", refreshError);
+          }
+        } else if (
+          error.message.includes("reserve") ||
+          error.message.includes("placeholder")
+        ) {
+          errorMessage =
+            "Could not reserve the slot. The time may have just been taken. Please try again.";
         }
-      } catch (error) {
-        console.error("Error during final validation:", error);
-        showError("Could not verify slot availability. Please try again.");
+
+        showError(errorMessage);
 
         // Reset button state
         submitButton.disabled = false;

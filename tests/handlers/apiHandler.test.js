@@ -25,6 +25,9 @@ const mockPrisma = {
     findUnique: jest.fn(),
     update: jest.fn(),
   },
+  sessionType: {
+    findUnique: jest.fn(),
+  },
 };
 const mockLogger = {
   info: jest.fn(),
@@ -42,6 +45,8 @@ const mockBot = {
 };
 const mockGoogleCalendarTool = {
   createCalendarEvent: jest.fn(),
+  createEvent: jest.fn(),
+  deleteEvent: jest.fn(),
 };
 
 // Mock Express req/res objects
@@ -59,6 +64,7 @@ const mockResponse = () => {
 
 describe("API Handler", () => {
   let apiHandler;
+  let placeholderApiHandler;
   let consoleErrorSpy;
 
   beforeEach(() => {
@@ -72,8 +78,9 @@ describe("API Handler", () => {
     // Suppress console.error for expected error tests
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
-    // Require the module under test after mocks are set up
+    // Require the modules under test after mocks are set up
     apiHandler = require("../../src/handlers/apiHandler");
+    placeholderApiHandler = require("../../src/handlers/api/placeholderApiHandler");
   });
 
   afterEach(() => {
@@ -651,6 +658,383 @@ describe("API Handler", () => {
         "No original message ID (edit_msg_id) found for user, cannot edit Telegram message.",
       );
       expect(res.status).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe("POST /api/gcal-placeholder-bookings - Feature 4", () => {
+    beforeEach(() => {
+      apiHandler.initialize({
+        prisma: mockPrisma,
+        logger: mockLogger,
+        telegramNotifier: mockTelegramNotifier,
+        bot: mockBot,
+        googleCalendarTool: mockGoogleCalendarTool,
+      });
+
+      placeholderApiHandler.initialize({
+        prisma: mockPrisma,
+        logger: mockLogger,
+        googleCalendarTool: mockGoogleCalendarTool,
+      });
+    });
+
+    it("should create placeholder and return session type details", async () => {
+      const mockSessionType = {
+        id: "session-type-uuid-1",
+        label: "Standard Kambo Session",
+        durationMinutes: 90,
+        waiverType: "KAMBO_V1",
+        allowsGroupInvites: true,
+        maxGroupSize: 4,
+      };
+
+      const mockPlaceholderEvent = {
+        id: "gcal-placeholder-event-123",
+        summary: "PLACEHOLDER: Standard Kambo Session",
+        start: { dateTime: "2025-07-15T10:00:00.000Z" },
+        end: { dateTime: "2025-07-15T11:30:00.000Z" },
+      };
+
+      // Mock session type lookup
+      mockPrisma.sessionType.findUnique.mockResolvedValue(mockSessionType);
+
+      // Mock Google Calendar placeholder creation
+      mockGoogleCalendarTool.createEvent.mockResolvedValue(
+        mockPlaceholderEvent,
+      );
+
+      const req = {
+        body: {
+          telegramId: "123456789",
+          sessionTypeId: "session-type-uuid-1",
+          appointmentDateTimeISO: "2025-07-15T10:00:00.000Z",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.createGCalPlaceholder(req, res);
+
+      expect(mockPrisma.sessionType.findUnique).toHaveBeenCalledWith({
+        where: { id: "session-type-uuid-1" },
+      });
+
+      expect(mockGoogleCalendarTool.createEvent).toHaveBeenCalledWith({
+        summary: "PLACEHOLDER: Standard Kambo Session",
+        description:
+          "Temporary placeholder for booking process. Will be updated or deleted.",
+        start: { dateTime: "2025-07-15T10:00:00.000Z" },
+        end: { dateTime: "2025-07-15T11:30:00.000Z" },
+        status: "tentative",
+      });
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        placeholderId: "gcal-placeholder-event-123",
+        expiresAt: expect.any(String),
+        sessionTypeDetails: {
+          waiverType: "KAMBO_V1",
+          allowsGroupInvites: true,
+          maxGroupSize: 4,
+          sessionTypeId: "session-type-uuid-1",
+          appointmentDateTimeISO: "2025-07-15T10:00:00.000Z",
+        },
+      });
+    });
+
+    it("should return 400 for missing telegramId", async () => {
+      const req = {
+        body: {
+          sessionTypeId: "session-type-uuid-1",
+          appointmentDateTimeISO: "2025-07-15T10:00:00.000Z",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.createGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message:
+          "Invalid input: telegramId, sessionTypeId, and appointmentDateTimeISO are required.",
+      });
+    });
+
+    it("should return 400 for invalid telegramId format", async () => {
+      const req = {
+        body: {
+          telegramId: "invalid-id",
+          sessionTypeId: "session-type-uuid-1",
+          appointmentDateTimeISO: "2025-07-15T10:00:00.000Z",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.createGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Invalid input: telegramId must be a valid number.",
+      });
+    });
+
+    it("should return 400 for invalid appointmentDateTimeISO format", async () => {
+      const req = {
+        body: {
+          telegramId: "123456789",
+          sessionTypeId: "session-type-uuid-1",
+          appointmentDateTimeISO: "invalid-date",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.createGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message:
+          "Invalid input: appointmentDateTimeISO must be a valid ISO date string.",
+      });
+    });
+
+    it("should return 404 for non-existent session type", async () => {
+      mockPrisma.sessionType.findUnique.mockResolvedValue(null);
+
+      const req = {
+        body: {
+          telegramId: "123456789",
+          sessionTypeId: "non-existent-session-type",
+          appointmentDateTimeISO: "2025-07-15T10:00:00.000Z",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.createGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Session type not found.",
+      });
+    });
+
+    it("should return 409 for slot conflict", async () => {
+      const mockSessionType = {
+        id: "session-type-uuid-1",
+        label: "Standard Kambo Session",
+        durationMinutes: 90,
+        waiverType: "KAMBO_V1",
+        allowsGroupInvites: true,
+        maxGroupSize: 4,
+      };
+
+      mockPrisma.sessionType.findUnique.mockResolvedValue(mockSessionType);
+      mockGoogleCalendarTool.createEvent.mockRejectedValue(
+        new Error("Slot conflict detected"),
+      );
+
+      const req = {
+        body: {
+          telegramId: "123456789",
+          sessionTypeId: "session-type-uuid-1",
+          appointmentDateTimeISO: "2025-07-15T10:00:00.000Z",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.createGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message:
+          "The selected time slot is no longer available. Please choose another time.",
+      });
+    });
+
+    it("should calculate correct end time based on session duration", async () => {
+      const mockSessionType = {
+        id: "session-type-uuid-1",
+        label: "Extended Kambo Session",
+        durationMinutes: 120, // 2 hours
+        waiverType: "KAMBO_V1",
+        allowsGroupInvites: false,
+        maxGroupSize: 1,
+      };
+
+      const mockPlaceholderEvent = {
+        id: "gcal-placeholder-event-456",
+        summary: "PLACEHOLDER: Extended Kambo Session",
+      };
+
+      mockPrisma.sessionType.findUnique.mockResolvedValue(mockSessionType);
+      mockGoogleCalendarTool.createEvent.mockResolvedValue(
+        mockPlaceholderEvent,
+      );
+
+      const req = {
+        body: {
+          telegramId: "123456789",
+          sessionTypeId: "session-type-uuid-1",
+          appointmentDateTimeISO: "2025-07-15T14:00:00.000Z",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.createGCalPlaceholder(req, res);
+
+      expect(mockGoogleCalendarTool.createEvent).toHaveBeenCalledWith({
+        summary: "PLACEHOLDER: Extended Kambo Session",
+        description:
+          "Temporary placeholder for booking process. Will be updated or deleted.",
+        start: { dateTime: "2025-07-15T14:00:00.000Z" },
+        end: { dateTime: "2025-07-15T16:00:00.000Z" }, // 2 hours later
+        status: "tentative",
+      });
+    });
+  });
+
+  describe("DELETE /api/gcal-placeholder-bookings/:placeholderId - Feature 4", () => {
+    beforeEach(() => {
+      apiHandler.initialize({
+        prisma: mockPrisma,
+        logger: mockLogger,
+        telegramNotifier: mockTelegramNotifier,
+        bot: mockBot,
+        googleCalendarTool: mockGoogleCalendarTool,
+      });
+
+      placeholderApiHandler.initialize({
+        prisma: mockPrisma,
+        logger: mockLogger,
+        googleCalendarTool: mockGoogleCalendarTool,
+      });
+    });
+
+    it("should successfully delete placeholder event", async () => {
+      mockGoogleCalendarTool.deleteEvent.mockResolvedValue(true);
+
+      const req = {
+        params: {
+          placeholderId: "gcal-placeholder-event-123",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.deleteGCalPlaceholder(req, res);
+
+      expect(mockGoogleCalendarTool.deleteEvent).toHaveBeenCalledWith(
+        "gcal-placeholder-event-123",
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Placeholder deleted successfully.",
+      });
+    });
+
+    it("should return 400 for missing placeholderId", async () => {
+      const req = {
+        params: {},
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.deleteGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Invalid input: placeholderId is required.",
+      });
+    });
+
+    it("should return 404 for non-existent placeholder", async () => {
+      mockGoogleCalendarTool.deleteEvent.mockRejectedValue(
+        new Error("Event not found"),
+      );
+
+      const req = {
+        params: {
+          placeholderId: "non-existent-placeholder",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.deleteGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Placeholder not found or already deleted.",
+      });
+    });
+
+    it("should handle Google Calendar API errors gracefully", async () => {
+      mockGoogleCalendarTool.deleteEvent.mockRejectedValue(
+        new Error("Google Calendar API error"),
+      );
+
+      const req = {
+        params: {
+          placeholderId: "gcal-placeholder-event-123",
+        },
+      };
+
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      await placeholderApiHandler.deleteGCalPlaceholder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "An error occurred while deleting the placeholder.",
+      });
     });
   });
 });

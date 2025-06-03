@@ -2353,6 +2353,183 @@ When an invited friend clicks the "Decline Invite 😔" button in the Telegram m
 *   Failure to edit the friend's message or send notification to primary booker: Log error. The core decline action (DB update) is the most critical part.
 
 ---
+---
+
+### Feature 12 (Task 32 - New): Final Booking Confirmation Page & Process
+
+**Goal:**
+Implement a dedicated final HTML page (`public/booking-confirmed.html`) that serves as the universal concluding step for all successful booking flows. This page will inform the user their booking is being finalized, trigger the actual booking operations (database session creation, Google Calendar event creation, and relevant notifications) via a new API call to the `BookingFlowManager`, and then allow the user to close the WebApp. This defers the core booking commitment to the very end of the user's interaction.
+
+**File System Impact:**
+*   **New Frontend Files:**
+    *   `public/booking-confirmed.html` (New - Final confirmation page)
+    *   `public/booking-confirmed.js` (New - Logic for `booking-confirmed.html`)
+    *   `public/booking-confirmed.css` (New - Styles for `booking-confirmed.html`, or adapt shared styles)
+
+**API Relationships:**
+*   **Loaded via redirect from `BookingFlowManager`:**
+    *   The URL to `public/booking-confirmed.html` will contain the `flowToken`. Example: `/booking-confirmed.html?flowToken=generated.jwt.flow.token`.
+*   **Calls (Client-side in `public/booking-confirmed.js`):**
+    *   `POST /api/booking-flow/complete-booking` (New Endpoint)
+        *   **Input:** `{ "flowToken": "active.jwt.flow.token" }`
+        *   **Action:** This endpoint triggers the `BookingFlowManager.finalizeBookingAndNotify(flowToken)` method to perform all final booking actions.
+        *   **Output (Success 200 OK):** `{ "success": true, "message": "Booking finalized and notifications sent." }`
+        *   **Output (Error):** `{ "success": false, "message": "Error finalizing booking: [details]" }` (e.g., slot taken, DB error).
+
+**Detailed Requirements:**
+
+*   **Requirement A (New Mini-App: `public/booking-confirmed.html`, `.js`, `.css`):**
+    *   Create the new HTML, JS, and CSS files.
+    *   `booking-confirmed.html`: Will contain a simple layout to display finalization messages and a "Close" button.
+    *   `booking-confirmed.js`: Logic for parsing `flowToken`, automatically calling the `/api/booking-flow/complete-booking` API on load, handling API response, updating UI, and managing the "Close" button.
+    *   `booking-confirmed.css`: Basic styling, consistent with other mini-apps.
+*   **Requirement B (`BookingFlowManager` - Data Accumulation & Deferred Booking):**
+    *   The `BookingFlowManager`'s flow state (associated with `flowToken`, potentially using temporary server-side storage for sensitive/large data like waiver forms, as JWTs should not store them directly) must accumulate all necessary information from previous steps:
+        *   `userId` (primary booker).
+        *   `sessionTypeId`, `appointmentDateTimeISO`, `placeholderId` (if used).
+        *   Primary booker's `liability_form_data` (if a waiver step occurred).
+        *   Details of any invited friends who have completed their waivers (e.g., `friendTelegramId`, `friendNameOnWaiver`, `friendLiabilityFormData`).
+    *   Core booking actions (Session creation, GCal event creation for primary, primary notifications) previously in `processWaiverSubmission` (Task 22) are **moved** to the new `finalizeBookingAndNotify` method.
+*   **Requirement C (`BookingFlowManager` - `determineNextStep` Modification):**
+    *   When any booking flow path (e.g., after primary's waiver if no invites, after "invite friends" page if invites used, or directly from `startPrimaryBookingFlow` if no waiver/invites) reaches the point of final confirmation, `determineNextStep()` must return:
+        `{ type: "REDIRECT", url: "/booking-confirmed.html?flowToken=active.jwt.flow.token" }`
+*   **Requirement D (New `BookingFlowManager` Method: `finalizeBookingAndNotify(flowToken)`):**
+    *   This new method is called by `POST /api/booking-flow/complete-booking`.
+    *   **Actions:**
+        1.  Parse `flowToken` and retrieve all accumulated flow data (primary booker info, session details, waiver data, confirmed friend data).
+        2.  **GCal Placeholder Handling:** If `placeholderId` exists in flow context, delete the placeholder GCal event (`googleCalendarTool.deleteCalendarEvent()`).
+        3.  **Final Slot Availability Check (CRITICAL):** Call `googleCalendarTool.isSlotTrulyAvailable()`. If slot is taken, return an error immediately (this booking cannot proceed).
+        4.  **Create `Session` Record:** Create the primary `Session` record in the database, including `liability_form_data` if applicable. Get the `newSession.id`.
+        5.  **Create Confirmed GCal Event:** Create the main GCal event for the primary booker (`googleCalendarTool.createConfirmedEvent()`). Update the `Session` record with the `googleEventId`.
+        6.  **Process Confirmed Friends (if any):**
+            *   For each confirmed friend in the flow state:
+                *   Ensure their `SessionInvite` status is updated (e.g., to 'waiver_completed_by_friend' or a final 'confirmed_and_attending' status).
+                *   Update the main GCal event description and title for these friends (`googleCalendarTool.updateEventDescription()`, `googleCalendarTool.updateEventSummary()`).
+        7.  **Trigger All Notifications (Centralized Here):**
+            *   Primary Booker Confirmation (Task 28, Req A - without "Invite Friends" button as that step is passed).
+            *   Admin Notification - Primary Booker's Session Confirmed (Task 28, Req B).
+            *   For each confirmed friend:
+                *   Friend's Confirmation Message (Task 28, Req C).
+                *   Primary Booker Notification - Friend Waiver Completed (Task 28, Req D).
+                *   Admin Notification - Friend Joins Session (Task 28, Req E).
+        8.  **Flow State Cleanup:** Invalidate or delete any temporary server-side state associated with the `flowToken`.
+        9.  Return success.
+*   **Requirement E (New API Endpoint: `POST /api/booking-flow/complete-booking`):**
+    *   To be handled by `src/handlers/api/bookingFlowApiHandler.js`.
+    *   Receives `{ flowToken }`. Validates it.
+    *   Calls `BookingFlowManager.finalizeBookingAndNotify(flowToken)`.
+    *   Returns `{ success: true, message: "..." }` or `{ success: false, message: "..." }`.
+*   **Requirement F (`public/booking-confirmed.js` Logic):**
+    *   On page load (`DOMContentLoaded`):
+        1.  Parse `flowToken` from `window.location.search`. If missing, show error and stop.
+        2.  Display an initial message: "Finalizing your booking, please wait..."
+        3.  Disable the "Close" button.
+        4.  Immediately call `POST /api/booking-flow/complete-booking` with the `flowToken`.
+        5.  **On API Success:**
+            *   Update page content: "Booking Confirmed! Details: [Session Type] at [Time]. You will receive a confirmation from the bot shortly. You may now close this window." (Fetch minimal details for display if needed, or keep generic).
+            *   Enable the "Close" button.
+        6.  **On API Error:**
+            *   Update page content with the error message from the API (e.g., "Failed to confirm booking: Slot is no longer available. Please try again from the calendar.").
+            *   Enable the "Close" button (allowing user to dismiss the error).
+    *   **"Close" Button (`#closeBookingConfirmedButton`):**
+        *   When clicked, calls `window.Telegram.WebApp.close()`.
+    *   **Telegram Back Button:**
+        *   `Telegram.WebApp.BackButton.show()`.
+        *   `onClick` handler should ideally perform the same action as the "Close" button (i.e., ensure the API call has been attempted and then close). For simplicity, it can just call `window.Telegram.WebApp.close()`, assuming the on-load API call handles the finalization.
+*   **Requirement G (Impact on Previous Steps):**
+    *   Steps like waiver submission (`BookingFlowManager.processWaiverSubmission`) or invite friend completion will no longer finalize the booking themselves. They will:
+        1.  Validate input.
+        2.  Store submitted data (e.g., waiver form, friend list) in the flow state associated with `flowToken`.
+        3.  Call `determineNextStep()`, which will eventually lead to `booking-confirmed.html`.
+
+**Implementation Guide:**
+
+*   **Architecture Overview:**
+    *   This feature introduces a final, mandatory step in all booking flows, centralizing the actual booking commitment and primary notifications.
+    *   `BookingFlowManager` becomes more of a state accumulator until this final trigger.
+    *   **Diagram (Final Confirmation Flow):**
+        ```mermaid
+        sequenceDiagram
+            participant PrevMiniApp as e.g., form-handler.js / invite-friends.js
+            participant BFM_API_Continue as POST /api/booking-flow/continue
+            participant BFM as BookingFlowManager
+            participant ConfirmedPageJS as booking-confirmed.js
+            participant BFM_API_Complete as POST /api/booking-flow/complete-booking
+            participant GCal as GoogleCalendarTool
+            participant DB as Prisma
+            participant Notifier as TelegramNotifierTool
+
+            PrevMiniApp->>+BFM_API_Continue: Submit flowToken, stepData (e.g., waiver)
+            BFM_API_Continue->>+BFM: processStep(flowToken, stepData)
+            BFM->>BFM: Store stepData in flowState
+            BFM->>BFM: determineNextStep() -> redirect to booking-confirmed.html
+            BFM-->>-BFM_API_Continue: {nextStep: {type:"REDIRECT", url:"/booking-confirmed.html?flowToken=..."}}
+            BFM_API_Continue-->>-PrevMiniApp: Response
+            PrevMiniApp->>User: window.location.href to booking-confirmed.html
+
+            User->>+ConfirmedPageJS: Page loads (booking-confirmed.html)
+            ConfirmedPageJS->>ConfirmedPageJS: Parse flowToken, Show "Finalizing..."
+            ConfirmedPageJS->>+BFM_API_Complete: Call with {flowToken}
+            BFM_API_Complete->>+BFM: finalizeBookingAndNotify(flowToken)
+            BFM->>+GCal: Delete Placeholder, Check Slot, Create Event
+            GCal-->>-BFM: Success/Failure
+            BFM->>+DB: Create Session, Update Invites
+            DB-->>-BFM: Success/Failure
+            BFM->>+Notifier: Send All Confirmations
+            Notifier-->>-BFM: Success/Failure
+            BFM->>BFM: Cleanup flowState
+            BFM-->>-BFM_API_Complete: {success: true/false, message: ...}
+            BFM_API_Complete-->>-ConfirmedPageJS: Response
+            alt Booking Finalized Successfully
+                ConfirmedPageJS->>User: Show "Booking Confirmed!", Enable Close button
+            else Finalization Failed
+                ConfirmedPageJS->>User: Show Error Message, Enable Close button
+            end
+            deactivate BFM
+            deactivate BFM_API_Complete
+            deactivate ConfirmedPageJS
+        end
+        ```
+*   **DB Schema:**
+    *   No direct new tables for this page, but `BookingFlowManager`'s temporary state storage mechanism (if server-side beyond JWT) might be more heavily used to hold accumulated data like waiver forms before final `Session` creation.
+*   **API Design:**
+    *   New endpoint `POST /api/booking-flow/complete-booking` is critical.
+*   **Frontend Structure (`public/booking-confirmed.html`):**
+    *   Simple page:
+        *   `<div id="confirmationMessage">Finalizing your booking, please wait...</div>`
+        *   `<button id="closeBookingConfirmedButton" style="display:none;">Close</button>`
+*   **UX Flow:**
+    1.  User completes the last interactive step (e.g., waiver, invite management).
+    2.  They are redirected to `booking-confirmed.html`.
+    3.  Page shows "Finalizing..." message. API call to finalize is made automatically.
+    4.  Message updates to "Booking Confirmed!" or an error. "Close" button appears/enables.
+    5.  User clicks "Close" (or Telegram Back Button) to dismiss the WebApp.
+*   **Security:**
+    *   `flowToken` security is paramount.
+    *   The `POST /api/booking-flow/complete-booking` endpoint must validate the `flowToken` thoroughly.
+*   **Testing:**
+    *   **Unit Tests:**
+        *   `BookingFlowManager.finalizeBookingAndNotify()`: Mock dependencies (GCal, Prisma, Notifier). Test various scenarios: successful booking, slot taken error, DB error during session creation, notification failures. Test data accumulation and retrieval from flow state.
+        *   `bookingFlowApiHandler` for the new endpoint.
+        *   `booking-confirmed.js`: Mock API call. Test UI updates on load, success, and error. Test "Close" button.
+    *   **Integration Tests:** Test the `POST /api/booking-flow/complete-booking` endpoint with a real (but test) `BookingFlowManager` instance, mocking GCal/Notifier.
+    *   **E2E Tests:** All existing E2E journeys (Task 30) will now culminate in reaching `booking-confirmed.html`. Verify:
+        *   Correct redirection to this page.
+        *   Successful finalization (DB records, GCal event, notifications).
+        *   Correct error handling if finalization fails (e.g., slot conflict detected at the last moment).
+*   **Data Management:**
+    *   Focus on how `BookingFlowManager` accumulates data from previous steps (waivers, invitee details) and makes it available to `finalizeBookingAndNotify`. If using server-side temporary storage, ensure it's robust and cleaned up.
+*   **Logging & Error Handling:**
+    *   `BookingFlowManager.finalizeBookingAndNotify` needs extensive logging for each step (GCal interactions, DB writes, notifications).
+    *   `booking-confirmed.js` should log its API call and outcome.
+    *   Clear user-facing errors on `booking-confirmed.html` if finalization fails.
+*   **Key Edge Cases:**
+    *   User closes `booking-confirmed.html` before the automatic API call completes or if it fails: The booking might not be finalized. The auto-call on load mitigates this for users who wait. If they close prematurely, the placeholder might expire via cron, and temporary flow data should also have an expiry.
+    *   `flowToken` is invalid/expired when `booking-confirmed.html` loads or calls the API.
+    *   Final slot check in `finalizeBookingAndNotify` fails (slot taken): This is a critical failure point; user must be clearly informed.
+    *   Partial failure during `finalizeBookingAndNotify` (e.g., DB write OK, GCal fails): Requires robust error logging and potentially admin alerts. The system should aim for atomicity or clear compensation/retry paths if possible, though this is complex.
+
+This new feature significantly alters the point of commitment in the booking flow, aligning with the described need for a final confirmation page that triggers the actual booking.
 ### Feature 12 (Task 28): Notifications Refactor for `BookingFlowManager`
 **(Consolidates Original: PH6-31, PH6-33, PH6-34 and parts of PH6-17, PH6-24 from `Details_Phase_6_updated.md`)**
 

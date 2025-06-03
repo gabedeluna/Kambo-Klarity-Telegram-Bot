@@ -53,6 +53,12 @@ model SessionType {
   active            Boolean   @default(true) 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  // New / Enhanced Fields for Dynamic Flows
+  waiverType           String    @default("KAMBO_V1")
+  allowsGroupInvites   Boolean   @default(false)
+  maxGroupSize         Int       @default(1)
+  customFormDefinitions Json?    // For future dynamic form sequences
 }
 
 model AvailabilityRule {

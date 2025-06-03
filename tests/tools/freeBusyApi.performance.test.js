@@ -51,15 +51,11 @@ describe("FreeBusy API Performance Tests", () => {
     configUtils = new ConfigUtils(mockPrisma, mockLogger);
     slotGenerator = new SlotGenerator(freeBusyUtils, configUtils, mockLogger);
 
-    // Mock GoogleCalendarTool constructor to avoid auth issues in tests
-    const _googleCalendarTool = {
-      freeBusyUtils,
-      configUtils,
-      slotGenerator,
+    // Initialize GoogleCalendarTool with mocked dependencies
+    const _googleCalendarTool = new GoogleCalendarTool({
       logger: mockLogger,
-      sessionCalendarId: mockSessionCalendarId,
-      personalCalendarId: mockPersonalCalendarId,
-    };
+      prisma: mockPrisma,
+    });
   });
 
   describe("FreeBusyUtils", () => {
