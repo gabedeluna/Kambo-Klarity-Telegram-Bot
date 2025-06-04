@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Form Handler</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&family=Manrope%3Awght%40400%3B500%3B700%3B800&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+    <!-- Form Handler CSS -->
+    <link rel="stylesheet" href="form-handler.css" />
+    <!-- Calendar Theme CSS for consistency -->
+    <link rel="stylesheet" href="calendar-theme.css" />
+  </head>
+  <body style='font-family: Manrope, "Noto Sans", sans-serif;'>
+    <!-- Video Background -->
+    <video class="video-background" autoplay muted loop playsinline>
+      <source src="backgroundVideo.mov" type="video/quicktime">
+      <source src="backgroundVideo.webm" type="video/webm">
+      <source src="backgroundVideo.mp4" type="video/mp4">
+      <!-- Fallback for browsers that don't support video -->
+      Your browser does not support the video tag.
+    </video>
+    
+    <div class="relative min-h-screen p-4">
+      <div class="form-container max-w-2xl mx-auto p-6">
+        <div class="frog-emoji">🐸</div>
+        <h1 id="formTitle" class="text-center mb-6 text-3xl font-bold">
+          Loading Form...
+        </h1>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="text-center mb-6">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          <p class="mt-2">Loading form...</p>
+        </div>
+
+        <!-- Error Display -->
+        <div id="errorDisplay" class="alert alert-error mb-6 p-4 hidden">
+          <h5 class="font-semibold mb-2">Error:</h5>
+          <p id="errorMessage"></p>
+        </div>
+
+        <!-- Appointment Info -->
+        <div id="appointmentInfo" class="alert alert-success mb-6 p-4 hidden">
+          <h5 class="font-semibold mb-2">Your Appointment Details:</h5>
+          <p id="appointmentDateTime">Loading appointment details...</p>
+          <p id="sessionType">Loading session type...</p>
+        </div>
+
+        <!-- Guest Notice (for invited friends) -->
+        <div id="guestNotice" class="alert alert-info mb-6 p-4 hidden">
+          <h5 class="font-semibold mb-2">🎉 You're Invited!</h5>
+          <p id="guestNoticeText"></p>
+        </div>
+
+        <!-- Reservation Timer (for primary bookers) -->
+        <div id="reservationTimer" class="alert alert-warning mb-6 p-4 hidden">
+          <h5 class="font-semibold mb-2">⏰ Slot Reserved</h5>
+          <p id="reservationText">Your slot is reserved for 15 minutes. Please complete by <span id="expiryTime"></span>.</p>
+          <div id="countdownTimer" class="mt-2 font-mono text-lg"></div>
+        </div>
+
+        <!-- Generic Form -->
+        <form id="genericForm" novalidate class="hidden">
+          <!-- Hidden Fields -->
+          <input type="hidden" id="flowToken" name="flowToken" />
+          <input type="hidden" id="telegramId" name="telegramId" />
+          <input type="hidden" id="sessionTypeId" name="sessionTypeId" />
+          <input type="hidden" id="appointmentDateTimeISO" name="appointmentDateTimeISO" />
+          <input type="hidden" id="placeholderId" name="placeholderId" />
+          <input type="hidden" id="inviteToken" name="inviteToken" />
+
+          <!-- Kambo Waiver Section -->
+          <div id="kamboWaiverSection" style="display: none;">
+            <!-- Section 1: Things to avoid -->
+            <div class="section">
+              <h3>1. Things that must be avoided before Kambo</h3>
+              <ul>
+                <li>Immune suppressants for auto-immune disorders</li>
+                <li>Slimming or sleeping supplements (including melatonin)</li>
+                <li>Alcohol or drugs 24 hours before and after</li>
+                <li>
+                  Fasting longer than 18 hours within 7 days before or after Kambo
+                  (includes juice fasts)
+                </li>
+                <li>
+                  Sweat-lodges, colonics, enemas, liver flushes or any water-based
+                  detox within 3 days either side of Kambo
+                </li>
+              </ul>
+              <div class="form-check mt-3 mb-5">
+                <p class="mb-2">
+                  Please confirm you have read and understood the above precautions.
+                </p>
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="avoidAgreement"
+                  name="avoidAgreement"
+                  required
+                />
+                <label class="form-check-label ml-2" for="avoidAgreement">
+                  I confirm
+                </label>
+                <div class="error-message" id="avoidAgreement-error"></div>
+              </div>
+            </div>
+
+            <!-- Section 2: Personal Information -->
+            <div class="section">
+              <h3>2. Personal Information</h3>
+              <div class="form-group">
+                <label for="firstName">First Name *</label>
+                <input
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="firstName-error"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="lastName">Last Name *</label>
+                <input
+                  type="text"
+                  id="lastName"
+                  name="lastName"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="lastName-error"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="email">Email Address *</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="email-error"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="phone">Phone Number *</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="phone-error"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="dob">Date of Birth *</label>
+                <input
+                  type="date"
+                  id="dob"
+                  name="dob"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="dob-error"></div>
+              </div>
+            </div>
+
+            <!-- Section 3: Emergency Contact -->
+            <div class="section">
+              <h3>3. Emergency Contact Information</h3>
+              <div class="form-group">
+                <label for="emergencyFirstName">Emergency Contact First Name *</label>
+                <input
+                  type="text"
+                  id="emergencyFirstName"
+                  name="emergencyFirstName"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="emergencyFirstName-error"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="emergencyLastName">Emergency Contact Last Name *</label>
+                <input
+                  type="text"
+                  id="emergencyLastName"
+                  name="emergencyLastName"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="emergencyLastName-error"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="emergencyPhone">Emergency Contact Phone *</label>
+                <input
+                  type="tel"
+                  id="emergencyPhone"
+                  name="emergencyPhone"
+                  required
+                  class="form-control"
+                />
+                <div class="error-message" id="emergencyPhone-error"></div>
+              </div>
+            </div>
+
+            <!-- Section 4: Absolute Contra-Indications -->
+            <div class="section">
+              <h3>4. Absolute Contra-Indications</h3>
+              <p class="mb-2">
+                You should not participate in a Kambo treatment if any of the
+                following apply.
+              </p>
+              <p class="mb-2"><strong>Please check all that apply:</strong></p>
+              <ul style="list-style: none; padding-left: 0">
+                <li>
+                  Serious heart problems
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="heart"
+                    />
+                  </div>
+                </li>
+                <li>
+                  On a no-salt diet or have been on one in the past two weeks
+                  (ayahuasca diet)
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="nosalt"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Ehlers-Danlos syndrome
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="ehlers"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Marfan syndrome
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="marfan"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Medication for low blood pressure
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="lowbpmed"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Stroke, brain haemorrhage, aneurism or blood clots
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="stroke"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Lacking capacity to decide on Kambo
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="capacity"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Serious mental-health problems (excludes depression, PTSD,
+                  anxiety)
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="mentalhealth"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Undergoing chemo-, radio- or immuno-therapy (less than 6 weeks
+                  post-treatment)
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="chemo"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Immune-suppressants following organ transplant
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="immunesuppress"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Addison's disease
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="addison"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Current and severe epilepsy
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="epilepsy"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Major surgical recovery
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="surgery"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Under 18 years old
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="under18"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Bufo ceremony in last 6 weeks
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="bufo"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Pregnant / possibly pregnant / breast-feeding
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="pregnant"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Daily diuretic use (unless cleared by practitioner)
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="diuretic"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Other strong medicines (San Pedro, Ayahuasca, Mushrooms) within 24 h
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="othermeds"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Age greater than or equal to 70 years
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="age70"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Large volumes of water immediately before session
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="water"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Fasting greater than 18 hours before session
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="fasting"
+                    />
+                  </div>
+                </li>
+                <li>
+                  Covid vaccine within last 4 weeks
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      name="contraindications"
+                      value="covid"
+                    />
+                  </div>
+                </li>
+              </ul>
+              <div class="hint mb-5">
+                You must check each box that applies to you. If none apply, check none.
+              </div>
+            </div>
+
+            <!-- Section 5: Signature -->
+            <div class="section">
+              <h3>5. Digital Signature</h3>
+              <p class="mb-3">
+                By signing below, I acknowledge that I have read and understood all the information provided,
+                and I consent to participate in the Kambo treatment.
+              </p>
+              <div class="form-group">
+                <label for="signature">Digital Signature *</label>
+                <canvas
+                  id="signatureCanvas"
+                  width="400"
+                  height="200"
+                  style="border: 1px solid #ccc; background: white; width: 100%; max-width: 400px;"
+                ></canvas>
+                <input type="hidden" id="signature" name="signature" required />
+                <div class="mt-2">
+                  <button type="button" id="clearSignature" class="btn btn-secondary">Clear Signature</button>
+                </div>
+                <div class="error-message" id="signature-error"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Future: Other form types can be added here -->
+          
+          <!-- Submit Button -->
+          <button type="submit" id="submitButton" class="button" disabled>
+            <span id="submitButtonText">Submit Form</span>
+            <div id="submitSpinner" class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2 hidden"></div>
+          </button>
+        </form>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="text-center hidden">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          <p class="mt-2">Processing...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Handler JavaScript -->
+    <script src="form-handler.js"></script>
+  </body>
+</html> 

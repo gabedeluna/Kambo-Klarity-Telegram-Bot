@@ -1,0 +1,448 @@
+/* Form Handler CSS - Adapted from waiver-form.css with calendar app consistency */
+
+html,
+body {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain; /* Prevent scroll chaining on iOS Safari */
+}
+
+/* Define fallback variables if Telegram doesn't provide them */
+:root {
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-button-color: #5fb13d;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f2f2f7;
+  --error-color: #e53935;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --info-color: #2196f3;
+}
+
+/* Basic dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tg-theme-bg-color: #1c1c1e;
+    --tg-theme-text-color: #ffffff;
+    --tg-theme-hint-color: #8e8e93;
+    --tg-theme-link-color: #0a84ff;
+    --tg-theme-button-color: #34c759;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #2c2c2e;
+    --error-color: #ff453a;
+    --success-color: #30d158;
+    --warning-color: #ff9f0a;
+    --info-color: #64d2ff;
+  }
+}
+
+body {
+  font-family: Manrope, "Noto Sans", sans-serif;
+  background-color: var(--tg-theme-bg-color);
+  color: var(--tg-theme-text-color);
+  margin: 0;
+  padding: 16px;
+  font-size: 16px;
+}
+
+/* Video Background */
+.video-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+/* Form Container */
+.form-container {
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* Increased padding-bottom to prevent content being hidden by keyboard */
+  padding-bottom: 50vh;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: #4a3baf;
+}
+
+h1 {
+  font-size: 22px;
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+h3 {
+  color: #4a3baf;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  margin-top: 24px;
+}
+
+/* Frog Emoji */
+.frog-emoji {
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+/* Alert Styles */
+.alert {
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.alert-success {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.alert-error {
+  background-color: rgba(244, 67, 54, 0.1);
+  border-color: var(--error-color);
+  color: var(--error-color);
+}
+
+.alert-warning {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+}
+
+.alert-info {
+  background-color: rgba(33, 150, 243, 0.1);
+  border-color: var(--info-color);
+  color: var(--info-color);
+}
+
+/* Form Sections */
+.section {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Form Groups */
+.form-group {
+  margin-bottom: 16px;
+}
+
+/* Labels */
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--tg-theme-text-color);
+}
+
+/* Form Controls */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--tg-theme-hint-color);
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: var(--tg-theme-secondary-bg-color);
+  color: var(--tg-theme-text-color);
+  box-sizing: border-box;
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--tg-theme-hint-color);
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--tg-theme-text-color);
+  box-sizing: border-box;
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  accent-color: #4a3baf;
+  margin-right: 8px;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.form-control:focus {
+  outline: none;
+  border-color: var(--tg-theme-link-color);
+  box-shadow: 0 0 0 2px rgba(36, 129, 204, 0.3);
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Form Check */
+.form-check {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.form-check-input {
+  width: auto !important;
+  margin-right: 8px;
+}
+
+.form-check-label {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+/* Lists */
+ul {
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+
+li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* Hints */
+.hint {
+  font-size: 14px;
+  color: var(--tg-theme-hint-color);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Buttons */
+.button,
+.btn {
+  background-color: #4a3baf;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.button {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.btn-secondary {
+  background-color: var(--tg-theme-hint-color);
+  color: var(--tg-theme-text-color);
+  padding: 8px 16px;
+  font-size: 14px;
+  width: auto;
+  margin-top: 0;
+}
+
+.button:hover:not(:disabled),
+.btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.button:disabled,
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Error Styles */
+.error,
+.error-message {
+  color: var(--error-color);
+  font-size: 14px;
+  margin-top: 4px;
+  display: none;
+  font-weight: 500;
+}
+
+.error-message.visible {
+  display: block;
+}
+
+.error-outline {
+  border: 2px solid var(--error-color) !important;
+  box-shadow: 0 0 0 1px var(--error-color);
+}
+
+/* Signature Canvas */
+#signatureCanvas {
+  border: 1px solid var(--tg-theme-hint-color);
+  border-radius: 8px;
+  background: white;
+  width: 100%;
+  max-width: 400px;
+  height: 200px;
+  cursor: crosshair;
+}
+
+/* Loading States */
+.hidden {
+  display: none !important;
+}
+
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Countdown Timer */
+#countdownTimer {
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  padding: 8px;
+  background: rgba(255, 152, 0, 0.2);
+  border-radius: 4px;
+  border: 1px solid var(--warning-color);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .form-container {
+    margin: 0;
+    padding: 16px;
+    border-radius: 0;
+  }
+  
+  h1 {
+    font-size: 20px;
+  }
+  
+  .section {
+    padding: 16px;
+  }
+  
+  #signatureCanvas {
+    max-width: 100%;
+  }
+}
+
+/* Utility Classes */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+.mb-3 {
+  margin-bottom: 12px;
+}
+
+.mb-5 {
+  margin-bottom: 20px;
+}
+
+.ml-2 {
+  margin-left: 8px;
+}
+
+/* Animation for spinners */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Inline elements */
+.inline-block {
+  display: inline-block;
+}
+
+/* Substance Table (if needed for future forms) */
+.table-responsive {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  border: 1px solid var(--tg-theme-hint-color);
+  text-align: left;
+}
+
+.table th {
+  background-color: rgba(74, 59, 175, 0.1);
+  font-weight: 600;
+}
+
+.table-striped tbody tr:nth-child(odd) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.substance-table {
+  font-size: 14px;
+}
+
+.substance-check {
+  width: auto !important;
+} 
