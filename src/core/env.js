@@ -43,7 +43,7 @@ const config = Object.freeze({
   tgToken: process.env.TG_TOKEN,
   databaseUrl: process.env.DATABASE_URL,
   formUrl: process.env.FORM_URL,
-  port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
+  port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3001,
   openaiApiKey: process.env.OPENAI_API_KEY, // Include even if not selected, might be used elsewhere
   googleApiKey: process.env.GOOGLE_API_KEY, // Include even if not selected
   aiProvider: provider,

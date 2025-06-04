@@ -84,7 +84,7 @@ class GoogleCalendarEventsTool {
 
     try {
       // Get availability rules to check buffer time
-      const ConfigUtils = require("./calendar/configUtils");
+      const ConfigUtils = require("./configUtils");
       const configUtils = new ConfigUtils(this.prisma, this.logger);
       const rules = await configUtils.getAvailabilityRule();
 

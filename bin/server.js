@@ -112,7 +112,7 @@ async function initializeAndReturnApp() {
 
 // This function handles starting the server if the script is run directly
 async function startServer(appToStart) {
-  const PORT = config.PORT || 3000;
+  const PORT = config.port || 3001;
   const server = appToStart.listen(PORT, () => {
     logger.info(`[server] Server started successfully.`);
     logger.info(`[server] Listening on port ${PORT}`);

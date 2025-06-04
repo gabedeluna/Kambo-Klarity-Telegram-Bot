@@ -10,6 +10,7 @@ const {
   teardownEnvironment,
   clearAllMocks,
   createMockRule,
+  mockCalendarFreeBusy,
 } = require("./googleCalendar.setup");
 
 const GoogleCalendarTool = require("../../src/tools/googleCalendar");
@@ -178,7 +179,16 @@ describe("GoogleCalendarTool - Slot Generation & Event Parsing Edge Cases", () =
         min_notice_hours: 0,
       });
       mockPrisma.availabilityRule.findFirst.mockResolvedValue(mockRule);
-      mockCalendarEvents.list.mockResolvedValue({ data: { items: [] } });
+      
+      // Mock FreeBusy API response with no busy times
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: [] },
+            "test-personal-calendar@example.com": { busy: [] },
+          },
+        },
+      });
 
       const result = await googleCalendarTool.findFreeSlots({
         startDateRange: `${FIXED_MONDAY}T00:00:00.000Z`,
@@ -210,16 +220,16 @@ describe("GoogleCalendarTool - Slot Generation & Event Parsing Edge Cases", () =
       });
       mockPrisma.availabilityRule.findFirst.mockResolvedValue(mockRule);
 
-      // Event with malformed or missing time data
-      const malformedEvent = {
-        summary: "Malformed Event",
-        start: {}, // Missing dateTime or date
-        end: {},
-      };
-
-      mockCalendarEvents.list
-        .mockResolvedValueOnce({ data: { items: [malformedEvent] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      // Mock FreeBusy API response - malformed events would not appear in FreeBusy response
+      // since FreeBusy only returns valid busy periods
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: [] },
+            "test-personal-calendar@example.com": { busy: [] },
+          },
+        },
+      });
 
       // Expect this NOT to throw an error
       const result = await googleCalendarTool.findFreeSlots({
@@ -228,12 +238,9 @@ describe("GoogleCalendarTool - Slot Generation & Event Parsing Edge Cases", () =
         sessionDurationMinutes: 60,
       });
 
-      // Should handle malformed events gracefully and still return slots
-      // We need to check if any error was logged instead of expecting slots
-      // since malformed events might cause the whole day processing to fail
-      expect(mockLogger.error).toHaveBeenCalled();
-      // The result could be empty if the error handling skips the day
+      // Should handle gracefully and return slots since no busy times
       expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
     });
 
     it("should handle events in different timezone formats", async () => {
@@ -246,23 +253,27 @@ describe("GoogleCalendarTool - Slot Generation & Event Parsing Edge Cases", () =
       });
       mockPrisma.availabilityRule.findFirst.mockResolvedValue(mockRule);
 
-      // Events with different timezone formats
-      const eventsWithTimezones = [
+      // Mock FreeBusy API response with busy times in different timezone formats
+      // FreeBusy API normalizes all times to UTC, so we test with UTC times
+      const busyTimes = [
         {
-          summary: "UTC Event",
-          start: { dateTime: `${FIXED_MONDAY}T14:00:00Z` }, // Explicit UTC
-          end: { dateTime: `${FIXED_MONDAY}T15:00:00Z` },
+          start: `${FIXED_MONDAY}T14:00:00.000Z`, // 10 AM EST (UTC-4)
+          end: `${FIXED_MONDAY}T15:00:00.000Z`,   // 11 AM EST
         },
         {
-          summary: "Offset Event",
-          start: { dateTime: `${FIXED_MONDAY}T10:00:00-04:00` }, // EST offset
-          end: { dateTime: `${FIXED_MONDAY}T11:00:00-04:00` },
+          start: `${FIXED_MONDAY}T18:00:00.000Z`, // 2 PM EST
+          end: `${FIXED_MONDAY}T19:00:00.000Z`,   // 3 PM EST
         },
       ];
 
-      mockCalendarEvents.list
-        .mockResolvedValueOnce({ data: { items: eventsWithTimezones } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockCalendarFreeBusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            "test-session-calendar@example.com": { busy: busyTimes },
+            "test-personal-calendar@example.com": { busy: [] },
+          },
+        },
+      });
 
       const result = await googleCalendarTool.findFreeSlots({
         startDateRange: `${FIXED_MONDAY}T00:00:00.000Z`,
@@ -270,18 +281,18 @@ describe("GoogleCalendarTool - Slot Generation & Event Parsing Edge Cases", () =
         sessionDurationMinutes: 60,
       });
 
-      // Should correctly parse both timezone formats and avoid conflicts
+      // Should correctly parse timezone formats and avoid conflicts
       result.forEach((slot) => {
         const slotStart = new Date(slot);
         const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
 
-        // Check against both events
-        eventsWithTimezones.forEach((event) => {
-          const eventStart = new Date(event.start.dateTime);
-          const eventEnd = new Date(event.end.dateTime);
+        // Check against both busy times
+        busyTimes.forEach((busyTime) => {
+          const busyStart = new Date(busyTime.start);
+          const busyEnd = new Date(busyTime.end);
 
-          // Should not overlap
-          const hasOverlap = slotStart < eventEnd && slotEnd > eventStart;
+          // Should not overlap (accounting for buffer time)
+          const hasOverlap = slotStart < busyEnd && slotEnd > busyStart;
           expect(hasOverlap).toBe(false);
         });
       });

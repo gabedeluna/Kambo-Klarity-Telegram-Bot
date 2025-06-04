@@ -3,9 +3,10 @@ const { google } = require("googleapis");
 const { JWT } = require("google-auth-library"); // For service account auth
 
 // Import the new modular utilities
-const FreeBusyUtils = require("./calendar/freeBusyUtils");
-const ConfigUtils = require("./calendar/configUtils");
-const SlotGenerator = require("./calendar/slotGenerator");
+const FreeBusyUtils = require("./googleCalendar/freeBusyUtils");
+const ConfigUtils = require("./googleCalendar/configUtils");
+const SlotGenerator = require("./googleCalendar/slotGenerator");
+const GoogleCalendarEventsTool = require("./googleCalendar/googleCalendarEvents");
 
 // These should now be fetched from process.env inside the constructor or methods
 // const PRACTITIONER_SESSION_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID;
@@ -75,6 +76,12 @@ class GoogleCalendarTool {
         this.configUtils,
         this.logger,
       );
+
+      // Initialize the events tool for event creation/deletion operations
+      this.eventsTool = new GoogleCalendarEventsTool({
+        logger: this.logger,
+        prisma: this.prisma,
+      });
 
       this.logger.info(
         "[GoogleCalendarTool] Live instance created. Session Calendar ID: " +
@@ -168,6 +175,58 @@ class GoogleCalendarTool {
       endDateRange,
       sessionDurationMinutes,
     });
+  }
+
+  /**
+   * Creates a calendar event (wrapper for backward compatibility)
+   * @param {object} eventDetails - Event details object
+   * @param {string} eventDetails.summary - Event title
+   * @param {string} eventDetails.description - Event description
+   * @param {object} eventDetails.start - Start time object with dateTime property
+   * @param {object} eventDetails.end - End time object with dateTime property
+   * @returns {Promise<object>} Created event object with id property
+   */
+  async createEvent(eventDetails) {
+    if (!this.eventsTool) {
+      throw new Error("Events tool not initialized");
+    }
+
+    // Convert the format expected by placeholderApiHandler to the format expected by GoogleCalendarEventsTool
+    const convertedEventDetails = {
+      summary: eventDetails.summary,
+      description: eventDetails.description,
+      start: eventDetails.start.dateTime,
+      end: eventDetails.end.dateTime,
+    };
+
+    const result = await this.eventsTool.createCalendarEvent(convertedEventDetails);
+    
+    if (!result.success) {
+      throw new Error(result.error || "Failed to create calendar event");
+    }
+
+    // Return in the format expected by the placeholder handler
+    return {
+      id: result.eventId,
+      htmlLink: result.eventLink,
+    };
+  }
+
+  /**
+   * Deletes a calendar event (wrapper for backward compatibility)
+   * @param {string} eventId - The ID of the event to delete
+   * @returns {Promise<void>}
+   */
+  async deleteEvent(eventId) {
+    if (!this.eventsTool) {
+      throw new Error("Events tool not initialized");
+    }
+
+    const result = await this.eventsTool.deleteCalendarEvent({ eventId });
+    
+    if (!result.success) {
+      throw new Error(result.error || "Failed to delete calendar event");
+    }
   }
 }
 

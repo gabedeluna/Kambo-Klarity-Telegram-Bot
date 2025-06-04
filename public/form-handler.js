@@ -28,9 +28,45 @@ function parseUrlParameters() {
   params.sessionTypeId = searchParams.get("sessionTypeId");
   params.appointmentDateTimeISO = searchParams.get("appointmentDateTimeISO");
 
+  // If we have a flowToken but missing required parameters, try to extract them from the token
+  if (params.flowToken && (!params.telegramId || !params.sessionTypeId || !params.appointmentDateTimeISO)) {
+    try {
+      // Decode the JWT token to extract flow state
+      const tokenParts = params.flowToken.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        
+        // Extract missing parameters from flow state
+        if (!params.telegramId && payload.userId) {
+          params.telegramId = payload.userId.toString();
+        }
+        if (!params.sessionTypeId && payload.sessionTypeId) {
+          params.sessionTypeId = payload.sessionTypeId;
+        }
+        if (!params.appointmentDateTimeISO && payload.appointmentDateTimeISO) {
+          params.appointmentDateTimeISO = payload.appointmentDateTimeISO;
+        }
+        if (!params.placeholderId && payload.placeholderId) {
+          params.placeholderId = payload.placeholderId;
+        }
+        if (!params.inviteToken && payload.inviteToken) {
+          params.inviteToken = payload.inviteToken;
+        }
+        
+        console.log("[FormHandler] Extracted parameters from flowToken:", {
+          telegramId: params.telegramId,
+          sessionTypeId: params.sessionTypeId,
+          appointmentDateTimeISO: params.appointmentDateTimeISO
+        });
+      }
+    } catch (error) {
+      console.warn("[FormHandler] Failed to decode flowToken:", error);
+    }
+  }
+
   // Optional parameters
-  params.placeholderId = searchParams.get("placeholderId");
-  params.inviteToken = searchParams.get("inviteToken");
+  if (!params.placeholderId) params.placeholderId = searchParams.get("placeholderId");
+  if (!params.inviteToken) params.inviteToken = searchParams.get("inviteToken");
   params.primaryBookerName = searchParams.get("primaryBookerName");
   params.waiverType = searchParams.get("waiverType");
   params.allowsGroupInvites = searchParams.get("allowsGroupInvites") === "true";
@@ -85,22 +121,46 @@ async function initializeStaticContent(params) {
  * Initialize dynamic form based on form type
  * @param {string} formType - Type of form to render
  */
-function initializeDynamicForm(formType) {
+async function initializeDynamicForm(formType) {
   const errorDisplay = document.getElementById("errorDisplay");
   const errorMessage = document.getElementById("errorMessage");
 
-  if (formType === "KAMBO_WAIVER_V1" || formType === "KAMBO_WAIVER_FRIEND_V1") {
-    // Show Kambo waiver section
-    document.getElementById("kamboWaiverSection").style.display = "block";
-    document.getElementById("formTitle").textContent =
-      "Kambo Preparation, Contra-Indications & Liability Form";
+  // Handle various Kambo waiver types
+  if (formType === "KAMBO_WAIVER_V1" || 
+      formType === "KAMBO_WAIVER_FRIEND_V1" || 
+      formType === "KAMBO_V1" || 
+      formType === "KAMBO_FRIEND_V1") {
+    
+    try {
+      // Load Kambo waiver content dynamically
+      const response = await fetch('/forms/kambo-waiver-content.html');
+      if (!response.ok) {
+        throw new Error(`Failed to load waiver content: ${response.status}`);
+      }
+      
+      const waiverContent = await response.text();
+      const kamboWaiverSection = document.getElementById("kamboWaiverSection");
+      
+      if (kamboWaiverSection) {
+        kamboWaiverSection.innerHTML = waiverContent;
+        kamboWaiverSection.style.display = "block";
+      }
+      
+      document.getElementById("formTitle").textContent =
+        "Kambo Preparation, Contra-Indications & Liability Form";
 
-    // Initialize signature pad
-    initializeSignaturePad();
-
-    return true;
+      console.log("[FormHandler] Initialized Kambo waiver form for type:", formType);
+      return true;
+      
+    } catch (error) {
+      console.error("[FormHandler] Failed to load Kambo waiver content:", error);
+      errorMessage.textContent = `Failed to load waiver form: ${error.message}`;
+      errorDisplay.classList.remove("hidden");
+      return false;
+    }
   } else {
     // Unsupported form type
+    console.error("[FormHandler] Unsupported form type:", formType);
     errorMessage.textContent = `Unsupported form type: ${formType}`;
     errorDisplay.classList.remove("hidden");
     return false;
@@ -207,21 +267,22 @@ async function prefillUserData(telegramId) {
         const userData = data.data;
 
         // Pre-fill form fields
-        const fields = [
-          "firstName",
-          "lastName",
-          "email",
-          "phone",
-          "dob",
-          "emergencyFirstName",
-          "emergencyLastName",
-          "emergencyPhone",
-        ];
+        const fieldMapping = {
+          firstName: "firstName",
+          lastName: "lastName", 
+          email: "email",
+          phone: "phoneNumber", // API returns phoneNumber, form expects phone
+          dob: "dateOfBirth", // API returns dateOfBirth, form expects dob
+          emergencyFirstName: "emergencyContactFirstName", // API returns emergencyContactFirstName
+          emergencyLastName: "emergencyContactLastName", // API returns emergencyContactLastName
+          emergencyPhone: "emergencyContactPhone", // API returns emergencyContactPhone
+        };
 
-        fields.forEach((field) => {
-          const element = document.getElementById(field);
-          if (element && userData[field]) {
-            element.value = userData[field];
+        Object.keys(fieldMapping).forEach((formField) => {
+          const apiField = fieldMapping[formField];
+          const element = document.getElementById(formField);
+          if (element && userData[apiField]) {
+            element.value = userData[apiField];
           }
         });
       }
@@ -508,25 +569,50 @@ function collectFormData() {
     }
   });
 
-  // Collect checkbox fields
-  const checkboxFields = ["consent1", "consent2", "avoidAgreement"];
-  checkboxFields.forEach((fieldId) => {
+  // Collect confirmation checkboxes
+  const confirmationFields = [
+    "avoidAgreement",
+    "substanceAgreement", 
+    "liabilityAgreement",
+    "electronicSignature"
+  ];
+  confirmationFields.forEach((fieldId) => {
     const element = document.getElementById(fieldId);
     if (element) {
       stepData[fieldId] = element.checked;
     }
   });
 
-  // Collect contraindications as array
+  // Collect contraindications with descriptions
   const contraindications = [];
   document
-    .querySelectorAll('input[name="contraindications"]:checked')
+    .querySelectorAll('input[name="contraindications"]')
     .forEach((checkbox) => {
-      contraindications.push(checkbox.value);
+      const label = checkbox.closest("li").textContent.trim();
+      contraindications.push({
+        description: label,
+        checked: checkbox.checked,
+      });
     });
-  if (contraindications.length > 0) {
-    stepData.contraindications = contraindications;
-  }
+  stepData.contraindications = contraindications;
+
+  // Collect substance agreements with descriptions
+  const substanceAgreements = [];
+  document.querySelectorAll(".substance-check").forEach((checkbox) => {
+    const row = checkbox.closest("tr");
+    if (row) {
+      const cells = row.querySelectorAll("td");
+      if (cells.length >= 3) {
+        substanceAgreements.push({
+          substance: cells[0].textContent.trim(),
+          prior: cells[1].textContent.trim(),
+          post: cells[2].textContent.trim(),
+          checked: checkbox.checked,
+        });
+      }
+    }
+  });
+  stepData.substanceAgreements = substanceAgreements;
 
   // Get flow control fields
   const flowToken = document.getElementById("flowToken")?.value;
@@ -772,7 +858,7 @@ async function initializeFormHandler() {
     await initializeStaticContent(urlParams);
 
     // Initialize dynamic form
-    const formInitialized = initializeDynamicForm(urlParams.formType);
+    const formInitialized = await initializeDynamicForm(urlParams.formType);
     if (!formInitialized) {
       return;
     }

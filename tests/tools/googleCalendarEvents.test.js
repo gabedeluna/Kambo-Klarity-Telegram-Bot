@@ -1,4 +1,4 @@
-const GoogleCalendarEventsTool = require("../../src/tools/googleCalendarEvents");
+const GoogleCalendarEventsTool = require("../../src/tools/googleCalendar/googleCalendarEvents");
 
 // Mock dependencies
 const mockLogger = {

@@ -139,11 +139,11 @@ describe("Core Environment Configuration (env.js)", () => {
     expect(envConfig.aiProvider).toBe("unsupported_provider");
   });
 
-  it("should use default PORT 3000 if not set", () => {
+  it("should use default PORT 3001 if not set", () => {
     setRequiredEnvVars();
     delete process.env.PORT;
     const envConfig = require("../../src/core/env");
-    expect(envConfig.port).toBe(3000);
+    expect(envConfig.port).toBe(3001);
   });
 
   it("should use provided PORT if set", () => {

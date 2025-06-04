@@ -2,6 +2,12 @@
 // Only loads in development mode
 
 (function () {
+  // Prevent multiple initializations
+  if (window.stagewiseInitialized) {
+    console.log("[Stagewise] ⚠️ Already initialized, skipping...");
+    return;
+  }
+
   // Check if we're in development mode - expanded to include ngrok and other dev indicators
   const hostname = window.location.hostname;
   const isDevelopment =
@@ -33,6 +39,9 @@
 
   console.log("[Stagewise] 🚀 Loading development toolbar...");
 
+  // Mark as initialized to prevent duplicate loads
+  window.stagewiseInitialized = true;
+
   // Polyfill process object for browser compatibility
   if (typeof window.process === "undefined") {
     window.process = {
@@ -48,6 +57,9 @@
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";
     cssLink.href = "/node_modules/@stagewise/toolbar/dist/index.css";
+    cssLink.onerror = () => {
+      console.warn("[Stagewise] ⚠️ Failed to load CSS, continuing without styles");
+    };
     document.head.appendChild(cssLink);
 
     // Enhanced stagewise configuration with more visible feedback
@@ -102,43 +114,60 @@
         console.log("[Stagewise] ✅ ES Module loaded successfully");
 
         if (module.initToolbar) {
-          module.initToolbar(stagewiseConfig);
-          console.log("[Stagewise] 🎉 Toolbar initialized successfully!");
-          console.log(
-            "[Stagewise] 💡 Try hovering over elements and clicking them",
-          );
-          console.log(
-            "[Stagewise] 💡 Look for selection highlights and context menus",
-          );
+          try {
+            module.initToolbar(stagewiseConfig);
+            console.log("[Stagewise] 🎉 Toolbar initialized successfully!");
+            console.log(
+              "[Stagewise] 💡 Try hovering over elements and clicking them",
+            );
+            console.log(
+              "[Stagewise] 💡 Look for selection highlights and context menus",
+            );
 
-          // Add a visible indicator that stagewise is active
-          const indicator = document.createElement("div");
-          indicator.innerHTML = "🎯 Stagewise Active";
-          indicator.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: #4CAF50;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            z-index: 10000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          `;
-          document.body.appendChild(indicator);
+            // Add a visible indicator that stagewise is active
+            const indicator = document.createElement("div");
+            indicator.innerHTML = "🎯 Stagewise Active";
+            indicator.style.cssText = `
+              position: fixed;
+              top: 10px;
+              right: 10px;
+              background: #4CAF50;
+              color: white;
+              padding: 8px 12px;
+              border-radius: 4px;
+              font-family: Arial, sans-serif;
+              font-size: 12px;
+              z-index: 10000;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            `;
+            document.body.appendChild(indicator);
 
-          // Remove indicator after 5 seconds
-          setTimeout(() => {
-            indicator.remove();
-          }, 5000);
+            // Remove indicator after 5 seconds
+            setTimeout(() => {
+              indicator.remove();
+            }, 5000);
+          } catch (initError) {
+            console.error("[Stagewise] ❌ Failed to initialize toolbar:", initError);
+            
+            // Check if it's a custom element conflict
+            if (initError.message && initError.message.includes('already been defined')) {
+              console.warn("[Stagewise] ⚠️ Custom element conflict detected - this is likely due to page reload or multiple script loads");
+              console.warn("[Stagewise] 💡 Refresh the page to clear the conflict");
+            }
+          }
         } else {
           console.error("[Stagewise] ❌ initToolbar function not found");
         }
       })
       .catch((error) => {
         console.error("[Stagewise] ❌ Failed to load ES module:", error);
+        
+        // Provide helpful debugging information
+        if (error.message && error.message.includes('404')) {
+          console.warn("[Stagewise] 💡 Stagewise module not found - this is normal if not installed");
+        } else if (error.message && error.message.includes('network')) {
+          console.warn("[Stagewise] 💡 Network error loading Stagewise - check your connection");
+        }
       });
   }
 

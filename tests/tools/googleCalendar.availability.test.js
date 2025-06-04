@@ -127,6 +127,7 @@ describe("GoogleCalendarTool - Availability Rules", () => {
         min_notice_hours: 24,
         buffer_time_minutes: 30,
         max_bookings_per_day: 4,
+        slot_increment_minutes: 15,
       });
     });
 

@@ -1,7 +1,8 @@
 const _GoogleCalendarTool = require("../../src/tools/googleCalendar");
-const FreeBusyUtils = require("../../src/tools/calendar/freeBusyUtils");
-const ConfigUtils = require("../../src/tools/calendar/configUtils");
-const SlotGenerator = require("../../src/tools/calendar/slotGenerator");
+const GoogleCalendarTool = require("../../src/tools/googleCalendar");
+const FreeBusyUtils = require("../../src/tools/googleCalendar/freeBusyUtils");
+const ConfigUtils = require("../../src/tools/googleCalendar/configUtils");
+const SlotGenerator = require("../../src/tools/googleCalendar/slotGenerator");
 
 // Mock dependencies
 const mockLogger = {
