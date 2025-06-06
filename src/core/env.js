@@ -11,6 +11,9 @@ dotenv.config();
 // Always required
 const ALWAYS_REQUIRED = ["TG_TOKEN", "DATABASE_URL", "FORM_URL", "NGROK_URL"];
 
+// Optional configuration for invite-friends functionality (for future validation if needed)
+// const OPTIONAL_CONFIG = ["BOT_USERNAME", "WEBAPP_NAME"];
+
 // Conditionally required based on AI provider
 const provider = process.env.AI_PROVIDER || "openai"; // Default to openai if not set
 let providerRequired = [];
@@ -50,6 +53,9 @@ const config = Object.freeze({
   nodeEnv: process.env.NODE_ENV || "development", // Default to development
   ngrokUrl: process.env.NGROK_URL, // For dev webhook
   appUrl: process.env.APP_URL, // For prod webhook
+  // Optional configuration for invite-friends functionality
+  botUsername: process.env.BOT_USERNAME || null, // For startapp links
+  webAppName: process.env.WEBAPP_NAME || "kambo", // Default webapp name
 });
 
 module.exports = config;

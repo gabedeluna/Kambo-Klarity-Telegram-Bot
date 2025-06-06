@@ -825,10 +825,181 @@ function showSuccess(message) {
 }
 
 /**
+ * Handle StartApp invite flow initialization
+ * @param {string} inviteToken - The invite token from startapp parameter
+ */
+async function handleStartAppInviteFlow(inviteToken) {
+  try {
+    showLoadingSpinner('Loading invitation details...');
+    
+    // Fetch invitation context from the new API endpoint
+    const response = await fetch(`/api/invite-context/${inviteToken}`);
+    const data = await response.json();
+    
+    if (!response.ok || !data.success) {
+      showError(data.message || 'Failed to load invitation. Please try again.');
+      return;
+    }
+    
+    // Initialize friend invitation form with the fetched data
+    await initializeInviteFriendForm(data.data);
+    
+  } catch (error) {
+    console.error('Error handling startapp invite flow:', error);
+    showError('Failed to load invitation. Please try again.');
+  } finally {
+    hideLoadingSpinner();
+  }
+}
+
+/**
+ * Initialize form for friend invitation flow
+ * @param {object} inviteData - Data from invite context API
+ */
+async function initializeInviteFriendForm(inviteData) {
+  try {
+    // Extract session and flow configuration
+    const { sessionDetails, flowConfiguration, inviteToken, sessionTypeId, appointmentDateTimeISO } = inviteData;
+    
+    // Set URL params for friend flow
+    urlParams = {
+      formType: flowConfiguration.formType || 'KAMBO_WAIVER_FRIEND_V1',
+      telegramId: null, // Will be set by user data API
+      sessionTypeId: sessionTypeId,
+      appointmentDateTimeISO: appointmentDateTimeISO,
+      inviteToken: inviteToken,
+      flowToken: null // StartApp flow doesn't use flow tokens
+    };
+    
+    // Populate hidden form fields
+    const sessionTypeIdField = document.getElementById("sessionTypeId");
+    const appointmentDateTimeField = document.getElementById("appointmentDateTimeISO");
+    const inviteTokenField = document.getElementById("inviteToken");
+    
+    if (sessionTypeIdField) sessionTypeIdField.value = sessionTypeId;
+    if (appointmentDateTimeField) appointmentDateTimeField.value = appointmentDateTimeISO;
+    if (inviteTokenField) inviteTokenField.value = inviteToken;
+    
+    // Initialize static content with session details
+    await initializeStaticContent(urlParams, sessionDetails);
+    
+    // Initialize dynamic form for friend waiver
+    const formInitialized = await initializeDynamicForm(urlParams.formType);
+    if (!formInitialized) {
+      return;
+    }
+    
+    // Setup friend-specific UI
+    setupFriendInvitationUI(sessionDetails);
+    
+    // Show form and hide loading
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    const form = document.getElementById("waiverForm") || document.getElementById("genericForm");
+    
+    if (loadingIndicator) {
+      loadingIndicator.classList.add("hidden");
+    }
+    if (form) {
+      form.classList.remove("hidden");
+    }
+    
+    // Setup form submission for friend flow
+    if (form) {
+      form.addEventListener("submit", (event) => {
+        handleFormSubmit(event, urlParams);
+      });
+    }
+    
+    // Enable submit button
+    const submitButton = document.getElementById("submitButton");
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+    
+  } catch (error) {
+    console.error('Error initializing friend invitation form:', error);
+    showError('An error occurred while loading the invitation form.');
+  }
+}
+
+/**
+ * Setup UI specific to friend invitation flow
+ * @param {object} sessionDetails - Session details from invite context
+ */
+function setupFriendInvitationUI(sessionDetails) {
+  // Update page title/header for friend invitation
+  const pageTitle = document.querySelector('h1, .page-title');
+  if (pageTitle) {
+    pageTitle.textContent = 'Complete Your Waiver - Friend Invitation';
+  }
+  
+  // Show session details for context
+  const sessionInfo = document.getElementById('sessionInfoDisplay') || document.createElement('div');
+  if (sessionDetails) {
+    sessionInfo.innerHTML = `
+      <div class="session-context bg-blue-50 p-4 rounded-lg mb-4">
+        <h3 class="font-semibold text-blue-900">You've been invited to join:</h3>
+        <p class="text-blue-800">${sessionDetails.sessionTypeLabel}</p>
+        <p class="text-blue-700 text-sm">${sessionDetails.formattedDateTime}</p>
+      </div>
+    `;
+    
+    // Insert at the beginning of form container
+    const formContainer = document.getElementById('formContainer') || document.querySelector('.form-container');
+    if (formContainer && !document.getElementById('sessionInfoDisplay')) {
+      sessionInfo.id = 'sessionInfoDisplay';
+      formContainer.insertBefore(sessionInfo, formContainer.firstChild);
+    }
+  }
+  
+  // Show friend-specific messaging
+  const submitButton = document.getElementById("submitButton");
+  if (submitButton) {
+    submitButton.textContent = 'Complete Waiver & Join Session';
+  }
+}
+
+/**
+ * Show loading spinner with custom message
+ * @param {string} message - Loading message
+ */
+function showLoadingSpinner(message) {
+  const loadingIndicator = document.getElementById("loadingIndicator");
+  const loadingMessage = document.getElementById("loadingMessage");
+  
+  if (loadingMessage) {
+    loadingMessage.textContent = message;
+  }
+  if (loadingIndicator) {
+    loadingIndicator.classList.remove("hidden");
+  }
+}
+
+/**
+ * Hide loading spinner
+ */
+function hideLoadingSpinner() {
+  const loadingIndicator = document.getElementById("loadingIndicator");
+  if (loadingIndicator) {
+    loadingIndicator.classList.add("hidden");
+  }
+}
+
+/**
  * Main initialization function
  */
 async function initializeFormHandler() {
   try {
+    // Check for StartApp invite flow first
+    if (typeof Telegram !== "undefined" && Telegram.WebApp && Telegram.WebApp.initDataUnsafe) {
+      const startParam = Telegram.WebApp.initDataUnsafe.start_param;
+      if (startParam && startParam.startsWith('invite_')) {
+        const inviteToken = startParam.replace('invite_', '');
+        await handleStartAppInviteFlow(inviteToken);
+        return; // Exit early as we're handling a different flow
+      }
+    }
+    
     // Parse URL parameters
     urlParams = parseUrlParameters();
 
@@ -938,5 +1109,10 @@ if (typeof module !== "undefined" && module.exports) {
     showError,
     showSuccess,
     initializeFormHandler,
+    handleStartAppInviteFlow,
+    initializeInviteFriendForm,
+    setupFriendInvitationUI,
+    showLoadingSpinner,
+    hideLoadingSpinner,
   };
 }

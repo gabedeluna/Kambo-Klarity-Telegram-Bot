@@ -100,8 +100,23 @@
       </div>
     </div>
 
-    <!-- Form Handler JavaScript -->
-    <script src="form-handler.js"></script>
+    <!-- Form Handler JavaScript Modules -->
+    <script src="core.js"></script>
+    <script>
+      // Make core module available globally
+      window.formHandlerCore = typeof module !== "undefined" && module.exports ? module.exports : window.formHandlerCore;
+    </script>
+    <script src="validation.js"></script>
+    <script>
+      // Make validation module available globally
+      window.formHandlerValidation = typeof module !== "undefined" && module.exports ? module.exports : window.formHandlerValidation;
+    </script>
+    <script src="ui.js"></script>
+    <script>
+      // Make UI module available globally
+      window.formHandlerUI = typeof module !== "undefined" && module.exports ? module.exports : window.formHandlerUI;
+    </script>
+    <script src="main.js"></script>
     
     <!-- Stagewise Development Toolbar (development only) -->
     <script type="module" src="stagewise-working.js"></script>

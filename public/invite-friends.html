@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.ngrok.com https://assets.ngrok.com 'unsafe-eval' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com https://assets.ngrok.com https://cdn.ngrok.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org https://cdn.tailwindcss.com; img-src 'self' data: https:; media-src 'self' data: https:; connect-src 'self' https: wss:;">
+    <title>Invite Friends - Kambo Session</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&family=Manrope%3Awght%40400%3B500%3B700%3B800&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+    <style>
+      body {
+        background: 
+          url('background-for-calendar.png') center/cover no-repeat fixed,
+          linear-gradient(135deg, #1a4d2e 0%, #2d5016 30%, #1a3d0f 70%, #0f2408 100%);
+        min-height: 100vh;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      /* Video background styling */
+      .video-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: -2;
+      }
+      
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.1);
+        z-index: -1;
+      }
+      
+      .invite-container {
+        background: rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+      }
+      
+      /* Progress Stepper Styling */
+      .stepper-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+      }
+      
+      .stepper-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+      }
+      
+      .stepper-step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 1rem;
+        left: 60%;
+        right: -50%;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.2);
+        z-index: 1;
+      }
+      
+      .stepper-step.completed::after {
+        background: #53d22c;
+      }
+      
+      .stepper-step.active::after {
+        background: linear-gradient(to right, #53d22c 50%, rgba(255, 255, 255, 0.2) 50%);
+      }
+      
+      .stepper-circle {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+        position: relative;
+        z-index: 2;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        background: rgba(0, 0, 0, 0.3);
+        color: rgba(245, 245, 220, 0.5);
+      }
+      
+      .stepper-step.completed .stepper-circle {
+        background: #53d22c;
+        border-color: #53d22c;
+        color: #162013;
+      }
+      
+      .stepper-step.active .stepper-circle {
+        background: #53d22c;
+        border-color: #53d22c;
+        color: #162013;
+        box-shadow: 0 0 0 4px rgba(83, 210, 44, 0.2);
+      }
+      
+      .stepper-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+        text-align: center;
+        color: rgba(245, 245, 220, 0.5);
+      }
+      
+      .stepper-step.completed .stepper-label,
+      .stepper-step.active .stepper-label {
+        color: #faf0e6;
+      }
+      
+      /* Invite List Styling */
+      .invite-item {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+      }
+      
+      .invite-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      
+      .invite-item.shared {
+        border-color: #53d22c;
+        background: rgba(83, 210, 44, 0.1);
+      }
+      
+      .invite-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      
+      .invite-status.pending {
+        background: rgba(251, 191, 36, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+      }
+      
+      .invite-status.completed {
+        background: rgba(83, 210, 44, 0.2);
+        color: #53d22c;
+        border: 1px solid rgba(83, 210, 44, 0.3);
+      }
+      
+      .invite-status.declined {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+      }
+      
+      /* Button styling */
+      .btn-primary {
+        background: #53d22c;
+        color: #162013;
+        font-weight: 700;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(83, 210, 44, 0.3);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.875rem;
+      }
+      
+      .btn-primary:not(:disabled) {
+        animation: pulseGreen 2s infinite;
+      }
+      
+      @keyframes pulseGreen {
+        0% {
+          box-shadow: 0 4px 12px rgba(83, 210, 44, 0.3);
+        }
+        50% {
+          box-shadow: 0 4px 20px rgba(83, 210, 44, 0.6), 0 0 30px rgba(83, 210, 44, 0.4);
+        }
+        100% {
+          box-shadow: 0 4px 12px rgba(83, 210, 44, 0.3);
+        }
+      }
+      
+      .btn-primary:hover {
+        background: #45b525;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(83, 210, 44, 0.4);
+      }
+      
+      .btn-primary:disabled {
+        background: rgba(83, 210, 44, 0.3);
+        color: rgba(22, 32, 19, 0.5);
+        cursor: not-allowed;
+        transform: none;
+        animation: none;
+      }
+      
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fef7cd;
+        font-weight: 600;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        margin: 0.25rem;
+      }
+      
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+      }
+      
+      .btn-secondary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .btn-secondary.success {
+        background: rgba(83, 210, 44, 0.2);
+        color: #53d22c;
+        border-color: rgba(83, 210, 44, 0.3);
+      }
+      
+      /* Loading state */
+      .loading {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+      
+      .loading-spinner {
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-top: 2px solid #53d22c;
+        border-radius: 50%;
+        width: 1rem;
+        height: 1rem;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 0.5rem;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Alert styling */
+      .alert {
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        font-weight: 600;
+      }
+      
+      .alert-error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+      }
+      
+      .alert-success {
+        background: rgba(83, 210, 44, 0.1);
+        color: #53d22c;
+        border: 1px solid rgba(83, 210, 44, 0.2);
+      }
+      
+      .alert-info {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 640px) {
+        .stepper-label {
+          font-size: 0.625rem;
+        }
+        
+        .stepper-circle {
+          width: 1.5rem;
+          height: 1.5rem;
+          font-size: 0.75rem;
+        }
+        
+        .invite-item {
+          padding: 0.75rem;
+        }
+      }
+      
+      /* Force amber colors with higher specificity */
+      #sessionTypeNamePlaceholder,
+      h1#sessionTypeNamePlaceholder,
+      .text-amber-50#sessionTypeNamePlaceholder {
+        color: #fef7cd !important;
+      }
+      
+      #sessionDetailsDisplay,
+      .session-details {
+        color: #fef7cd !important;
+      }
+      
+      /* Override any potential global styles */
+      body * {
+        color: inherit;
+      }
+      
+      .text-amber-50 {
+        color: #fef7cd !important;
+      }
+      
+      .text-amber-100 {
+        color: #fef3c7 !important;
+      }
+    </style>
+    <!-- Stagewise Development Toolbar (development only) -->
+    <script type="module" src="stagewise-working.js"></script>
+</head>
+<body style='font-family: Manrope, "Noto Sans", sans-serif;' class="overflow-hidden">
+    <!-- Video Background -->
+    <video class="video-background" autoplay muted loop playsinline>
+      <source src="background_video_with_frog.mov" type="video/quicktime">
+      <source src="background_video_with_frog.webm" type="video/webm">
+      <source src="background_video_with_frog.mp4" type="video/mp4">
+      <!-- Fallback for browsers that don't support video -->
+      Your browser does not support the video tag.
+    </video>
+    
+    <div class="relative flex size-full min-h-screen flex-col justify-between">
+      
+      <!-- Main content wrapper -->
+      <div class="flex-1 relative px-4 py-6">
+        
+        <!-- Session Title - Fixed position -->
+        <div class="text-center mb-6">
+          <h1 class="text-amber-50 text-3xl font-bold mb-2" id="sessionTypeNamePlaceholder" style="color: #fef7cd !important;">Invite Friends</h1>
+          <div id="sessionDetailsDisplay" class="text-amber-100 text-sm opacity-80" style="color: #fef7cd !important;"></div>
+        </div>
+
+        <!-- Progress Stepper -->
+        <div class="stepper-container mb-6" id="progressStepper">
+          <div class="stepper-step completed">
+            <div class="stepper-circle">✓</div>
+            <div class="stepper-label">Booking Confirmed</div>
+          </div>
+          <div class="stepper-step active">
+            <div class="stepper-circle">2</div>
+            <div class="stepper-label">Invite Friends</div>
+          </div>
+          <div class="stepper-step">
+            <div class="stepper-circle">3</div>
+            <div class="stepper-label">Session Complete</div>
+          </div>
+        </div>
+
+        <!-- Main Container -->
+        <div class="invite-container w-full max-w-md mx-auto p-6">
+          
+          <!-- Loading State -->
+          <div id="loadingIndicator" class="text-center py-8" style="display: none;">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-amber-100 text-sm">Loading invite details...</p>
+          </div>
+
+          <!-- Error State -->
+          <div id="errorContainer" class="alert alert-error" style="display: none;">
+            <div id="errorMessage">An error occurred</div>
+          </div>
+
+          <!-- Main Content -->
+          <div id="mainContent" style="display: none;">
+            
+            <!-- Session Info Display -->
+            <div id="sessionInfoDisplay" class="mb-6">
+              <div class="text-center">
+                <h2 class="text-amber-50 text-xl font-bold mb-2" id="sessionTypeLabel" style="color: #fef7cd !important;"></h2>
+                <p class="text-amber-100 text-sm" id="sessionDateTime" style="color: #fef7cd !important;"></p>
+              </div>
+            </div>
+
+            <!-- Invite Summary -->
+            <div class="text-center mb-6">
+              <div id="inviteSummaryText" class="text-amber-100 text-lg font-semibold" style="color: #fef7cd !important;">
+                You can invite <span id="remainingInvitesCount" class="text-green-400 font-bold">0</span> more friends.
+              </div>
+            </div>
+
+            <!-- Generate Invite Section -->
+            <div class="text-center mb-6">
+              <button id="generateInviteButton" class="btn-primary">
+                <span id="generateButtonText">Generate New Invite Link</span>
+              </button>
+              <button id="refreshStatusesButton" class="btn-secondary ml-2">
+                Refresh Status
+              </button>
+            </div>
+
+            <!-- Existing Invites List -->
+            <div id="existingInvitesSection">
+              <h3 class="text-amber-100 text-lg font-semibold mb-4" style="color: #fef7cd !important;">Your Invites:</h3>
+              
+              <!-- Empty State -->
+              <div id="emptyInvitesState" class="text-center py-8" style="display: none;">
+                <p class="text-amber-100 text-sm opacity-70" style="color: #fef7cd !important;">No invites generated yet.</p>
+                <p class="text-amber-100 text-xs opacity-50 mt-2" style="color: #fef7cd !important;">Click "Generate New Invite Link" to create your first invite.</p>
+              </div>
+              
+              <!-- Invites List Container -->
+              <ul id="existingInvitesListContainer" class="space-y-3">
+                <!-- Dynamic invite items will be inserted here -->
+              </ul>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="fixed bottom-0 left-0 right-0 px-4" style="bottom: 35px;">
+        <div class="flex gap-3 max-w-sm mx-auto">
+          <button id="doneButton" class="btn-primary flex-1 h-12 text-base font-bold">
+            <span>Done</span>
+          </button>
+          <button id="closeButton" class="btn-secondary flex-1 h-12 text-sm font-semibold">
+            <span>Close</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden Template for Invite List Items -->
+    <template id="inviteItemTemplate">
+      <li class="invite-item" data-token="" data-status="">
+        
+        <!-- Invite Status Badge -->
+        <div class="mb-3">
+          <span class="invite-status pending" data-status-display="">Pending</span>
+        </div>
+        
+        <!-- Invite Link Display -->
+        <div class="mb-3">
+          <div class="text-amber-100 text-xs opacity-70 mb-1" style="color: #fef7cd !important;">Invite Link:</div>
+          <div class="invite-link text-amber-50 text-xs font-mono break-all bg-black bg-opacity-20 p-2 rounded-lg" style="color: #fef7cd !important;" data-invite-link=""></div>
+        </div>
+        
+        <!-- Friend Info (if accepted) -->
+        <div class="friend-info mb-3" style="display: none;">
+          <div class="text-amber-100 text-xs opacity-70 mb-1" style="color: #fef7cd !important;">Friend:</div>
+          <div class="friend-name text-amber-50 text-sm font-semibold" style="color: #fef7cd !important;" data-friend-name=""></div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="invite-actions flex flex-wrap gap-2">
+          <button class="copy-link-button btn-secondary" data-action="copy">
+            <span class="button-text">Copy Link</span>
+          </button>
+          <button class="share-telegram-button btn-secondary" data-action="share-telegram">
+            <span class="button-text">Share on Telegram</span>
+          </button>
+          <button class="share-native-button btn-secondary" data-action="share-native" style="display: none;">
+            <span class="button-text">Share via Other</span>
+          </button>
+          <button class="share-inline-button btn-secondary" data-action="share-inline">
+            <span class="button-text">Share (Rich)</span>
+          </button>
+        </div>
+        
+        <!-- Timestamps -->
+        <div class="invite-timestamps mt-3 text-xs opacity-50" style="color: #fef7cd !important;">
+          <div class="created-at">Created: <span data-created-at=""></span></div>
+          <div class="updated-at" style="display: none;">Updated: <span data-updated-at=""></span></div>
+        </div>
+        
+      </li>
+    </template>
+
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        // Disable the swipe-down gesture that collapses or closes the Mini App
+        if (tg.isVersionAtLeast('7.7')) {
+          tg.disableVerticalSwipes();
+          console.log("Vertical swipes disabled for Telegram WebApp.");
+        }
+    </script>
+    
+    <!-- Invite Friends JavaScript Modules -->
+    <script src="invite-friends/core.js"></script>
+    <script>
+      // Make core module available globally
+      window.inviteFriendsCore = typeof module !== "undefined" && module.exports ? module.exports : window.inviteFriendsCore;
+    </script>
+    <script src="invite-friends/utils.js"></script>
+    <script>
+      // Make utils module available globally
+      window.inviteFriendsUtils = typeof module !== "undefined" && module.exports ? module.exports : window.inviteFriendsUtils;
+    </script>
+    <script src="invite-friends/ui.js"></script>
+    <script>
+      // Make UI module available globally
+      window.inviteFriendsUI = typeof module !== "undefined" && module.exports ? module.exports : window.inviteFriendsUI;
+    </script>
+    <script src="invite-friends/events.js"></script>
+    <script>
+      // Make events module available globally
+      window.inviteFriendsEvents = typeof module !== "undefined" && module.exports ? module.exports : window.inviteFriendsEvents;
+    </script>
+    <script src="invite-friends/main.js"></script>
+</body>
+</html>

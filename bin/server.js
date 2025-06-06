@@ -22,6 +22,7 @@ const updateRouter = require("../src/middleware/updateRouter"); // Module with i
 const errorHandlerMiddleware = require("../src/middleware/errorHandler"); // Function
 const apiRoutes = require("../src/routes/api"); // Express Router
 const formsRouter = require("../src/routes/forms"); // Express Router
+const sessionsRouter = require("../src/routes/sessions"); // Express Router
 const registrationHandler = require("../src/handlers/registrationHandler"); // Module with initialize
 
 // 3. Prepare dependencies object
@@ -47,6 +48,7 @@ const deps = {
   errorHandlerMiddleware, // Pass the middleware function
   apiRoutes, // Pass the router
   formsRouter, // Pass the router
+  sessionsRouter, // Pass the router
   registrationHandler, // Pass the module
 };
 

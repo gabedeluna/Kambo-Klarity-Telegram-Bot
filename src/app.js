@@ -13,7 +13,8 @@ async function initializeApp(deps) {
     deps.stateManager &&
     deps.GoogleCalendarTool && // Expect the class
     deps.prisma && // Expect prisma for other modules
-    deps.apiRoutes; // Expect apiRoutes module
+    deps.apiRoutes && // Expect apiRoutes module
+    deps.sessionsRouter; // Expect sessionsRouter module
 
   if (!allDepsPresent) {
     const missingDetails = {
@@ -24,6 +25,7 @@ async function initializeApp(deps) {
       GoogleCalendarToolExists: !!(deps && deps.GoogleCalendarTool),
       prismaExists: !!(deps && deps.prisma),
       apiRoutesExists: !!(deps && deps.apiRoutes),
+      sessionsRouterExists: !!(deps && deps.sessionsRouter),
     };
     console.error(
       "initializeApp failed: Missing essential dependencies. Details:",
@@ -49,6 +51,7 @@ async function initializeApp(deps) {
     errorHandlerMiddleware, // Assuming this is the module/middleware function
     prisma, // prisma is not directly used here, but by stateManager etc.
     apiRoutes, // Add apiRoutes here
+    sessionsRouter, // Add sessionsRouter here
   } = deps;
 
   logger.info("Starting application initialization...");
@@ -65,6 +68,7 @@ async function initializeApp(deps) {
     // updateRouter,
     // errorHandlerMiddleware,
     // apiRoutes, // REMOVE: apiRoutes is already destructured in the block above
+    // sessionsRouter, // REMOVE: sessionsRouter is already destructured in the block above
     formsRouter, // Correct import
     registrationHandler, // Correct import
   } = deps;
@@ -85,6 +89,7 @@ async function initializeApp(deps) {
     updateRouter,
     errorHandlerMiddleware,
     apiRoutes, // Add apiRoutes to requiredDeps
+    sessionsRouter, // Add sessionsRouter to requiredDeps
     formsRouter,
     registrationHandler,
   };
@@ -167,6 +172,10 @@ async function initializeApp(deps) {
   formsRouter.initialize({ logger, registrationHandler });
   logger.info("Forms router initialized.");
 
+  // Dependencies needed for sessionsRouter.initialize: logger, prisma
+  sessionsRouter.initialize({ logger, prisma });
+  logger.info("Sessions router initialized.");
+
   // --- Mount Form Router ---
   // API router will be initialized and mounted after googleCalendarInstance is created
   app.use("/", formsRouter.router); // Access the exported router directly
@@ -195,6 +204,10 @@ async function initializeApp(deps) {
 
   app.use("/api", apiRoutes.getRouter()); // Call getRouter() to get the actual router
   logger.info("API router mounted.");
+
+  // --- Mount Sessions Router ---
+  app.use("/api/sessions", sessionsRouter.router); // Mount sessions router under /api/sessions
+  logger.info("Sessions router mounted under /api/sessions.");
 
   // --- Initialization Logic (Moved inside) ---
   try {

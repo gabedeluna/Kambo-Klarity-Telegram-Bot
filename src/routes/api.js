@@ -9,6 +9,7 @@ const apiHandler = require("../handlers/apiHandler"); // Main API handler
 const sessionTypesApiHandler = require("../handlers/api/sessionTypesApiHandler"); // Handler for session type specific APIs
 const bookingFlowApiHandler = require("../handlers/api/bookingFlowApiHandler"); // Handler for booking flow APIs
 const placeholderApiHandler = require("../handlers/api/placeholderApiHandler"); // Handler for placeholder booking APIs
+const config = require("../core/env"); // Configuration for frontend config endpoint
 
 let prisma, logger, telegramNotifier, bot, googleCalendarTool; // Added bot and googleCalendarTool
 // let agentExecutor; // Keep commented out if planned for future use
@@ -88,6 +89,27 @@ function getRouter() {
   // Route to get all session types (for calendar component)
   router.get("/sessions", apiHandler.getSessionTypes);
 
+  // Route to get frontend configuration (BOT_USERNAME, WEBAPP_NAME)
+  router.get("/config", (req, res) => {
+    try {
+      const frontendConfig = {
+        botUsername: config.botUsername,
+        webAppName: config.webAppName,
+      };
+
+      res.json({
+        success: true,
+        data: frontendConfig,
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to get frontend configuration");
+      res.status(500).json({
+        success: false,
+        message: "Failed to get configuration",
+      });
+    }
+  });
+
   // Feature 4: Placeholder booking routes
   router.post(
     "/gcal-placeholder-bookings",
@@ -111,6 +133,92 @@ function getRouter() {
     "/booking-flow/continue",
     bookingFlowApiHandler.handleContinueFlow,
   );
+
+  // Invite Context API Route (for StartApp integration)
+  router.get("/invite-context/:inviteToken", async (req, res, next) => {
+    logger.info(
+      { inviteToken: req.params.inviteToken },
+      "GET invite context by token",
+    );
+
+    try {
+      const { inviteToken } = req.params;
+
+      if (!inviteToken) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required parameter: inviteToken",
+        });
+      }
+
+      // Find the invite and related session
+      const sessionInvite = await prisma.sessionInvite.findFirst({
+        where: {
+          token: inviteToken,
+          status: "pending", // Only allow pending invites
+        },
+        include: {
+          sessions: {
+            include: {
+              SessionType: true,
+            },
+          },
+        },
+      });
+
+      if (!sessionInvite) {
+        return res.status(404).json({
+          success: false,
+          message: "Invite token not found or no longer valid",
+        });
+      }
+
+      const session = sessionInvite.sessions;
+
+      // Format session details
+      const sessionDetails = {
+        sessionTypeLabel: session.SessionType?.label || "Kambo Session",
+        formattedDateTime: new Date(
+          session.appointment_datetime,
+        ).toLocaleString("en-US", {
+          timeZone: "America/Chicago",
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      };
+
+      // Flow configuration for friend waiver
+      const flowConfiguration = {
+        formType:
+          session.SessionType?.waiverType === "NONE"
+            ? "KAMBO_WAIVER_FRIEND_V1"
+            : session.SessionType?.waiverType + "_FRIEND",
+        allowsGroupInvites: session.SessionType?.allowsGroupInvites || false,
+        maxGroupSize: session.SessionType?.maxGroupSize || 1,
+      };
+
+      res.json({
+        success: true,
+        data: {
+          inviteToken: inviteToken,
+          sessionTypeId: session.session_type_id,
+          appointmentDateTimeISO: session.appointment_datetime.toISOString(),
+          sessionDetails: sessionDetails,
+          flowConfiguration: flowConfiguration,
+        },
+      });
+    } catch (error) {
+      logger.error(
+        { error, inviteToken: req.params.inviteToken },
+        "Failed to get invite context by token",
+      );
+      next(error);
+    }
+  });
 
   logger.info("API routes configured.");
   return router;

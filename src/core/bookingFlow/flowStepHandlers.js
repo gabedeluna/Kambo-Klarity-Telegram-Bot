@@ -32,7 +32,7 @@ function determineNextStep(flowState, sessionType) {
           nextStep: "awaiting_waiver",
           action: {
             type: "REDIRECT",
-            url: `/form-handler.html?formType=${sessionType.waiverType}&flowToken=`,
+            url: `/form-handler/form-handler.html?formType=${sessionType.waiverType}&flowToken=`,
           },
         };
       } else if (sessionType.allowsGroupInvites) {

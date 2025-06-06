@@ -3,6 +3,9 @@
  * @description Unit tests for the generic form handler mini-app core logic
  */
 
+/* eslint-env browser, jest, node */
+/* global document, Telegram */
+
 // Mock Telegram WebApp
 global.Telegram = {
   WebApp: {

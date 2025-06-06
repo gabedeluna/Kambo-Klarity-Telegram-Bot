@@ -147,61 +147,12 @@ Required environment variables (see `.env.example`):
 - **Automated Security Scanning**: Integrate into CI/CD pipeline
 - **Token Rotation**: Consider implementing for enhanced JWT security
 
-## Phase 6: Enhanced Booking Flow System
-
-### Overview
-Phase 6 implements a **BookingFlowManager** system that orchestrates dynamic booking and group invitation flows using JWT-based stateless flow management with a two-step booking process.
-
-### Phase 6 Features Status
-- ✅ **Feature 1**: BookingFlowManager Core Module (JWT-based orchestration)
-- ✅ **Feature 2**: API Endpoints for Flow Management (`/api/booking-flow/*`)
-- ✅ **Feature 3**: Enhanced SessionType Model (dynamic flow configuration)
-- ✅ **Feature 4**: Refactored Calendar App (two-step booking with placeholders)
-- ✅ **Feature 5**: Generic Form Handler Mini-App (dynamic form rendering)
-- ❌ **Feature 6**: Waiver Processing Logic (friend invitation flows - NEEDS IMPLEMENTATION)
-
-### Core Architecture
-
-#### BookingFlowManager System
-- **Central orchestrator** for all booking and invitation flows
-- **JWT-based stateless design** - flow state encoded in signed tokens
-- **Two-step booking**: placeholder creation → flow initiation → completion
-- **Dynamic routing** based on SessionType configuration (`waiverType`, `allowsGroupInvites`, `maxGroupSize`)
-
-#### Database Schema Requirements
-- ✅ Enhanced `SessionType` with dynamic flow fields
-- ⚠️ Legacy `sessions` table (needs migration to proper `Session` model with relations)
-- ❌ Missing `SessionInvite` model (required for friend invitation system)
-
-#### Frontend Mini-Apps
-- ✅ `calendar-app.html` - Two-step booking with placeholder creation
-- ✅ `form-handler.html` - Generic form rendering (primary + friend waivers)
-- ❌ `invite-friends.html` - Friend invitation management (Feature 6)
-- ❌ `join-session.html` - Friend invitation acceptance (Feature 6)
-
-### Critical Implementation Gaps
-
-#### Feature 6: Waiver Processing Logic
-**Missing Components:**
-- **Friend waiver submission processing** - Update `SessionInvite`, Google Calendar events, notifications
-- **Primary booker completion logic** - Session creation, calendar events, conditional friend invitation redirect
-- **Multi-party notification system** - Friend, primary booker, and admin notifications
-- **Group session management** - Calendar event title/description updates for groups
-
-#### Database Migration Required
-- **`SessionInvite` model** for friend invitation tracking with status management
-- **Proper `Session` model** with foreign key relations to `SessionType` and `SessionInvite`
-- **Migration from legacy `sessions` table** without data loss
-
-### Flow Token Structure (JWT)
-Contains essential flow context: `userId`, `flowType`, `sessionTypeId`, `appointmentDateTimeISO`, `placeholderId`, `parentSessionId`, `inviteToken` - signed with short expiry for security.
 
 ### Two-Step Booking Design
 1. **Placeholder Creation** - 15-minute Google Calendar reservation prevents race conditions
 2. **Flow Initiation** - BookingFlowManager orchestrates based on SessionType configuration
 3. **Completion** - Atomic session creation with proper error handling and rollback
 
-## Key Development Considerations
 
 ### Booking Flow Architecture
 The system uses **JWT-based stateless flows** rather than server-side session storage:
