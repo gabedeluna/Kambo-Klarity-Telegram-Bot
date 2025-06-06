@@ -2,6 +2,48 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CRITICAL DATABASE PROTECTION RULES ⚠️
+
+**NEVER DESTROY USER DATA - ABSOLUTE RULE:**
+- **NEVER run database reset commands** (`--force-reset`, `db push --force-reset`, `migrate reset`, etc.) without explicit user permission and confirmed backup
+- **NEVER run destructive database operations** without warning about data loss and getting explicit consent
+- **ALWAYS ask permission before ANY database commands** that could affect existing data (migrations, seeds, resets)
+- **ALWAYS suggest backup procedures** before risky operations
+- **Data preservation is the highest priority** - user data is irreplaceable and sacred
+
+**Historical Context:** During Feature 8 implementation, database reset commands were run that destroyed all user data and availability rules. This must NEVER happen again.
+
+**Required Process for ANY database operations:**
+1. Ask explicit permission before running ANY database command
+2. Warn about potential data loss 
+3. Suggest backup procedures
+4. Get confirmed consent before proceeding
+5. Use non-destructive approaches whenever possible
+
+## Database MCP Server - Safe Database Operations
+
+**Installation & Configuration:**
+- **Installed**: `@modelcontextprotocol/server-postgres@0.6.2`
+- **Config file**: `.mcpconfig.json` (contains database connection)
+- **Binary**: `mcp-server-postgres`
+
+**Available MCP Tools (PREFERRED for database operations):**
+- `mcp__database__query` - Execute SELECT queries safely
+- `mcp__database__schema` - Inspect database schema and tables
+- `mcp__database__describe` - Get table structure and relationships
+
+**Key Benefits:**
+- **Built-in safety features** prevent accidental destructive operations
+- **Structured access** to database through MCP protocol
+- **Query validation** before execution
+- **Schema inspection** without raw SQL commands
+- **Connection management** with proper error handling
+
+**Usage Priority:**
+1. **FIRST**: Use MCP tools for database operations
+2. **SECOND**: Use Prisma client methods in code
+3. **LAST RESORT**: Direct database commands (WITH EXPLICIT PERMISSION ONLY)
+
 ## Common Development Commands
 
 **Testing & Quality:**
@@ -14,8 +56,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run webhook:set` - Configure Telegram webhook for development
 
 **Database:**
-- `npx prisma migrate dev` - Apply database migrations
-- `npx prisma db seed` - Seed database with initial data
+- `npx prisma migrate dev` - Apply database migrations (⚠️ REQUIRES EXPLICIT PERMISSION)
+- `npx prisma db seed` - Seed database with initial data (⚠️ REQUIRES EXPLICIT PERMISSION)
+- **Database MCP Server** - Use MCP tools for safer database operations (PREFERRED METHOD)
 
 **Administration:**
 - `npm run set-admin` - Designate admin users (interactive)

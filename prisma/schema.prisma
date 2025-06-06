@@ -34,10 +34,10 @@ model SessionInvite {
   updatedAt               DateTime
   sessions                sessions @relation(fields: [parentSessionId], references: [id], onDelete: Cascade)
 
+  @@unique([parentSessionId, friendTelegramId], name: "unique_friend_per_session")
   @@index([friendTelegramId])
   @@index([inviteToken])
   @@index([parentSessionId, status])
-  @@unique([parentSessionId, friendTelegramId], name: "unique_friend_per_session")
 }
 
 model SessionType {

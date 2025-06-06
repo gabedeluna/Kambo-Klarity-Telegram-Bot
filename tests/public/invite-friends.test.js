@@ -537,7 +537,7 @@ describe("Invite Friends Mini-App", () => {
     });
 
     test("should disable generate button when limit reached", () => {
-      const mockData = {
+      const _mockData = {
         success: true,
         data: {
           maxInvites: 2,
