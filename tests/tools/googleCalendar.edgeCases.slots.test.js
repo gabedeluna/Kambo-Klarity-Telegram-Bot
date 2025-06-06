@@ -179,7 +179,7 @@ describe("GoogleCalendarTool - Slot Generation & Event Parsing Edge Cases", () =
         min_notice_hours: 0,
       });
       mockPrisma.availabilityRule.findFirst.mockResolvedValue(mockRule);
-      
+
       // Mock FreeBusy API response with no busy times
       mockCalendarFreeBusy.query.mockResolvedValue({
         data: {
@@ -258,11 +258,11 @@ describe("GoogleCalendarTool - Slot Generation & Event Parsing Edge Cases", () =
       const busyTimes = [
         {
           start: `${FIXED_MONDAY}T14:00:00.000Z`, // 10 AM EST (UTC-4)
-          end: `${FIXED_MONDAY}T15:00:00.000Z`,   // 11 AM EST
+          end: `${FIXED_MONDAY}T15:00:00.000Z`, // 11 AM EST
         },
         {
           start: `${FIXED_MONDAY}T18:00:00.000Z`, // 2 PM EST
-          end: `${FIXED_MONDAY}T19:00:00.000Z`,   // 3 PM EST
+          end: `${FIXED_MONDAY}T19:00:00.000Z`, // 3 PM EST
         },
       ];
 

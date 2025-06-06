@@ -1,7 +1,6 @@
 // src/middleware/errorHandlerMiddleware.js
 
-const { createLogger } = require("../core/logger"); // Adjust path as needed
-const logger = createLogger(); // Create a logger instance for this middleware
+const logger = require("../core/logger"); // Import singleton logger instance
 
 /**
  * Centralized Express error handling middleware.

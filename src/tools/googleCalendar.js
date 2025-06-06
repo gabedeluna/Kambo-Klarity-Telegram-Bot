@@ -199,8 +199,10 @@ class GoogleCalendarTool {
       end: eventDetails.end.dateTime,
     };
 
-    const result = await this.eventsTool.createCalendarEvent(convertedEventDetails);
-    
+    const result = await this.eventsTool.createCalendarEvent(
+      convertedEventDetails,
+    );
+
     if (!result.success) {
       throw new Error(result.error || "Failed to create calendar event");
     }
@@ -223,7 +225,7 @@ class GoogleCalendarTool {
     }
 
     const result = await this.eventsTool.deleteCalendarEvent({ eventId });
-    
+
     if (!result.success) {
       throw new Error(result.error || "Failed to delete calendar event");
     }

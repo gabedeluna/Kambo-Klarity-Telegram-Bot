@@ -58,7 +58,9 @@
     cssLink.rel = "stylesheet";
     cssLink.href = "/node_modules/@stagewise/toolbar/dist/index.css";
     cssLink.onerror = () => {
-      console.warn("[Stagewise] ⚠️ Failed to load CSS, continuing without styles");
+      console.warn(
+        "[Stagewise] ⚠️ Failed to load CSS, continuing without styles",
+      );
     };
     document.head.appendChild(cssLink);
 
@@ -147,12 +149,22 @@
               indicator.remove();
             }, 5000);
           } catch (initError) {
-            console.error("[Stagewise] ❌ Failed to initialize toolbar:", initError);
-            
+            console.error(
+              "[Stagewise] ❌ Failed to initialize toolbar:",
+              initError,
+            );
+
             // Check if it's a custom element conflict
-            if (initError.message && initError.message.includes('already been defined')) {
-              console.warn("[Stagewise] ⚠️ Custom element conflict detected - this is likely due to page reload or multiple script loads");
-              console.warn("[Stagewise] 💡 Refresh the page to clear the conflict");
+            if (
+              initError.message &&
+              initError.message.includes("already been defined")
+            ) {
+              console.warn(
+                "[Stagewise] ⚠️ Custom element conflict detected - this is likely due to page reload or multiple script loads",
+              );
+              console.warn(
+                "[Stagewise] 💡 Refresh the page to clear the conflict",
+              );
             }
           }
         } else {
@@ -161,12 +173,16 @@
       })
       .catch((error) => {
         console.error("[Stagewise] ❌ Failed to load ES module:", error);
-        
+
         // Provide helpful debugging information
-        if (error.message && error.message.includes('404')) {
-          console.warn("[Stagewise] 💡 Stagewise module not found - this is normal if not installed");
-        } else if (error.message && error.message.includes('network')) {
-          console.warn("[Stagewise] 💡 Network error loading Stagewise - check your connection");
+        if (error.message && error.message.includes("404")) {
+          console.warn(
+            "[Stagewise] 💡 Stagewise module not found - this is normal if not installed",
+          );
+        } else if (error.message && error.message.includes("network")) {
+          console.warn(
+            "[Stagewise] 💡 Network error loading Stagewise - check your connection",
+          );
         }
       });
   }

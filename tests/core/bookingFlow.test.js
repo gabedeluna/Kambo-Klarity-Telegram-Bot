@@ -100,7 +100,9 @@ describe("BookingFlowManager", () => {
 
     it("should return flowToken and waiver form redirect for session type requiring waiver", async () => {
       // Arrange
-      mockPrisma.sessionType.findUnique.mockResolvedValue(mockSessionTypeWithWaiverAndInvites);
+      mockPrisma.sessionType.findUnique.mockResolvedValue(
+        mockSessionTypeWithWaiverAndInvites,
+      );
       mockSessionTypesCore.getById.mockResolvedValue(
         mockSessionTypeWithWaiverAndInvites,
       );
@@ -138,7 +140,9 @@ describe("BookingFlowManager", () => {
 
     it("should return flowToken and completion for session type with no waiver and no invites", async () => {
       // Arrange
-      mockPrisma.sessionType.findUnique.mockResolvedValue(mockSessionTypeNoWaiverNoInvites);
+      mockPrisma.sessionType.findUnique.mockResolvedValue(
+        mockSessionTypeNoWaiverNoInvites,
+      );
       mockSessionTypesCore.getById.mockResolvedValue(
         mockSessionTypeNoWaiverNoInvites,
       );
@@ -161,11 +165,14 @@ describe("BookingFlowManager", () => {
       mockPrisma.sessionType.findUnique.mockResolvedValue(null);
 
       // Act
-      const result = await BookingFlowManager.startPrimaryBookingFlow(mockStartFlowData);
+      const result =
+        await BookingFlowManager.startPrimaryBookingFlow(mockStartFlowData);
 
       // Assert
       expect(result.success).toBe(false);
-      expect(result.message).toBe("Session type not found or is no longer available.");
+      expect(result.message).toBe(
+        "Session type not found or is no longer available.",
+      );
     });
 
     it("should throw error for missing required data", async () => {

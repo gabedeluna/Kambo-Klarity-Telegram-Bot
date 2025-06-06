@@ -22,7 +22,7 @@ async function getAll() {
     logger.info(
       `[sessionTypes] Fetched ${activeSessionTypes.length} active session types from DB.`,
     );
-    // console.log('[MANUAL TEST getAll] DB Result:', activeSessionTypes); // Temporary for manual testing
+    // Debug: logger.debug({ count: activeSessionTypes.length }, 'Retrieved active session types');
     return activeSessionTypes;
   } catch (error) {
     logger.error(

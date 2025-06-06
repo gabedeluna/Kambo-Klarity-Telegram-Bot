@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -7,17 +8,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model AvailabilityRule {
+  id                     Int      @id @default(autoincrement())
+  weekly_availability    Json?
+  practitioner_timezone  String   @default("America/Chicago")
+  max_advance_days       Int      @default(30)
+  min_notice_hours       Int      @default(24)
+  buffer_time_minutes    Int      @default(30)
+  max_bookings_per_day   Int      @default(3)
+  is_default             Boolean  @unique @default(true)
+  created_at             DateTime @default(now())
+  updated_at             DateTime
+  slot_increment_minutes Int      @default(15)
+}
+
+model SessionInvite {
+  id                      String   @id
+  parentSessionId         Int
+  inviteToken             String   @unique
+  status                  String   @default("pending")
+  friendTelegramId        BigInt?
+  friendNameOnWaiver      String?
+  friendLiabilityFormData Json?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime
+  sessions                sessions @relation(fields: [parentSessionId], references: [id], onDelete: Cascade)
+
+  @@index([friendTelegramId])
+  @@index([inviteToken])
+  @@index([parentSessionId, status])
+}
+
+model SessionType {
+  id                    String     @id
+  label                 String
+  durationMinutes       Int
+  description           String?
+  price                 Decimal?
+  active                Boolean    @default(true)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime
+  allowsGroupInvites    Boolean    @default(false)
+  customFormDefinitions Json?
+  maxGroupSize          Int        @default(1)
+  waiverType            String     @default("KAMBO_V1")
+  sessions              sessions[]
+}
+
 model sessions {
-  first_name           String?   @db.VarChar
-  last_name            String?   @db.VarChar
+  first_name           String?         @db.VarChar
+  last_name            String?         @db.VarChar
   telegram_id          BigInt?
-  appointment_datetime DateTime? @db.Timestamptz(6)
+  appointment_datetime DateTime?       @db.Timestamptz(6)
   liability_form_data  Json?
   session_notes        String?
-  session_status       String?   @db.VarChar
-  created_at           DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime  @updatedAt
-  id                   Int       @id @default(autoincrement())
+  session_status       String?         @db.VarChar
+  created_at           DateTime        @default(now()) @db.Timestamptz(6)
+  id                   Int             @id @default(autoincrement())
+  updated_at           DateTime
+  googleEventId        String?
+  session_type_id_fk   String?
+  SessionInvite        SessionInvite[]
+  SessionType          SessionType?    @relation(fields: [session_type_id_fk], references: [id])
+
+  @@index([appointment_datetime])
+  @@index([session_type_id_fk])
+  @@index([telegram_id])
 }
 
 model users {
@@ -30,7 +86,7 @@ model users {
   date_of_birth           DateTime? @db.Date
   reason_for_seeking      String?
   created_at              DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at              DateTime  @updatedAt
+  updated_at              DateTime
   state                   String?   @default("NONE") @db.VarChar
   role                    String?   @default("client") @db.VarChar
   session_type            String?   @db.VarChar
@@ -42,44 +98,4 @@ model users {
   is_veteran_or_responder Boolean   @default(false)
   active_session_id       String?   @unique(map: "client_users_active_session_id_key")
   can_book_3x3            Boolean   @default(false)
-}
-
-model SessionType {
-  id                String    @id 
-  label             String    
-  durationMinutes   Int       
-  description       String?   
-  price             Decimal?  
-  active            Boolean   @default(true) 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  // New / Enhanced Fields for Dynamic Flows
-  waiverType           String    @default("KAMBO_V1")
-  allowsGroupInvites   Boolean   @default(false)
-  maxGroupSize         Int       @default(1)
-  customFormDefinitions Json?    // For future dynamic form sequences
-}
-
-model AvailabilityRule {
-  id                  Int      @id @default(autoincrement())
-  // General Weekly Availability (store as JSON or break into specific day fields)
-  weekly_availability Json?    // Example: { "MON": [{start: "09:00", end: "17:00"}], "TUE": [...], ... }
-
-  practitioner_timezone String   @default("America/Chicago") // Store the practitioner's base timezone
-
-  // Booking Window Rules
-  max_advance_days      Int      @default(30) // Maximum days in advance a booking can be made
-  min_notice_hours      Int      @default(24) // Minimum hours before appointment start it can be booked
-
-  // Appointment Settings
-  buffer_time_minutes   Int      @default(30)  // Buffer time in minutes between appointments
-  max_bookings_per_day  Int      @default(3) // Maximum Kambo sessions per day
-  slot_increment_minutes Int   @default(15) // How many minutes to step by when generating slots
-
-  // A field to ensure only one rule set exists if this is global
-  is_default            Boolean  @unique @default(true) // To ensure only one global rule record
-
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
 }

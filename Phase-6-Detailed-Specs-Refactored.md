@@ -14,9 +14,11 @@ This document provides a comprehensive, step-by-step technical specification for
     *   `public/invite-friends.html` (New/Refactored - For primary booker to manage invites)
     *   `public/invite-friends.js` (New/Refactored - Logic for `invite-friends.html`)
     *   `public/invite-friends.css` (New or shared styles)
-    *   `public/join-session.html` (New/Refactored - For invited friends to view invite details)
-    *   `public/join-session.js` (New/Refactored - Logic for `join-session.html`)
-    *   `public/join-session.css` (New or shared styles)
+    *   ~~`public/join-session.html`~~ **[DEPRECATED]** - Replaced by direct startapp links to form-handler.html
+    *   ~~`public/join-session.js`~~ **[DEPRECATED]** - Functionality integrated into form-handler.js startapp detection
+    *   ~~`public/join-session.css`~~ **[DEPRECATED]** - Styles no longer needed
+    *   `public/booking-confirmed.html` (New - Final confirmation and booking trigger page)
+    *   `public/booking-confirmed.js` (New - Logic for the final confirmation page)
     *   Shared CSS/JS modules in `public/` as needed (e.g., `public/css/theme.css`, `public/js/utils.js`).
     *   *Deprecated/Refactored:*
         *   [`public/waiver-form.html`](public/waiver-form.html:0) (Its functionality will be absorbed by `public/form-handler.html`)
@@ -45,1126 +47,7 @@ This document provides a comprehensive, step-by-step technical specification for
 
 ---
 
-## Feature Specifications
 
----
-
-### Feature 1 (Task 17): Design & Implement `BookingFlowManager` Core Module
-
-**Goal:**
-Create the central `BookingFlowManager` module (`src/core/bookingFlowManager.js`) responsible for orchestrating dynamic booking and invitation flows based on `SessionType` configurations. This module will act as the "brain" determining the sequence of user experiences.
-
-**API Relationships:**
-*   This module itself is not an API but will be called by API handlers, primarily `src/handlers/api/bookingFlowApiHandler.js`.
-*   It will interact internally with:
-    *   [`src/core/prisma.js`](src/core/prisma.js:0) (for DB access to `SessionType`, `Session`, `SessionInvite`, `User`, etc.)
-    *   [`src/core/sessionTypes.js`](src/core/sessionTypes.js:80) (to fetch detailed session type configurations)
-    *   [`src/tools/googleCalendar.js`](src/tools/googleCalendar.js:0) (for GCal operations)
-    *   [`src/tools/telegramNotifier.js`](src/tools/telegramNotifier.js:0) (to trigger notifications)
-    *   [`src/tools/stateManager.js`](src/tools/stateManager.js:0) (potentially for managing flow state if not using self-contained tokens)
-    *   [`src/core/logger.js`](src/core/logger.js:0) (for logging)
-
-**Detailed Requirements:**
-
-*   **Requirement A (Module Creation & Structure):**
-    *   Create the file `src/core/bookingFlowManager.js`.
-    *   It should export functions to initiate, continue, and potentially cancel/query booking flows.
-    *   Example exported functions: `startPrimaryBookingFlow()`, `startInviteAcceptanceFlow()`, `continueFlow()`, `processWaiverSubmission()`, `processFriendInviteAcceptance()`, `handleFriendDecline()`.
-*   **Requirement B (Flow State Management):**
-    *   Design a robust mechanism to manage the state of an ongoing booking flow. This state needs to be passed between client (mini-apps) and server across multiple HTTP requests.
-    *   **Option 1 (Preferred for statelessness): JWT-based Flow Token.**
-        *   Generate a secure JSON Web Token (JWT) (`flowToken`) when a flow starts.
-        *   This token will encapsulate essential, non-sensitive flow context: `userId` (Telegram ID of the primary actor in the flow), `flowType` ("primary_booking", "friend_invite"), `currentStep` (e.g., "awaiting_waiver", "awaiting_friend_invites"), `sessionTypeId`, `appointmentDateTimeISO`, `placeholderId` (if applicable), `parentSessionId` (for friend flows), `inviteToken` (for friend flows).
-        *   The token should have a short expiry (e.g., 1-2 hours) and be signed securely.
-        *   Sensitive data (like full waiver form inputs before final submission) should NOT be stored in the token but passed directly in POST bodies when a step is submitted.
-    *   **Option 2 (Server-side state): Temporary DB Record or Cache.**
-        *   Generate a unique `flowInstanceId`.
-        *   Store flow state in a temporary database table (e.g., `BookingFlowState`) or a Redis cache, keyed by `flowInstanceId`.
-        *   This `flowInstanceId` acts as the `flowToken`.
-        *   Requires a cleanup mechanism for abandoned/expired flow states.
-    *   The `BookingFlowManager` will parse this `flowToken` (or retrieve state using it) to understand the context of any "continue flow" request.
-*   **Requirement C (Core Flow Logic & Decision Making):**
-    *   Implement functions to retrieve `SessionType` details (especially `waiverType`, `allowsGroupInvites`, `maxGroupSize`) using [`src/core/sessionTypes.js`](src/core/sessionTypes.js:80).
-    *   Develop a central decision-making function (e.g., `determineNextStep(currentFlowState, sessionTypeConfig, submittedData?)`) that:
-        *   Takes the current flow state and `SessionType` configuration.
-        *   Based on rules (e.g., `sessionType.waiverType !== "NONE"`, `sessionType.allowsGroupInvites === true && currentFlowState.step === "primary_waiver_complete"`), determines the next logical step.
-        *   Examples of next steps:
-            *   Redirect to `form-handler.html` with a specific `formType` (e.g., "KAMBO_WAIVER_V1").
-            *   Redirect to `invite-friends.html`.
-            *   Indicate flow completion (e.g., booking confirmed).
-            *   Indicate an error state.
-    *   Initial flow logic will be based on `waiverType` and `allowsGroupInvites`. For example:
-        *   If `waiverType` is "KAMBO_V1", next step is waiver form.
-        *   If `waiverType` is "NONE" and `allowsGroupInvites` is true, next step (after initial booking for primary) could be `invite-friends.html`.
-        *   If `waiverType` is "NONE" and `allowsGroupInvites` is false, next step (after initial booking for primary) is completion.
-*   **Requirement D (Step Execution & Orchestration):**
-    *   The manager's functions (e.g., `processWaiverSubmission`) will perform the actual backend operations for a given step:
-        *   Validate input data.
-        *   Interact with Prisma for DB operations (create/update `Session`, `SessionInvite`).
-        *   Interact with `googleCalendarTool` (create/delete/update GCal events).
-        *   Interact with `telegramNotifierTool` (send confirmations, notifications).
-    *   After performing actions, it will call `determineNextStep()` to get the subsequent action for the client.
-*   **Requirement E (Logging):**
-    *   Integrate with [`src/core/logger.js`](src/core/logger.js:0).
-    *   Log key events: flow initiation (with initial parameters), each step transition, data received, decisions made by `determineNextStep()`, actions performed (DB, GCal, notifications), errors encountered, flow completion.
-    *   Logs should include `flowToken` or `flowInstanceId` for traceability.
-*   **Requirement F (Extensibility):**
-    *   Design internal functions to be modular (e.g., separate functions for `_handlePrimaryWaiver()`, `_handleFriendWaiver()`, `_createSessionRecord()`, `_generateGCalEvent()`).
-    *   The `determineNextStep()` logic should be adaptable. (Future: `SessionType.customFormDefinitions` could provide a JSON/DSL defining a sequence of steps and conditions, making the flow manager data-driven rather than purely code-driven for complex custom flows).
-*   **Requirement G (Error Handling):**
-    *   Implement robust error handling for DB operations, GCal API calls, etc.
-    *   Define how errors are propagated back to the calling API handler to be returned to the client (e.g., specific error codes/messages).
-    *   For critical multi-step operations (e.g., creating Session, GCal event, then notifying), consider atomicity or compensation logic (though full 2PC is likely overkill, aim for idempotency where possible and clear logging of partial failures).
-
-**Implementation Guide:**
-
-*   **Architecture Overview:**
-    *   The `BookingFlowManager` will be a Node.js module (CommonJS) within the `src/core/` directory. It will be stateless if using JWT flow tokens, or stateful if using server-side session storage for flows.
-    *   **Diagram (Conceptual Flow):**
-        ```mermaid
-        sequenceDiagram
-            participant Client as Mini-App/Bot
-            participant API as API Endpoints (/api/booking-flow/*)
-            participant BFM as BookingFlowManager
-            participant DB as Prisma (Database)
-            participant GCal as GoogleCalendarTool
-            participant Notifier as TelegramNotifierTool
-            participant STCore as SessionTypeCore
-
-            Client->>+API: Initiate Flow (e.g., POST /start-primary with slot details)
-            API->>+BFM: startPrimaryBookingFlow(data)
-            BFM->>+STCore: getById(sessionTypeId)
-            STCore-->>-BFM: sessionTypeDetails
-            BFM->>BFM: determineNextStep(initialState, sessionTypeDetails)
-            BFM-->>-API: { flowToken, nextStep: { type: "REDIRECT", url: "/form-handler.html?..." } }
-            API-->>-Client: { flowToken, nextStep }
-
-            Client->>Client: Redirect to form-handler.html?flowToken=...&formType=...
-            Client->>+API: Submit Form (POST /continue with flowToken, formData)
-            API->>+BFM: continueFlow({ flowToken, stepId:"waiver_submission", formData })
-            BFM->>BFM: Parse flowToken, validate
-            BFM->>+DB: Save waiver data, Create/Update Session/SessionInvite
-            DB-->>-BFM: Success/Failure
-            BFM->>+GCal: Create/Update GCal Event
-            GCal-->>-BFM: Success/Failure
-            BFM->>+Notifier: Send Notifications
-            Notifier-->>-BFM: Success/Failure
-            BFM->>BFM: determineNextStep(updatedState, sessionTypeDetails)
-            BFM-->>-API: { nextStep: { type: "REDIRECT", url: "/invite-friends.html?..." } or { type: "COMPLETE" } }
-            API-->>-Client: { nextStep }
-        end
-        ```
-    *   **Tech Stack:** Node.js, JavaScript (CommonJS). Dependencies: `jsonwebtoken` (if using JWTs), existing core modules.
-    *   **Deployment:** Deployed as part of the main Node.js application. No separate deployment process.
-
-*   **DB Schema:**
-    *   No new tables are strictly required by `BookingFlowManager` itself if JWTs are used for flow state.
-    *   If server-side flow state is chosen (Option 2 for Req B):
-        *   **New Table: `BookingFlowState`**
-            *   `id`: String (UUID, Primary Key - this is the `flowInstanceId`/`flowToken`)
-            *   `userId`: BigInt (Telegram ID of the user initiating/acting in the flow)
-            *   `flowType`: String (e.g., "PRIMARY_BOOKING", "FRIEND_INVITE_ACCEPTANCE")
-            *   `currentStep`: String (e.g., "AWAITING_WAIVER", "AWAITING_INVITES_MANAGEMENT", "COMPLETED")
-            *   `sessionTypeId`: String (FK to `SessionType.id`)
-            *   `appointmentDateTimeISO`: String
-            *   `placeholderId`: String? (GCal event ID for placeholder)
-            *   `parentSessionId`: Int? (FK to `Session.id`, for friend flows)
-            *   `activeInviteToken`: String? (The specific `SessionInvite.inviteToken` being processed in a friend flow)
-            *   `accumulatedData`: JSON? (For storing intermediate data if necessary, e.g., pre-fetched user details before waiver)
-            *   `expiresAt`: DateTime (For automatic cleanup of stale flow states)
-            *   `createdAt`: DateTime `@default(now())`
-            *   `updatedAt`: DateTime `@updatedAt`
-            *   **Indexes:** `userId`, `expiresAt`.
-        *   **Migration:** If `BookingFlowState` table is added, a Prisma migration is needed.
-    *   The manager will primarily read `SessionType`, `User` and create/update `Session`, `SessionInvite`.
-
-*   **API Design:**
-    *   The `BookingFlowManager` itself doesn't expose HTTP APIs directly. It's called by API handlers (defined in Task 18). The design of those API handlers will be crucial for how clients interact with the manager.
-
-*   **Frontend Structure:**
-    *   N/A for this backend core module. Frontend mini-apps will interact with its functionalities via the APIs defined in Task 18.
-
-*   **CRUD Operations:**
-    *   The `BookingFlowManager` will orchestrate CRUD operations on various models:
-        *   **Create:** `Session`, `SessionInvite`, GCal Events. If using server-side state, `BookingFlowState`.
-        *   **Read:** `SessionType`, `User`, `Session`, `SessionInvite`, GCal Events. If using server-side state, `BookingFlowState`.
-        *   **Update:** `Session`, `SessionInvite` (e.g., status, friend details), `User` (e.g., `edit_msg_id`), GCal Events (description, title). If using server-side state, `BookingFlowState`.
-        *   **Delete:** GCal Placeholder Events. If using server-side state, expired `BookingFlowState` records.
-    *   **Validation:** Input validation will occur at the API handler level (Task 18) before calling `BookingFlowManager`, and potentially within `BookingFlowManager` for business logic validation (e.g., ensuring invite limits aren't exceeded).
-
-*   **UX Flow:**
-    *   The `BookingFlowManager` underpins the UX flow by determining the sequence of pages/actions.
-    *   **Journey Maps (Conceptual):**
-        *   **Primary Booker:** Calendar -> (Placeholder) -> BFM decides -> Waiver Form (via Form Handler) -> BFM decides -> Invite Friends Page OR Confirmation -> BFM decides -> Completion.
-        *   **Invited Friend:** Bot Invite Link -> BFM decides -> Join Session Page -> BFM decides -> Waiver Form (via Form Handler) -> BFM decides -> Confirmation -> Completion.
-    *   Loading/error states will be handled by the frontend mini-apps based on responses from APIs that call the `BookingFlowManager`.
-
-*   **Security:**
-    *   If using JWTs for `flowToken`:
-        *   Use strong secret keys for signing (from env variables).
-        *   Set appropriate short expiry times (e.g., `exp` claim).
-        *   Do not include sensitive PII directly in the JWT payload; use IDs and fetch details server-side.
-        *   Transmit JWTs over HTTPS.
-    *   If using server-side `flowInstanceId`: Ensure IDs are unguessable (UUIDs).
-    *   The manager itself relies on upstream API handlers for user authentication (e.g., validating `telegramId` against an authenticated session if applicable, or trusting `telegramId` from bot context for specific actions).
-    *   Internal calls to tools like Prisma, GCal, Notifier should use secured configurations.
-
-*   **Testing:**
-    *   **Unit Tests (for `src/core/bookingFlowManager.js`):**
-        *   Mock all external dependencies: `prismaClient`, `sessionTypesCore`, `googleCalendarTool`, `telegramNotifierTool`, `logger`.
-        *   Test `startPrimaryBookingFlow()`:
-            *   Scenario: SessionType requires waiver, allows invites. Expected: returns `flowToken` and `nextStep` pointing to waiver form.
-            *   Scenario: SessionType no waiver, no invites. Expected: returns `flowToken` and `nextStep` for direct booking completion (or calls relevant functions).
-        *   Test `startInviteAcceptanceFlow()`:
-            *   Scenario: Valid invite token. Expected: `flowToken` and `nextStep` for friend (e.g., to `join-session.html` or `form-handler.html`).
-            *   Scenario: Invalid/used invite token. Expected: Throws specific error.
-        *   Test `continueFlow()` (or more specific `processWaiverSubmission()`):
-            *   Mock input `flowToken` and `formData`.
-            *   Scenario: Primary booker waiver, placeholder exists, slot free. Expected: Placeholder deleted, session created, GCal event created, notifications sent, `nextStep` to invite friends (if applicable) or completion.
-            *   Scenario: Primary booker waiver, slot taken. Expected: Error returned, no DB/GCal changes.
-            *   Scenario: Friend waiver. Expected: `SessionInvite` updated, GCal updated, notifications sent, `nextStep` to completion.
-        *   Test `determineNextStep()` logic with various `currentFlowState` and `sessionTypeConfig` inputs.
-    *   **Integration Tests:** Will be part of testing the API endpoints (Task 18) that use the `BookingFlowManager`.
-
-*   **Data Management:**
-    *   **Caching:** `SessionType` details fetched via [`src/core/sessionTypes.js`](src/core/sessionTypes.js:80) might have their own caching. `BookingFlowManager` itself likely won't implement caching beyond what its dependencies provide, unless performance analysis shows a bottleneck.
-    *   **Lifecycle:**
-        *   If JWT `flowToken` is used, its lifecycle is managed by its expiry.
-        *   If server-side `BookingFlowState` table is used, a cron job or TTL mechanism in Redis would be needed to clean up expired/abandoned flow states.
-    *   **Real-time Needs:** No direct real-time needs for this module itself, but it orchestrates actions that might have real-time implications for the user (e.g., seeing a GCal event appear).
-
-*   **Logging & Error Handling:**
-    *   **Structured Logs:** Use `pino` (via [`src/core/logger.js`](src/core/logger.js:0)). Include `flowToken` (or `flowInstanceId`), `userId`, `currentStep`, and relevant context in log messages.
-        *   `logger.info({ flowToken, userId, step: 'startPrimary', sessionTypeId }, 'Primary booking flow started.')`
-        *   `logger.warn({ flowToken, error: err.message }, 'Error processing waiver, GCal update failed.')`
-    *   **Alerts:** Critical errors (e.g., consistent DB failure, GCal API auth failure during flow processing) should trigger alerts (e.g., via Sentry or a logging service that supports alerting).
-    *   **Recovery:**
-        *   For most operations, if a step fails (e.g., GCal booking after DB write), log the inconsistency and inform the user/admin. Full rollback across distributed services (DB, GCal) is complex.
-        *   Aim for idempotency in retryable operations where possible.
-        *   The `BookingFlowManager` should clearly signal success or failure of a step to the calling API handler.
-
-**Key Edge Cases:**
-*   `SessionType` configuration is missing or invalid (e.g., `waiverType` points to a non-existent form).
-*   User attempts to continue a flow with an expired or invalid `flowToken`.
-*   Concurrent modifications to related data (e.g., admin changes `SessionType` while a flow is in progress based on old config) – the flow should ideally use the config fetched at its initiation or at the start of the current step.
-*   Failure in one of the orchestrated actions (DB write, GCal API call, Telegram notification): The manager must handle this gracefully, log appropriately, and decide if the flow can continue or must terminate with an error.
-*   Network errors when `BookingFlowManager` calls external services or internal modules.
-*   Race conditions if multiple users try to book the exact same final slot simultaneously (final GCal check before booking is crucial).
-
----
-
-### Feature 2 (Task 18): API Endpoints for `BookingFlowManager`
-
-**Goal:**
-Expose secure API endpoints for client-side applications (mini-apps) and the Telegram bot to interact with the `BookingFlowManager` to initiate and progress through booking flows. These APIs will be the primary HTTP interface for the `BookingFlowManager`.
-
-**API Relationships:**
-*   These endpoints will be defined in `src/routes/api.js` and handled by `src/handlers/api/bookingFlowApiHandler.js`.
-*   The handlers will call methods on the `BookingFlowManager` (Feature 1 / Task 17).
-*   Clients (mini-apps like `calendar-app.js`, `form-handler.js`, `join-session.js`, `invite-friends.js`; and bot command handlers) will call these APIs.
-
-**Detailed Requirements:**
-
-*   **Requirement A (Endpoint: Start Primary Booking Flow):**
-    *   **Endpoint:** `POST /api/booking-flow/start-primary`
-    *   **Purpose:** Initiates a new booking flow for a primary user after they have selected a slot in the calendar.
-    *   **Request Body (JSON):**
-        ```json
-        {
-          "telegramId": "123456789", // User's Telegram ID
-          "sessionTypeId": "session-type-uuid-1",
-          "appointmentDateTimeISO": "2025-07-15T10:00:00.000Z",
-          "placeholderId": "gcal-placeholder-event-id", // From POST /api/gcal-placeholder-bookings
-          "initialSessionTypeDetails": { // Details fetched by client from /api/session-types or /api/gcal-placeholder-bookings
-            "waiverType": "KAMBO_V1",
-            "allowsGroupInvites": true,
-            "maxGroupSize": 4
-          }
-        }
-        ```
-    *   **Action (Handler):**
-        1.  Validate input: `telegramId`, `sessionTypeId`, `appointmentDateTimeISO`, `placeholderId`, `initialSessionTypeDetails` must be present and correctly formatted.
-        2.  Call `BookingFlowManager.startPrimaryBookingFlow(validatedData)`.
-    *   **Response (Success 200 OK):**
-        ```json
-        {
-          "success": true,
-          "flowToken": "generated.jwt.flow.token", // JWT or opaque token
-          "nextStep": {
-            "type": "REDIRECT", // or "COMPLETE" if no further steps
-            "url": "/form-handler.html?flowToken=generated.jwt.flow.token&formType=KAMBO_WAIVER_V1&telegramId=123456789&sessionTypeId=...&appointmentDateTimeISO=...&placeholderId=...", // Example
-            // "message": "Booking confirmed directly!" // If type is "COMPLETE"
-            // "closeWebApp": true // If type is "COMPLETE" and app should close
-          }
-        }
-        ```
-    *   **Response (Error 400 Bad Request):** If validation fails.
-        ```json
-        { "success": false, "message": "Invalid input: telegramId is required." }
-        ```
-    *   **Response (Error 500 Internal Server Error):** If `BookingFlowManager` encounters an unexpected error.
-        ```json
-        { "success": false, "message": "An internal error occurred while starting the booking flow." }
-        ```
-
-*   **Requirement B (Endpoint: Start Invite Acceptance Flow):**
-    *   **Endpoint:** `GET /api/booking-flow/start-invite/:inviteToken`
-    *   **Purpose:** Initiates a flow for an invited friend who has clicked a deep link.
-    *   **Path Parameter:** `:inviteToken` - The unique token from `SessionInvite`.
-    *   **Query Parameter:** `friend_tg_id` - The Telegram ID of the friend clicking the link.
-    *   **Action (Handler):**
-        1.  Validate `inviteToken` (format) and `friend_tg_id`.
-        2.  Call `BookingFlowManager.startInviteAcceptanceFlow(inviteToken, friend_tg_id)`.
-    *   **Response (Success 200 OK):**
-        ```json
-        {
-          "success": true,
-          "flowToken": "generated.jwt.flow.token.for.friend",
-          "nextStep": {
-            "type": "REDIRECT",
-            "url": "/join-session.html?flowToken=...&inviteToken=...&friend_tg_id=...&primaryBookerName=...&sessionLabel=...&appointmentTimeFormatted=..."
-            // Or directly to form-handler.html if join-session page is skipped:
-            // "url": "/form-handler.html?flowToken=...&formType=KAMBO_WAIVER_V1&inviteToken=...&friend_tg_id=..."
-          },
-          "inviteDetails": { // Data to populate join-session.html or initial bot message
-             "primaryBookerName": "John Doe",
-             "sessionTypeLabel": "Standard Kambo Session",
-             "appointmentTimeFormatted": "Monday, July 15, 2025 at 10:00 AM PDT",
-             "parentSessionId": 123,
-             "sessionTypeId": "session-type-uuid-1",
-             "appointmentDateTimeISO": "2025-07-15T10:00:00.000Z"
-          }
-        }
-        ```
-    *   **Response (Error 404 Not Found):** If `inviteToken` is invalid or already used/expired (determined by `BookingFlowManager`).
-        ```json
-        { "success": false, "message": "Invite token is invalid or has expired." }
-        ```
-    *   **Response (Error 500 Internal Server Error):**
-        ```json
-        { "success": false, "message": "An internal error occurred while starting the invite flow." }
-        ```
-
-*   **Requirement C (Endpoint: Continue Flow / Submit Step Data):**
-    *   **Endpoint:** `POST /api/booking-flow/continue`
-    *   **Purpose:** Allows client to submit data for the current step of an active flow (e.g., waiver form submission, invite management completion).
-    *   **Request Body (JSON):**
-        ```json
-        {
-          "flowToken": "active.jwt.flow.token",
-          "stepId": "waiver_submission", // Identifier for the step being completed
-          "formData": {
-            // Step-specific data, e.g., waiver answers
-            "firstName": "Jane",
-            "lastName": "Doe",
-            // ... other waiver fields ...
-            "liability_form_data": { /* structured waiver answers */ },
-            // Crucial IDs that might have been part of the form or flow context
-            "telegramId": "123456789", // Could be primary booker or friend
-            "sessionTypeId": "session-type-uuid-1",
-            "appointmentDateTimeISO": "2025-07-15T10:00:00.000Z",
-            "placeholderId": "gcal-placeholder-event-id", // If primary booker's waiver
-            "inviteToken": "friend-invite-token-xyz" // If friend's waiver
-          }
-        }
-        ```
-        *(Note: Some IDs like `telegramId`, `sessionTypeId` etc. might also be derivable from the `flowToken` itself, reducing what needs to be sent in `formData` if they are immutable for the flow instance. `formData` would then primarily contain user-entered data for the current step.)*
-    *   **Action (Handler):**
-        1.  Validate `flowToken` (e.g., JWT verification, check expiry).
-        2.  Validate `stepId` and `formData` structure based on `stepId`.
-        3.  Call `BookingFlowManager.continueFlow(parsedFlowTokenData, stepId, validatedFormData)`. This might internally route to specific methods like `processWaiverSubmission()`.
-    *   **Response (Success 200 OK):**
-        ```json
-        {
-          "success": true,
-          "nextStep": {
-            "type": "REDIRECT", // or "COMPLETE" or "ERROR"
-            "url": "/invite-friends.html?flowToken=new.or.same.flow.token&sessionId=...", // Example
-            // "message": "Your booking is confirmed! You will receive a message from the bot shortly.",
-            // "closeWebApp": true // If type is "COMPLETE"
-          }
-        }
-        ```
-    *   **Response (Error 400 Bad Request):** Invalid input or `flowToken`.
-        ```json
-        { "success": false, "message": "Invalid flow token or form data." }
-        ```
-    *   **Response (Error 409 Conflict):** If a business rule is violated (e.g., slot taken, determined by `BookingFlowManager`).
-        ```json
-        { "success": false, "message": "Slot is no longer available." }
-        ```
-    *   **Response (Error 500 Internal Server Error):**
-        ```json
-        { "success": false, "message": "An internal error occurred while continuing the flow." }
-        ```
-
-*   **Requirement D (Security & Authorization):**
-    *   All endpoints must be HTTPS.
-    *   **`flowToken` Security:** If JWT, ensure it's signed with a strong secret, has an expiry, and doesn't contain overly sensitive data. Validate signature and expiry on every request using it.
-    *   **Authorization:**
-        *   For `POST /start-primary` and `POST /continue` (when initiated by primary booker): The `telegramId` in the request should ideally be validated against an authenticated user session if the mini-apps have a way to establish this (e.g., Telegram WebApp `initData`). If not, the `telegramId` is taken as provided, and subsequent actions are tied to this ID.
-        *   For `GET /start-invite/:inviteToken`: The `inviteToken` itself is a form of authorization for that specific invite. The `friend_tg_id` is who is *claiming* to use it.
-        *   `BookingFlowManager` should perform internal checks, e.g., ensuring the `telegramId` acting on a `flowToken` matches the `userId` embedded in the token or associated with the server-side flow state.
-    *   Input sanitization and validation for all request parameters and body fields.
-
-*   **Requirement E (API Handler Implementation):**
-    *   Create `src/handlers/api/bookingFlowApiHandler.js`.
-    *   Define functions for `handleStartPrimaryFlow`, `handleStartInviteFlow`, `handleContinueFlow`.
-    *   These functions will perform request validation, call the appropriate `BookingFlowManager` methods, and format the HTTP response.
-    *   Register these handlers in `src/routes/api.js` for the defined endpoints.
-
-**Implementation Guide:**
-
-*   **Architecture Overview:**
-    *   Standard Express.js route and handler pattern.
-    *   `bookingFlowApiHandler.js` acts as a controller layer, delegating business logic to `BookingFlowManager.js`.
-    *   **Diagram:**
-        ```mermaid
-        graph TD
-            A[Client Mini-App/Bot] -- HTTP Request --> B(Express Router /src/routes/api.js)
-            B -- /api/booking-flow/* --> C{bookingFlowApiHandler.js}
-            C -- Calls method --> D[BookingFlowManager.js]
-            D -- Interacts with --> E[Other Core Services: DB, GCal, Notifier]
-            D -- Returns result --> C
-            C -- Formats HTTP Response --> A
-        end
-        ```
-    *   **Tech Stack:** Node.js, Express.js.
-    *   **Deployment:** Part of the main application.
-
-*   **DB Schema:**
-    *   These API endpoints primarily interact with `BookingFlowManager`, which then interacts with the DB. No direct DB schema changes for the API handlers themselves, but they rely on schemas defined/modified in other tasks (e.g., `SessionType`, `SessionInvite`).
-
-*   **API Design Details:**
-    *   **Error Codes:**
-        *   `400 Bad Request`: Invalid input, malformed JSON, missing required fields, invalid `flowToken` format/expiry.
-        *   `401 Unauthorized`: If a stronger authentication mechanism is in place and fails (not primary for token-based flows initially).
-        *   `403 Forbidden`: User associated with `flowToken` not allowed to perform action / `telegramId` mismatch.
-        *   `404 Not Found`: Invalid `inviteToken`, or resource related to flow not found.
-        *   `409 Conflict`: Business logic error, e.g., slot taken, invite limit reached.
-        *   `500 Internal Server Error`: Unexpected server-side errors.
-    *   **Rate Limiting:** Apply standard rate limiting (e.g., using `express-rate-limit`) to these endpoints, especially `POST` operations, to prevent abuse. Configuration in `src/middleware/rateLimiterMiddleware.js`.
-
-*   **Frontend Structure:**
-    *   N/A for backend API handlers. Frontend mini-apps will consume these APIs.
-
-*   **CRUD Operations:**
-    *   These API handlers orchestrate CRUD by calling `BookingFlowManager`. They don't perform direct CRUD themselves.
-
-*   **UX Flow:**
-    *   These APIs are backend components. The UX flow is experienced by users interacting with mini-apps that call these APIs. The `nextStep` object in API responses directly influences the frontend UX by dictating navigation or completion messages.
-
-*   **Security (Handler-Specific):**
-    *   Validate all incoming data types and formats.
-    *   Ensure `flowToken` is handled securely (passed via HTTPS, validated correctly).
-    *   Log API access with relevant details (excluding sensitive data like raw waiver answers in general logs, though `BookingFlowManager` might log them with more restricted access).
-
-*   **Testing:**
-    *   **Unit Tests (for `src/handlers/api/bookingFlowApiHandler.js`):**
-        *   Mock `BookingFlowManager` methods.
-        *   Test request validation logic (valid and invalid inputs for each endpoint).
-        *   Test that correct `BookingFlowManager` methods are called with correct parameters.
-        *   Test response formatting for success and various error scenarios (400, 404, 409, 500).
-    *   **Integration Tests (API level using Supertest):**
-        *   Test each endpoint against a running server instance with a test database.
-        *   Mock external services like Google Calendar and Telegram Notifier at the `BookingFlowManager` level or tool level.
-        *   Verify:
-            *   `POST /start-primary`: Correct `flowToken` and `nextStep` for different `SessionType` configs.
-            *   `GET /start-invite/:inviteToken`: Correct `flowToken`, `nextStep`, and `inviteDetails` for valid/invalid tokens.
-            *   `POST /continue`: Correct processing of different `stepId`s (e.g., waiver submission for primary, waiver for friend), correct `nextStep` determination, and expected side effects (mocked DB changes, GCal calls, Notifier calls).
-
-*   **Data Management:**
-    *   These API handlers are stateless. State is managed by `BookingFlowManager` (via tokens or server-side state).
-
-*   **Logging & Error Handling (Handler-Specific):**
-    *   Use `src/middleware/loggingMiddleware.js` for request logging.
-    *   In handler functions, log entry, key parameters (e.g., `flowToken`, `stepId`, `inviteToken`), and outcome (success/error).
-    *   Use `src/middleware/errorHandlerMiddleware.js` for centralized error response formatting.
-    *   Specific errors from `BookingFlowManager` should be mapped to appropriate HTTP status codes and user-friendly messages.
-        *   `logger.info({ handler: 'handleContinueFlow', flowToken, stepId }, 'Processing continue flow request.');`
-        *   `logger.error({ handler: 'handleStartPrimaryFlow', err: e.message }, 'Error in startPrimaryBookingFlow manager call.');`
-
-**Key Edge Cases:**
-*   Malformed `flowToken` or `inviteToken`.
-*   `flowToken` expired or not found (if server-side state).
-*   Unexpected `stepId` in `POST /continue`.
-*   `formData` in `POST /continue` not matching expectations for the given `stepId`.
-*   Network issues between client and API.
-*   `BookingFlowManager` throws an unhandled exception.
-
----
-### Feature 3 (Task 19): Enhance `SessionType` Model & Logic for Dynamic Flows
-**(Consolidates and Refines Original: PH6-11.5)**
-
-**Goal:**
-Ensure the `SessionType` database model and related core logic in `src/core/sessionTypes.js` are augmented to fully support the dynamic flow decisions required by the `BookingFlowManager`. This makes `SessionType` the central configuration point for how a booking flow behaves.
-
-**API Relationships:**
-*   **Impacts existing APIs (as detailed in original PH6-11.5):**
-    *   `GET /api/session-types/:id`: Will now return the new/enhanced fields (`waiverType`, `allowsGroupInvites`, `maxGroupSize`, potentially `customFormDefinitions`).
-    *   `POST /api/gcal-placeholder-bookings`: This API (Task 29 / Original DF-1) will need to fetch these new `SessionType` fields and include them in its response to the client (calendar app) to enable the `BookingFlowManager` to make initial decisions.
-*   **Consumed by:**
-    *   `BookingFlowManager` (Feature 1 / Task 17): To retrieve `waiverType`, `allowsGroupInvites`, `maxGroupSize`, etc., for decision-making.
-    *   Admin Interface (Future Task 31 / PH6-XX): For managing these `SessionType` properties.
-
-**Detailed Requirements:**
-
-*   **Requirement A (DB Schema Update - `SessionType`):**
-    *   Modify the `SessionType` model in `prisma/schema.prisma`.
-    *   **Field 1: `waiverType`**
-        *   Type: `String`
-        *   Purpose: Determines which waiver content/flow is used.
-        *   Examples: "KAMBO_V1" (default Kambo waiver), "NONE" (no waiver required), "CUSTOM_FORM_XYZ" (identifier for a future custom form).
-        *   Default: `"KAMBO_V1"`
-        *   Database attribute: `@default("KAMBO_V1")`
-    *   **Field 2: `allowsGroupInvites`**
-        *   Type: `Boolean`
-        *   Purpose: Globally enables or disables the "invite friends" feature for this session type.
-        *   Default: `false`
-        *   Database attribute: `@default(false)`
-    *   **Field 3: `maxGroupSize`**
-        *   Type: `Int`
-        *   Purpose: Represents the total number of participants allowed for a session of this type, including the primary booker. If `allowsGroupInvites` is true, `maxGroupSize` must be > 1. The number of friends that can be invited is `maxGroupSize - 1`.
-        *   Default: `1`
-        *   Database attribute: `@default(1)`
-        *   Validation: Must be >= 1. If `allowsGroupInvites` is true, ideally `maxGroupSize` > 1. This validation should be enforced at the application level (e.g., Admin UI, `BookingFlowManager` logic).
-    *   **Field 4: `customFormDefinitions` (Future Enhancement)**
-        *   Type: `Json?` (Optional JSON field)
-        *   Purpose: To store definitions for fully custom forms or flow sequences beyond predefined `waiverType` values. This allows admins to create unique multi-step forms or information gathering processes for specific session types.
-        *   Default: `null`
-    *   **Field 5: `updatedAt` (Auditing)**
-        *   Type: `DateTime`
-        *   Purpose: Track when the session type was last updated.
-        *   Database attribute: `@updatedAt`
-*   **Requirement B (Database Migration):**
-    *   Generate a new Prisma migration: `npx prisma migrate dev --name enhance_sessiontype_for_dynamic_flows_v2` (using a new name to avoid conflict if a similar migration was run from the original plan).
-    *   Apply the migration.
-*   **Requirement C (Seed Data Update):**
-    *   If a `prisma/seed.js` script exists, update it to:
-        *   Include appropriate default or example values for `waiverType`, `allowsGroupInvites`, and `maxGroupSize` for all existing and any new `SessionType` records.
-        *   Ensure new `SessionType`s are seeded with sensible configurations for testing various flows.
-*   **Requirement D (Core Logic Update - `src/core/sessionTypes.js`):**
-    *   Modify functions within `src/core/sessionTypes.js` (e.g., `getById`, `getAllActive`, or any new functions used by `BookingFlowManager`) to select and return these new fields (`waiverType`, `allowsGroupInvites`, `maxGroupSize`, `customFormDefinitions`).
-    *   Ensure that any caching mechanisms within this module are updated or invalidated appropriately when `SessionType` data changes.
-    *   The `BookingFlowManager` and relevant API handlers (e.g., for `GET /api/session-types/:id`, `POST /api/gcal-placeholder-bookings`) will consume these updated functions.
-
-**Implementation Guide:**
-
-*   **Architecture Overview:**
-    *   This feature primarily involves backend database schema modifications (PostgreSQL via Prisma ORM) and updates to the core data access logic for `SessionType` entities in Node.js.
-    *   **Diagram (Data Flow for `SessionType` Config):**
-        ```mermaid
-        graph LR
-            A[Admin UI (Future)] -- Manages --> B(SessionType Table in DB)
-            B -- Prisma Schema Defines --> C{prisma/schema.prisma}
-            D[src/core/sessionTypes.js] -- Reads via Prisma Client --> B
-            E[BookingFlowManager] -- Uses --> D
-            F[API Handlers (e.g., /api/session-types, /api/gcal-placeholder-bookings)] -- Uses --> D
-            G[Client Mini-Apps] -- Call --> F
-        end
-        ```
-    *   **Tech Stack:** PostgreSQL, Prisma ORM, Node.js.
-    *   **Deployment:** Requires running the Prisma migration as part of the deployment process.
-
-*   **DB Schema (`prisma/schema.prisma`):**
-    *   Modify the `SessionType` model:
-      ```prisma
-      model SessionType {
-        id                   String    @id @default(cuid())
-        label                String    @unique
-        description          String?
-        durationMinutes      Int
-        price                Float
-        active               Boolean   @default(true)
-        // ... other existing fields ...
-
-        // New / Enhanced Fields for Dynamic Flows
-        waiverType           String    @default("KAMBO_V1")
-        allowsGroupInvites   Boolean   @default(false)
-        maxGroupSize         Int       @default(1)
-        customFormDefinitions Json?    // For future dynamic form sequences
-
-        createdAt            DateTime  @default(now())
-        updatedAt            DateTime  @updatedAt
-
-        // ... existing relations ...
-        availabilityRules    AvailabilityRule[]
-        sessions             Session[]
-      }
-      ```
-    *   Ensure relations to `AvailabilityRule` and `Session` are correctly defined if they interact with these new fields (though primary control for group size now shifts to `SessionType`).
-
-*   **API Design (Impact on Existing APIs):**
-    *   **`GET /api/session-types/:id` (Modification):**
-        *   The response payload for this endpoint must now include `waiverType`, `allowsGroupInvites`, `maxGroupSize`, and `customFormDefinitions` (if populated).
-        *   **Example Success Response (200 OK):**
-          ```json
-          {
-            "success": true,
-            "data": {
-              "id": "clxkq00000000abcdef1234",
-              "label": "Advanced Kambo Ceremony",
-              "description": "A 3-hour advanced ceremony.",
-              "durationMinutes": 180,
-              "price": 250.00,
-              "active": true,
-              "waiverType": "KAMBO_ADVANCED_V1", // New
-              "allowsGroupInvites": true,         // New
-              "maxGroupSize": 3,                // New
-              "customFormDefinitions": null,      // New
-              "createdAt": "2025-01-10T10:00:00.000Z",
-              "updatedAt": "2025-05-15T14:30:00.000Z"
-            }
-          }
-          ```
-    *   **`POST /api/gcal-placeholder-bookings` (Impact - detailed in Task 29):**
-        *   This API handler (or the service it calls) must fetch the `SessionType` using the provided `sessionTypeId`.
-        *   It must then include `waiverType`, `allowsGroupInvites`, and `maxGroupSize` in its JSON response to the client (`calendar-app.js`). This data is then passed by the client to `POST /api/booking-flow/start-primary`.
-
-*   **Frontend Structure:**
-    *   No direct frontend changes for this task itself, as it's backend-focused.
-    *   However, downstream frontend components (`calendar-app.js`, `form-handler.js`, `invite-friends.js`) will consume these new fields from API responses to alter their behavior and display (orchestrated by `BookingFlowManager`).
-
-*   **CRUD Operations (within `src/core/sessionTypes.js` and Admin UI - Future Task 31):**
-    *   **Create/Update (Admin):** Future admin interface will allow setting/modifying `waiverType`, `allowsGroupInvites`, `maxGroupSize`, `customFormDefinitions`. Validation rules (e.g., `maxGroupSize >= 1`) should be applied here.
-    *   **Read:** `BookingFlowManager` and various API handlers will read these properties using functions from `src/core/sessionTypes.js`.
-
-*   **UX Flow:**
-    *   **Admin (Future):** Will have an interface to configure these dynamic flow properties for each session type.
-    *   **End User (Client):** Will experience different booking paths based on these settings. For example:
-        *   If `SessionType.waiverType` is "NONE", the waiver step is skipped.
-        *   If `SessionType.allowsGroupInvites` is `true` and `maxGroupSize` > 1, the option to invite friends appears after their own booking/waiver is complete.
-
-*   **Security:**
-    *   Access to modify `SessionType` records (via future Admin UI or direct DB access) must be strictly controlled (admin role only).
-    *   Input validation for `maxGroupSize` (e.g., must be a positive integer).
-    *   If `customFormDefinitions` is implemented, ensure proper sanitization and validation of the JSON structure to prevent injection or parsing issues.
-
-*   **Testing:**
-    *   **Unit Tests:**
-        *   Test the Prisma migration: ensure it applies correctly, adds new fields with correct defaults, and doesn't break existing data.
-        *   Test updated functions in `src/core/sessionTypes.js` (e.g., `getById`) to verify they correctly retrieve and return the new fields (`waiverType`, `allowsGroupInvites`, `maxGroupSize`, `customFormDefinitions`).
-        *   Test any new validation logic added to `SessionType` creation/update (e.g., in seed scripts or future admin logic).
-    *   **Integration Tests:**
-        *   Verify that `GET /api/session-types/:id` returns the new fields in its response.
-        *   Verify that `POST /api/gcal-placeholder-bookings` correctly fetches and includes these new `SessionType` fields in its response.
-        *   Test seed data updates: ensure `SessionType` records are populated correctly with the new fields.
-    *   **E2E Tests (as part of overall flow testing in Task 30):**
-        *   Test full booking flows for `SessionType`s with different combinations of `waiverType`, `allowsGroupInvites`, and `maxGroupSize` to ensure the `BookingFlowManager` and frontend components react dynamically as expected.
-
-*   **Data Management:**
-    *   **Existing `SessionType` Records:** The Prisma migration with `@default` attributes will handle new fields for existing records. If more specific initial values are needed for existing records beyond the schema defaults, a custom data migration step within the Prisma migration file or an update to the seed script (if it's re-runnable and idempotent) would be necessary.
-    *   **Caching:** If `src/core/sessionTypes.js` implements caching for `SessionType` data, ensure this cache is properly invalidated or updated when `SessionType` records are changed (relevant for future Admin UI).
-
-*   **Logging & Error Handling:**
-    *   Log any issues during the Prisma migration process.
-    *   Log any errors encountered in `src/core/sessionTypes.js` when fetching or processing `SessionType` data.
-    *   The `BookingFlowManager` should log the `SessionType` configuration it's using for a given flow to aid in debugging.
-    *   Handle cases gracefully where these fields might be unexpectedly null or invalid if data integrity issues arise (though schema defaults and validation should minimize this).
-
-**Data Flow Steps (Focus on `SessionType` data usage):**
-1.  Admin (future) configures `waiverType`, `allowsGroupInvites`, `maxGroupSize` for a `SessionType` via an admin interface.
-2.  Data is saved to the `SessionType` table in the database.
-3.  User selects a session in `calendar-app.html`.
-4.  `calendar-app.js` calls `POST /api/gcal-placeholder-bookings`.
-5.  The handler for `/api/gcal-placeholder-bookings` calls `src/core/sessionTypes.js` to get the full `SessionType` details (including new fields) for the selected `sessionTypeId`.
-6.  `/api/gcal-placeholder-bookings` returns these `SessionType` details (waiverType, allowsGroupInvites, maxGroupSize) along with `placeholderId` to `calendar-app.js`.
-7.  `calendar-app.js` calls `POST /api/booking-flow/start-primary` with these `SessionType` details.
-8.  `BookingFlowManager` (via `bookingFlowApiHandler.js`) uses these details (and potentially re-fetches from `src/core/sessionTypes.js` for canonical data) to determine the first step of the booking flow (e.g., redirect to waiver, invite friends, or complete).
-9.  Throughout the flow, `BookingFlowManager` refers to these `SessionType` properties to make decisions.
-
-**Key Edge Cases:**
-*   A `SessionType` record is somehow missing values for the new fields (should be prevented by `@default` in schema or migration defaults). The application logic (e.g., in `BookingFlowManager`) should have safe fallbacks or throw clear errors.
-*   `maxGroupSize` is set to a value like 0 or less than 1 (should be prevented by validation in admin UI/seed scripts).
-*   `waiverType` refers to a form/type that doesn't exist or isn't implemented yet (relevant for future custom forms).
-
----
-### Feature 4 (Task 20): Refactor Calendar App for Orchestrated Flow
-**(Adapts Original: DF-2, parts of PH6-15 from `Details_Phase_6_updated.md`)**
-
-**Goal:**
-Modify the Calendar Mini-App ([`public/calendar-app.html`](public/calendar-app.html:0), [`public/calendar-app.js`](public/calendar-app.js:0)) so that upon slot submission, it first secures a GCal placeholder and then initiates the booking process via the `BookingFlowManager` API. The `BookingFlowManager` will then dictate the next step (e.g., redirect to a form or another page).
-
-**API Relationships:**
-*   **Calls (Client-side in `public/calendar-api.js`):**
-    1.  `POST /api/gcal-placeholder-bookings` (Existing/Modified by Task 29 / Original DF-1):
-        *   Input: `{ telegramId, sessionTypeId, appointmentDateTimeISO }`
-        *   Expected Output: `{ success, placeholderId, expiresAt, sessionTypeDetails: { waiverType, allowsGroupInvites, maxGroupSize, sessionTypeId, appointmentDateTimeISO } }` (Note: `sessionTypeDetails` is crucial here).
-    2.  `POST /api/booking-flow/start-primary` (New from Task 18):
-        *   Input: `{ telegramId, sessionTypeId, appointmentDateTimeISO, placeholderId, initialSessionTypeDetails: { ... } }` (where `initialSessionTypeDetails` comes from the response of the placeholder API).
-        *   Expected Output: `{ success, flowToken, nextStep: { type, url?, message?, closeWebApp? } }`
-
-**Detailed Requirements:**
-
-*   **Requirement A (GCal Placeholder API Call Enhancement):**
-    *   In [`public/calendar-app.js`](public/calendar-app.js:0), when the user clicks the `submitBookingButton` (and after client-side validation like `isStillAvailable`):
-        *   The first backend call will be to `POST /api/gcal-placeholder-bookings`.
-        *   The JavaScript in [`public/calendar-api.js`](public/calendar-api.js:0) needs to correctly make this call and parse the response.
-        *   **Crucially, the response from this API must now include the `sessionTypeDetails` (`waiverType`, `allowsGroupInvites`, `maxGroupSize`) in addition to `placeholderId` and `expiresAt`.** This is because these details are needed for the subsequent call to the `BookingFlowManager`.
-    *   Display a loading state on the submit button (e.g., "Reserving slot...").
-*   **Requirement B (Initiate Flow via `BookingFlowManager`):**
-    *   Upon successful response from `POST /api/gcal-placeholder-bookings` (containing `placeholderId` and `sessionTypeDetails`):
-        *   [`public/calendar-app.js`](public/calendar-app.js:0) (via [`public/calendar-api.js`](public/calendar-api.js:0)) must immediately call the new `POST /api/booking-flow/start-primary` endpoint.
-        *   Pass `telegramId`, `sessionTypeId` (from initial selection), `appointmentDateTimeISO` (selected slot), the received `placeholderId`, and the `initialSessionTypeDetails` (received from the placeholder API response) to this `/start-primary` API.
-    *   Update loading state (e.g., "Preparing your booking...").
-*   **Requirement C (Handle `BookingFlowManager` Response & Redirect):**
-    *   The JavaScript in [`public/calendar-app.js`](public/calendar-app.js:0) must handle the response from `POST /api/booking-flow/start-primary`.
-    *   If `response.success` is true:
-        *   If `response.nextStep.type === "REDIRECT"`:
-            *   Construct the full redirect URL (e.g., `https://yourdomain.com` + `response.nextStep.url`). The `url` from the API will likely be a relative path like `/form-handler.html?flowToken=xxx...`.
-            *   Perform `window.location.href = constructedUrl;`.
-        *   If `response.nextStep.type === "COMPLETE"`:
-            *   Display `response.nextStep.message` directly within [`public/calendar-app.html`](public/calendar-app.html:0).
-            *   If `response.nextStep.closeWebApp` is true, call `window.Telegram.WebApp.close()` after a short delay.
-*   **Requirement D (Error Handling):**
-    *   If `POST /api/gcal-placeholder-bookings` fails: Display an error message (e.g., "Could not reserve the slot. The time may have just been taken. Please try again.") and re-enable the submit button.
-    *   If `POST /api/booking-flow/start-primary` fails:
-        *   Display an error message (e.g., "Could not initiate the booking process. Please try again.").
-        *   Re-enable the submit button.
-        *   **Important:** Consider automatically calling `DELETE /api/gcal-placeholder-bookings/{placeholderId}` to release the placeholder if the flow initiation fails immediately after creating it. This prevents orphaned placeholders.
-*   **Requirement E (UI/UX):**
-    *   Maintain clear loading indicators during the two-step API call process.
-    *   Ensure error messages are user-friendly.
-    *   The calendar app's primary responsibility becomes slot selection and handing off to the backend orchestrator.
-
-**Implementation Guide:**
-
-*   **Architecture Overview:**
-    *   Client-side modifications primarily in [`public/calendar-app.js`](public/calendar-app.js:0) and its API helper [`public/calendar-api.js`](public/calendar-api.js:0).
-    *   The calendar app transitions from making a single decision (redirect to waiver) to a two-step backend interaction: 1. Secure placeholder & get config. 2. Start orchestrated flow.
-    *   **Diagram (Client-Side Flow in Calendar App):**
-        ```mermaid
-        sequenceDiagram
-            participant User
-            participant CalendarAppJS as calendar-app.js
-            participant CalendarApiJS as calendar-api.js
-            participant PlaceholderAPI as POST /api/gcal-placeholder-bookings
-            participant FlowStartAPI as POST /api/booking-flow/start-primary
-
-            User->>CalendarAppJS: Selects slot & Clicks Submit
-            CalendarAppJS->>CalendarAppJS: Show loading ("Reserving slot...")
-            CalendarAppJS->>+CalendarApiJS: callCreatePlaceholder(data)
-            CalendarApiJS->>+PlaceholderAPI: Request placeholder & sessionTypeDetails
-            PlaceholderAPI-->>-CalendarApiJS: {placeholderId, sessionTypeDetails, ...}
-            CalendarApiJS-->>-CalendarAppJS: Response from PlaceholderAPI
-            
-            alt Placeholder Success
-                CalendarAppJS->>CalendarAppJS: Update loading ("Preparing booking...")
-                CalendarAppJS->>+CalendarApiJS: callStartPrimaryFlow(placeholderData, sessionTypeDetails)
-                CalendarApiJS->>+FlowStartAPI: Request to start flow
-                FlowStartAPI-->>-CalendarApiJS: {flowToken, nextStep: {type, url}}
-                CalendarApiJS-->>-CalendarAppJS: Response from FlowStartAPI
-                
-                alt FlowStart Success & Redirect
-                    CalendarAppJS->>User: window.location.href = nextStep.url
-                else FlowStart Success & Complete
-                    CalendarAppJS->>User: Display completion message
-                    CalendarAppJS->>User: Telegram.WebApp.close()
-                else FlowStart Error
-                    CalendarAppJS->>User: Display error message
-                    CalendarAppJS->>CalendarApiJS: callDeletePlaceholder(placeholderId) // Attempt cleanup
-                    CalendarApiJS->>PlaceholderAPI: DELETE /api/gcal-placeholder-bookings/{id}
-                    CalendarAppJS->>CalendarAppJS: Re-enable submit button
-                end
-            else Placeholder Error
-                CalendarAppJS->>User: Display error ("Slot taken?")
-                CalendarAppJS->>CalendarAppJS: Re-enable submit button
-            end
-        end
-        ```
-    *   **Tech Stack:** Vanilla JavaScript, HTML, CSS.
-
-*   **DB Schema:**
-    *   N/A for client-side. Relies on `SessionType` data being correctly returned by `POST /api/gcal-placeholder-bookings`.
-
-*   **API Design (Consumption):**
-    *   [`public/calendar-api.js`](public/calendar-api.js:0) will need:
-        *   An updated function for `POST /api/gcal-placeholder-bookings` that correctly parses the enhanced response including `sessionTypeDetails`.
-        *   A new function for `POST /api/booking-flow/start-primary`.
-        *   (Optional but recommended) A new function for `DELETE /api/gcal-placeholder-bookings/{placeholderId}` for cleanup on error.
-
-*   **Frontend Structure (`public/calendar-app.js`):**
-    *   The `submitBookingButton` event listener in `handleSubmitButtonClick` (or similar function) will be significantly refactored.
-    *   Remove direct `window.location.href` to `waiver-form.html`.
-    *   Implement the two-stage API call logic:
-        1.  Call placeholder API.
-        2.  On success, call flow start API.
-        3.  Handle response from flow start API for redirection or completion.
-    *   Store `placeholderId` and `sessionTypeDetails` from the first API call to pass to the second.
-    *   **Pseudocode for `handleSubmitButtonClick` in `calendar-app.js`:**
-        ```javascript
-        // async function handleSubmitButtonClick() {
-        //   // ... (existing validations, get selectedTimeSlotISO, telegramId, initialSessionTypeId) ...
-        //   submitBookingButton.disabled = true;
-        //   showLoadingIndicator("Reserving slot..."); // UI update
-
-        //   try {
-        //     const placeholderResponse = await calendarApi.createGCalPlaceholder({
-        //       telegramId,
-        //       sessionTypeId: initialSessionTypeId,
-        //       appointmentDateTimeISO: selectedTimeSlotISO
-        //     });
-
-        //     if (!placeholderResponse.success || !placeholderResponse.placeholderId || !placeholderResponse.sessionTypeDetails) {
-        //       throw new Error(placeholderResponse.message || "Failed to reserve slot.");
-        //     }
-            
-        //     showLoadingIndicator("Preparing your booking..."); // UI update
-
-        //     const flowStartResponse = await calendarApi.startPrimaryBookingFlow({
-        //       telegramId,
-        //       sessionTypeId: initialSessionTypeId, // or placeholderResponse.sessionTypeDetails.sessionTypeId
-        //       appointmentDateTimeISO: selectedTimeSlotISO, // or placeholderResponse.sessionTypeDetails.appointmentDateTimeISO
-        //       placeholderId: placeholderResponse.placeholderId,
-        //       initialSessionTypeDetails: placeholderResponse.sessionTypeDetails
-        //     });
-
-        //     if (flowStartResponse.success && flowStartResponse.nextStep) {
-        //       if (flowStartResponse.nextStep.type === "REDIRECT" && flowStartResponse.nextStep.url) {
-        //         window.location.href = flowStartResponse.nextStep.url; // Ensure full URL construction if needed
-        //       } else if (flowStartResponse.nextStep.type === "COMPLETE") {
-        //         displayCompletionMessage(flowStartResponse.nextStep.message);
-        //         if (flowStartResponse.nextStep.closeWebApp) {
-        //           setTimeout(() => window.Telegram.WebApp.close(), 3000);
-        //         }
-        //       } else {
-        //         throw new Error("Invalid next step from booking flow.");
-        //       }
-        //     } else {
-        //       // Attempt to clean up placeholder if flow start failed
-        //       if (placeholderResponse.placeholderId) {
-        //         await calendarApi.deleteGCalPlaceholder(placeholderResponse.placeholderId);
-        //       }
-        //       throw new Error(flowStartResponse.message || "Failed to start booking process.");
-        //     }
-
-        //   } catch (error) {
-        //     console.error("Booking submission error:", error);
-        //     displayErrorMessage(error.message);
-        //     submitBookingButton.disabled = false;
-        //     hideLoadingIndicator();
-        //   }
-        // }
-        ```
-
-*   **CRUD Operations:** N/A for client-side.
-
-*   **UX Flow:**
-    1.  User selects a date, time, and session type in `calendar-app.html`.
-    2.  User clicks "Submit Booking". Button disables, shows "Reserving slot...".
-    3.  `calendar-app.js` calls `POST /api/gcal-placeholder-bookings`.
-    4.  If successful, button text changes to "Preparing your booking...". `calendar-app.js` calls `POST /api/booking-flow/start-primary`.
-    5.  If `BookingFlowManager` responds with a redirect: `calendar-app.js` navigates `window.location.href` to the provided URL (e.g., to `form-handler.html` with `flowToken`).
-    6.  If `BookingFlowManager` responds with completion: `calendar-app.js` displays a success message and closes the WebApp.
-    7.  If any API call fails: An error message is shown, submit button re-enabled.
-
-*   **Security:**
-    *   All API calls must be over HTTPS.
-    *   `telegramId` is passed; its validation against an authenticated session is ideal if possible via Telegram WebApp `initData` (though often taken as trusted from client in simple WebApps). The backend `BookingFlowManager` will associate this ID with the `flowToken`.
-    *   The `flowToken` received from `/api/booking-flow/start-primary` will be passed in subsequent URLs.
-
-*   **Testing:**
-    *   **Unit Tests (`public/calendar-app.js`, `public/calendar-api.js`):**
-        *   Mock `fetch` or API call functions in `calendar-api.js`.
-        *   Test `handleSubmitButtonClick` (or equivalent) in `calendar-app.js`:
-            *   Verify correct parameters are passed to `calendarApi.createGCalPlaceholder`.
-            *   Verify correct parameters (including `sessionTypeDetails` from placeholder response) are passed to `calendarApi.startPrimaryBookingFlow`.
-            *   Test handling of successful response from `startPrimaryBookingFlow` (correct redirection or completion message).
-            *   Test error handling for failures in either API call (error messages displayed, placeholder deletion attempted if flow start fails).
-    *   **E2E Tests (as part of overall flow testing in Task 30):**
-        *   Full user journey: Select slot in calendar -> verify placeholder created -> verify `BookingFlowManager` initiated -> verify redirection to the correct next step (e.g., waiver form via `form-handler.html`) based on `SessionType` config.
-        *   Test scenarios where `POST /api/gcal-placeholder-bookings` fails (e.g., slot conflict).
-        *   Test scenarios where `POST /api/booking-flow/start-primary` fails.
-
-*   **Data Management (Client-Side):**
-    *   `calendar-app.js` will temporarily hold `placeholderId` and `sessionTypeDetails` between the two API calls.
-    *   It will receive and use the `flowToken` in the redirect URL provided by `BookingFlowManager`.
-
-*   **Logging & Error Handling (Client-Side):**
-    *   `console.log` API call initiations, parameters, and responses (or errors) during development.
-    *   Display user-friendly error messages in a dedicated error area on `calendar-app.html`.
-    *   Implement `showLoadingIndicator(message)`, `hideLoadingIndicator()`, `displayErrorMessage(message)`, `displayCompletionMessage(message)` helper functions in `public/calendar-ui.js` or `calendar-app.js`.
-
-**Data Flow Steps (Client-Side Calendar App):**
-1.  User submits selected slot in `calendar-app.html`.
-2.  `calendar-app.js` gathers `telegramId`, `initialSessionTypeId`, `selectedTimeSlotISO`.
-3.  `calendar-app.js` calls `calendarApi.createGCalPlaceholder(...)`.
-4.  `calendarApi.js` makes `POST /api/gcal-placeholder-bookings` request.
-5.  Backend responds with `{ success, placeholderId, expiresAt, sessionTypeDetails: { waiverType, allowsGroupInvites, maxGroupSize, ... } }`.
-6.  `calendar-app.js` receives this response.
-7.  If successful, `calendar-app.js` calls `calendarApi.startPrimaryBookingFlow(...)`, passing `telegramId`, `initialSessionTypeId`, `selectedTimeSlotISO`, `placeholderId`, and `sessionTypeDetails`.
-8.  `calendarApi.js` makes `POST /api/booking-flow/start-primary` request.
-9.  Backend (`BookingFlowManager`) responds with `{ success, flowToken, nextStep: { type, url, ... } }`.
-10. `calendar-app.js` receives this response.
-11. If `nextStep.type === "REDIRECT"`, `calendar-app.js` performs `window.location.href = nextStep.url`.
-12. If `nextStep.type === "COMPLETE"`, `calendar-app.js` shows message and closes WebApp.
-13. Error handling at each API call stage.
-
-**Key Edge Cases:**
-*   `POST /api/gcal-placeholder-bookings` fails (e.g., slot already taken, GCal API error): Calendar app must show error and allow retry.
-*   `POST /api/gcal-placeholder-bookings` succeeds, but subsequent `POST /api/booking-flow/start-primary` fails: Calendar app should attempt to call `DELETE /api/gcal-placeholder-bookings/{placeholderId}` to clean up, then show error and allow retry.
-*   Network error during either API call.
-*   `BookingFlowManager` returns an unexpected `nextStep.type` or missing `url` for redirect.
-*   User closes WebApp between the two API calls (placeholder might be orphaned until cron job cleanup).
-
----
-### Feature 5 (Task 21): Generic Form Handler Mini-App & Service
-**(New Task, Replaces specific waiver form logic with a generic handler. Adapts original PH6-16, DF-3 from `Details_Phase_6_updated.md`)**
-
-**Goal:**
-Create a new generic mini-app (`public/form-handler.html`) and corresponding JavaScript (`public/form-handler.js`) that can dynamically render and process different forms (initially the Kambo waiver, later potentially others like custom questionnaires) based on instructions and context provided by the `BookingFlowManager` via URL parameters. This makes the form display and submission process more flexible and centralized.
-
-**API Relationships:**
-*   **Loaded via redirect from `BookingFlowManager`:** The URL will contain `flowToken`, `formType`, and other necessary context.
-*   **Calls (Client-side in `public/form-handler.js`):**
-    1.  `GET /api/user-data?telegramId={telegramId}` (Existing, from original PH6-16): To fetch user's registration details for pre-filling.
-    2.  `GET /api/session-types/{sessionTypeId}` (Existing, from original PH6-12): To fetch session label for display.
-    3.  `GET /api/slot-check?appointmentDateTimeISO=...&sessionTypeId=...&placeholderId=...` (Existing, from Task 29 / Original DF-1): For primary bookers, before submitting the form, to ensure slot validity.
-    4.  `DELETE /api/gcal-placeholder-bookings/{googleEventId}` (Existing, from Task 29 / Original DF-1): For primary bookers, if they use the Telegram Back Button before submitting, to release the placeholder.
-    5.  `POST /api/booking-flow/continue` (New from Task 18): To submit form data and `flowToken` to the `BookingFlowManager` to process the current step and determine the next.
-*   **(Future) `GET /api/forms/definition/:formTypeOrId`:** An optional future API to fetch dynamic form structures if forms become highly configurable beyond the initial hardcoded Kambo waiver.
-
-**Detailed Requirements:**
-
-*   **Requirement A (Mini-App Creation - `public/form-handler.html`, `public/form-handler.js`, `public/form-handler.css`):**
-    *   Create the new HTML, JS, and CSS files.
-    *   `form-handler.html` will contain the basic layout, including areas for dynamic form content, appointment/session info, user pre-fill sections, hidden fields, and error/loading messages.
-    *   `form-handler.js` will contain all client-side logic for parameter parsing, dynamic rendering, API calls, form validation, and submission.
-    *   `form-handler.css` will style the page, aiming for consistency with [`public/calendar-app.html`](public/calendar-app.html:0) (dark theme, video background, typography). It can adapt styles from the old [`public/waiver-form.css`](public/waiver-form.css:0).
-*   **Requirement B (URL Parameter Parsing):**
-    *   `form-handler.js` must parse the following from URL query parameters upon page load:
-        *   `flowToken`: The active token for the current booking flow.
-        *   `formType`: Identifier for the form to render (e.g., "KAMBO_WAIVER_V1", "KAMBO_WAIVER_FRIEND_V1", "CUSTOM_QUESTIONNAIRE_X").
-        *   `telegramId`: Current user's Telegram ID (could be primary booker or friend).
-        *   `sessionTypeId`: ID of the session type.
-        *   `appointmentDateTimeISO`: ISO string of the appointment.
-        *   `placeholderId` (Optional): GCal event ID for primary booker's temporary reservation.
-        *   `inviteToken` (Optional): For an invited friend.
-        *   `waiverType` (Redundant if `formType` is specific, but could be passed for consistency from `BookingFlowManager`).
-        *   `allowsGroupInvites` (Boolean, from `SessionType`).
-        *   `maxGroupSize` (Int, from `SessionType`).
-        *   `primaryBookerName` (Optional, for friend's flow, to display "Invited by...").
-        *   `expiresAt` (Optional, ISO timestamp for placeholder expiry, for primary booker).
-*   **Requirement C (Dynamic Form Rendering based on `formType`):**
-    *   Initially, for `formType` like "KAMBO_WAIVER_V1" (for primary booker) or "KAMBO_WAIVER_FRIEND_V1" (for friend, might be identical structure but handled differently by backend):
-        *   The HTML structure for the Kambo waiver (questions, checkboxes, input fields) will be present in `form-handler.html` (possibly within a template or hidden div).
-        *   `form-handler.js` will make this section visible.
-        *   Populate hidden input fields: `flowToken`, `telegramId`, `sessionTypeId`, `appointmentDateTimeISO`, `placeholderId` (if present), `inviteToken` (if present).
-    *   (Future) If `formType` indicates a custom form, `form-handler.js` could fetch a JSON schema for the form from `GET /api/forms/definition/:formTypeOrId` and dynamically build the form elements. For MVP, focus on the Kambo waiver.
-*   **Requirement D (Data Pre-fill & Context Display - Adapting PH6-16):**
-    *   Display appointment context: Formatted `appointmentDateTimeISO` and session type label (fetched via `GET /api/session-types/:sessionTypeId`).
-    *   Pre-fill user data: Call `GET /api/user-data?telegramId={telegramId}` to fetch and pre-fill `firstName`, `lastName`, `email`, `phone`, `dob`, and emergency contact fields.
-    *   If it's a friend's flow (identified by `inviteToken` or specific `formType`), display "Invited by [Primary Booker Name]" if `primaryBookerName` is passed.
-*   **Requirement E (Conditional Logic - Primary Booker vs. Friend - Adapting DF-3):**
-    *   **If `inviteToken` IS present (Friend's Flow):**
-        *   Telegram Back Button: `Telegram.WebApp.BackButton.show()`, `onClick(() => Telegram.WebApp.close())`.
-        *   No 15-minute reservation countdown/timer.
-        *   No pre-submission slot check (`GET /api/slot-check`).
-    *   **If `inviteToken` IS NOT present (Primary Booker's Flow, likely with `placeholderId`):**
-        *   Display reservation message: "Your slot is reserved for 15 minutes. Please complete by [expiry time from `expiresAt` param]." (Optional client-side countdown timer).
-        *   Telegram Back Button: `Telegram.WebApp.BackButton.show()`. `onClick` should:
-            *   Show loading indicator.
-            *   If `placeholderId` exists, call `DELETE /api/gcal-placeholder-bookings/{placeholderId}`.
-            *   Navigate back to `calendar-app.html` (e.g., `calendar-app.html?telegramId={tgId}&initialSessionTypeId={sId}`).
-            *   Close WebApp as a final step or if navigation is problematic.
-        *   **Pre-Submission Slot Check:** Before actual form submission, call `GET /api/slot-check` with `appointmentDateTimeISO`, `sessionTypeId`, and `placeholderId`. If slot is "TAKEN" or "UNAVAILABLE", display error and prevent submission.
-*   **Requirement F (Client-Side Form Validation):**
-    *   Implement robust client-side validation for all required fields, checkboxes, data formats (email, phone, DOB).
-    *   Highlight invalid fields, show clear error messages near the fields, and focus on the first invalid field.
-*   **Requirement G (Form Submission to `BookingFlowManager`):**
-    *   On submit button click:
-        1.  Perform client-side validation.
-        2.  (If primary booker) Perform pre-submission slot check (Req E).
-        3.  Disable submit button, show "Submitting..." spinner.
-        4.  Collect all form data, including values from hidden fields (`flowToken`, `telegramId`, `sessionTypeId`, `appointmentDateTimeISO`, `placeholderId?`, `inviteToken?`, and all waiver answers structured as `liability_form_data` JSON blob).
-        5.  Submit this payload to `POST /api/booking-flow/continue` with `stepId: "waiver_submission"` (or a `formType`-specific stepId).
-*   **Requirement H (Handle `BookingFlowManager` Response):**
-    *   On response from `POST /api/booking-flow/continue`:
-        *   If `response.success` is true:
-            *   Hide Telegram Back Button: `Telegram.WebApp.BackButton.hide()`.
-            *   If `response.nextStep.type === "REDIRECT"`: `window.location.href = response.nextStep.url;`.
-            *   If `response.nextStep.type === "COMPLETE"`: Display `response.nextStep.message`. If `response.nextStep.closeWebApp` is true, call `Telegram.WebApp.close()` after a delay.
-        *   If `response.success` is false: Display API error message (e.g., from `response.message`), re-enable submit button.
-*   **Requirement I (Visual Consistency & Styling):**
-    *   Adopt the dark theme, video background, Manrope/Noto Sans typography, and button styles from [`public/calendar-app.html`](public/calendar-app.html:0).
-    *   Update/adapt [`public/waiver-form.css`](public/waiver-form.css:0) into `public/form-handler.css`.
-*   **Requirement J (Refactor/Deprecate Old Waiver Form):**
-    *   [`public/waiver-form.html`](public/waiver-form.html:0) and its specific JS (if any outside the HTML) will be deprecated. Its structure and logic are moved into `form-handler.html/js`.
-
-**Implementation Guide:**
-
-*   **Architecture Overview:**
-    *   A new client-side mini-app (`form-handler.html` and `form-handler.js`) that acts as a generic container for various forms, initially the Kambo waiver.
-    *   It's invoked by redirects from the `BookingFlowManager` and submits data back to the `BookingFlowManager` to continue the flow.
-    *   **Diagram (Form Handler Interaction):**
-        ```mermaid
-        sequenceDiagram
-            participant BFM_API as POST /api/booking-flow/start-primary or /start-invite
-            participant ClientBrowser as Browser
-            participant FormHandlerJS as form-handler.js
-            participant UserDataAPI as GET /api/user-data
-            participant SessionTypeAPI as GET /api/session-types/:id
-            participant SlotCheckAPI as GET /api/slot-check (Primary Booker only)
-            participant PlaceholderDelAPI as DELETE /api/gcal-placeholder-bookings/:id (Primary Booker only)
-            participant BFM_ContinueAPI as POST /api/booking-flow/continue
-
-            BFM_API-->>ClientBrowser: Redirect to /form-handler.html?flowToken=...&formType=...&context...
-            ClientBrowser->>+FormHandlerJS: Loads page, parses URL params
-            FormHandlerJS->>FormHandlerJS: Initialize UI (show Kambo waiver structure)
-            FormHandlerJS->>+UserDataAPI: Fetch user data
-            UserDataAPI-->>-FormHandlerJS: User details
-            FormHandlerJS->>+SessionTypeAPI: Fetch session type label
-            SessionTypeAPI-->>-FormHandlerJS: Session label
-            FormHandlerJS->>FormHandlerJS: Pre-fill form, display context
-            FormHandlerJS->>FormHandlerJS: Setup Telegram BackButton (conditional logic)
-            FormHandlerJS->>FormHandlerJS: Setup reservation timer (Primary Booker only)
-            
-            alt Primary Booker clicks Back Button
-                FormHandlerJS->>+PlaceholderDelAPI: Release placeholder
-                PlaceholderDelAPI-->>-FormHandlerJS: Success/Failure
-                FormHandlerJS->>ClientBrowser: Navigate to calendar
-            end
-
-            ClientBrowser->>FormHandlerJS: User fills form & Clicks Submit
-            FormHandlerJS->>FormHandlerJS: Client-side validation
-            alt Primary Booker Flow & Validation OK
-                FormHandlerJS->>+SlotCheckAPI: Check slot availability
-                SlotCheckAPI-->>-FormHandlerJS: Slot status
-                alt Slot Not Available
-                    FormHandlerJS->>ClientBrowser: Display error, re-enable submit
-                else Slot Available
-                    FormHandlerJS->>+BFM_ContinueAPI: Submit flowToken & formData (waiver)
-                end
-            else Friend Flow & Validation OK
-                 FormHandlerJS->>+BFM_ContinueAPI: Submit flowToken & formData (waiver)
-            end
-            
-            BFM_ContinueAPI-->>-FormHandlerJS: {success, nextStep: {type, url?, message?, closeWebApp?}}
-            alt Submission Success
-                FormHandlerJS->>FormHandlerJS: Hide BackButton
-                alt Redirect
-                    FormHandlerJS->>ClientBrowser: window.location.href = nextStep.url
-                else Complete
-                    FormHandlerJS->>ClientBrowser: Display message
-                    FormHandlerJS->>ClientBrowser: Telegram.WebApp.close() (if applicable)
-                end
-            else Submission Error
-                FormHandlerJS->>ClientBrowser: Display error, re-enable submit
-            end
-        end
-        ```
-    *   **Tech Stack:** HTML, CSS, Vanilla JavaScript.
-
-*   **DB Schema:**
-    *   N/A for this client-side feature. It prepares data for APIs that interact with the DB.
-
-*   **API Design (Consumption):**
-    *   Consumes APIs listed above. `form-handler.js` will need robust functions to call these APIs and handle their responses/errors.
-
-*   **Frontend Structure (`public/form-handler.html` & `public/form-handler.js`):**
-    *   **`form-handler.html`:**
-        *   Main container div.
-        *   Video background element.
-        *   Div for `appointmentInfo` (session type, date/time).
-        *   Div for `guestNotice` (e.g., "Invited by...").
-        *   Div for `reservationTimer` (for primary booker).
-        *   `<form id="genericForm">`
-            *   Hidden fields: `flowToken`, `telegramId`, `sessionTypeId`, `appointmentDateTimeISO`, `placeholderId`, `inviteToken`.
-            *   Div for Kambo Waiver content (`id="kamboWaiverSection"`, initially hidden or templated). This will contain all input fields, checkboxes, textareas from the original [`public/waiver-form.html`](public/waiver-form.html:0).
-            *   (Future) Placeholder div for other dynamically loaded forms.
-            *   Submit button.
-        *   Error message display area.
-        *   Loading spinner element.
-    *   **`form-handler.js`:**
-        *   `onPageLoad()` or `DOMContentLoaded` listener:
-            *   Call `parseUrlParameters()`.
-            *   Call `initializeStaticContent()` (appointment info, session type label by fetching from APIs).
-            *   Call `initializeDynamicForm(formType)`:
-                *   If `formType` is "KAMBO_WAIVER_V1" or similar, show the Kambo waiver section.
-                *   Call `prefillUserData(telegramIdFromUrl)`.
-            *   Call `setupConditionalUI()` (Telegram Back Button, reservation timer based on primary/friend flow).
-        *   `parseUrlParameters()`: Extracts all necessary params from `window.location.search`.
-        *   `initializeStaticContent()`: Fetches session type label, formats date/time.
-        *   `initializeDynamicForm(formType)`: Renders the specified form (for MVP, makes Kambo waiver visible).
-        *   `prefillUserData(telegramId)`: Calls `GET /api/user-data` and populates form fields.
-        *   `setupConditionalUI()`: Implements logic from Req E.
-        *   `handleFormSubmit(event)`:
-            *   Prevents default submission.
-            *   Performs client-side validation.
-            *   If primary booker, calls `checkSlotAvailability()`.
-            *   If all checks pass, collects form data (including hidden fields and structuring waiver answers into `liability_form_data` JSON).
-            *   Calls API `POST /api/booking-flow/continue`.
-            *   Handles response (redirect, complete, error).
-        *   `checkSlotAvailability()`: Calls `GET /api/slot-check`.
-        *   `handleBackButtonPrimaryBooker()`: Calls `DELETE /api/gcal-placeholder-bookings` and navigates.
-        *   Helper functions for DOM manipulation, showing/hiding loaders, displaying errors (similar to original `waiver-form.js` or `calendar-ui.js`).
-
-*   **CRUD Operations:** N/A for client-side. Prepares data for backend CRUD.
-
-*   **UX Flow:**
-    *   User is redirected to `form-handler.html` by `BookingFlowManager`.
-    *   Page loads, displays loading indicator.
-    *   Relevant form (Kambo waiver) and context (session details, pre-filled user info) are rendered.
-    *   Conditional UI elements (timer, back button behavior) are set up.
-    *   User fills the form. Client-side validation provides immediate feedback.
-    *   User clicks submit. Loading indicator on button.
-        *   (Primary Booker) Pre-submission slot check occurs.
-    *   Form data sent to `POST /api/booking-flow/continue`.
-    *   Based on response, user is redirected, sees a completion message (and WebApp closes), or sees an error.
-
-*   **Security:**
-    *   All API calls over HTTPS.
-    *   Input sanitization is primarily a backend concern, but client-side validation helps UX.
-    *   `flowToken` is received from a trusted redirect (from `BookingFlowManager`) and passed back.
-    *   Be mindful of not exposing sensitive data in URL parameters beyond necessary identifiers.
-
-*   **Testing:**
-    *   **Unit Tests (`public/form-handler.js`):**
-        *   Test `parseUrlParameters()` with various URL inputs.
-        *   Mock API calls (`/api/user-data`, `/api/session-types`, `/api/slot-check`, `/api/booking-flow/continue`).
-        *   Test `initializeDynamicForm()` for rendering Kambo waiver.
-        *   Test `prefillUserData()` DOM updates.
-        *   Test `setupConditionalUI()` for correct Back Button and timer behavior based on params.
-        *   Test `handleFormSubmit()`: client validation, conditional slot check, correct payload construction for `POST /api/booking-flow/continue`, response handling (redirect, complete, error).
-    *   **E2E Tests (as part of overall flow testing in Task 30):**
-        *   Scenario: Primary booker redirected to `form-handler.html` for waiver.
-            *   Verify correct pre-fill, timer, back button behavior.
-            *   Submit valid waiver -> verify flow continues (e.g., to invite-friends).
-            *   Submit invalid waiver -> verify client-side errors.
-            *   Test slot becoming unavailable before submission.
-        *   Scenario: Invited friend redirected to `form-handler.html` for waiver.
-            *   Verify correct pre-fill, no timer, specific back button behavior.
-            *   Submit valid waiver -> verify flow completes for friend.
-
-*   **Data Management (Client-Side):**
-    *   State primarily managed by URL parameters and DOM values.
-    *   No complex client-side storage beyond what's needed for form interaction.
-
-*   **Logging & Error Handling (Client-Side):**
-    *   `console.log` for debugging API calls, parameter parsing, form data.
-    *   User-facing errors displayed in a dedicated error area or via alerts.
-    *   Clear loading states during API calls and submissions.
-
-**Data Flow Steps (Client-Side Form Handler):**
-1.  `form-handler.html` loads with URL parameters (`flowToken`, `formType`, context IDs).
-2.  `form-handler.js` parses params.
-3.  JS fetches user data and session type label, pre-fills form, displays context.
-4.  JS sets up conditional UI (Back button, timer for primary booker).
-5.  User fills form.
-6.  User clicks submit.
-7.  JS validates form.
-8.  (Primary Booker) JS calls `GET /api/slot-check`. If slot unavailable, shows error.
-9.  JS collects all form data (including hidden `flowToken`) into a payload.
-10. JS calls `POST /api/booking-flow/continue` with payload.
-11. JS handles response: redirects to `nextStep.url`, shows `nextStep.message` and closes, or displays error.
-
-**Key Edge Cases:**
-*   Missing or invalid critical URL parameters (`flowToken`, `formType`, `telegramId`, `sessionTypeId`, `appointmentDateTimeISO`): Page should show a clear error and not proceed.
-*   API for user data or session type details fails: Allow manual entry if pre-fill fails, or show error if context display fails.
-*   (Primary Booker) Slot check API fails or returns slot taken: Prevent submission, inform user.
-*   (Primary Booker) Placeholder deletion API fails when back button used: Log error, but still navigate back.
-*   `POST /api/booking-flow/continue` returns an error: Display message, re-enable form.
-*   `formType` specifies a form not yet implemented in `form-handler.html` (for future).
 
 ---
 ### Feature 6 (Task 22): `BookingFlowManager` - Waiver Processing Logic
@@ -1579,7 +462,7 @@ Modify the `public/invite-friends.html` Mini-App and its JavaScript (`public/inv
         *   Calculate and display the number of remaining invites: `maxInvitesFromApi - existingInvites.length`. (e.g., "You can invite X more friends."). `maxInvitesFromApi` is `SessionType.maxGroupSize - 1`.
         *   List existing invites (`existingInvites` array from API):
             *   For each invite, display its status (e.g., "Pending", "Waiver Completed by [Friend Name]", "Declined").
-            *   Display the shareable invite link/token (e.g., `https://t.me/YOUR_BOT_USERNAME?start=invite_{token}`).
+            *   Display the shareable invite link/token using the new startapp format for one-click WebApp experience: `https://t.me/YOUR_BOT_USERNAME/YourWebAppName?startapp=invite_{token}` (primary method) and legacy format: `https://t.me/YOUR_BOT_USERNAME?start=invite_{token}` (fallback).
             *   Provide "Copy Link" and "Share on Telegram" buttons for each 'pending' or shareable invite (Req E).
         *   If `maxInvitesFromApi` is 0 or all allowed invites have been generated/used, the "Generate Invite Link" button should be disabled or hidden.
 *   **Requirement C (Generate New Invite Link - Adapting PH6-22 & PH6-23):**
@@ -1599,13 +482,13 @@ Modify the `public/invite-friends.html` Mini-App and its JavaScript (`public/inv
 *   **Requirement D (Copy Link & Share on Telegram - Adapting PH6-25):**
     *   For each displayed invite (especially those with 'pending' status):
         *   **"Copy Link" Button:**
-            *   Copies the full shareable invite link (e.g., `https://t.me/YOUR_BOT_USERNAME?start=invite_{token}`) to the clipboard using `navigator.clipboard.writeText()`.
+            *   Copies the full shareable invite link using the new startapp format: `https://t.me/YOUR_BOT_USERNAME/YourWebAppName?startapp=invite_{token}` to the clipboard using `navigator.clipboard.writeText()`. This enables one-click-to-WebApp experience for friends.
             *   Provide visual feedback (e.g., button text changes to "Copied!" temporarily).
         *   **"Share on Telegram" Button (Optional, if feasible):**
             *   Constructs a Telegram share URL: `https://t.me/share/url?url={encoded_invite_link}&text={encoded_message}`.
             *   `url` is the invite link. `text` is a pre-filled message (e.g., "Join me for a Kambo session!").
             *   Opens in a new tab/Telegram app.
-    *   The `BOT_USERNAME` (from `process.env.BOT_USERNAME`) needs to be available to the frontend JavaScript to construct these links. This can be embedded in the HTML via a server-side template, or fetched from a dedicated configuration API endpoint.
+    *   The `BOT_USERNAME` and `WEBAPP_NAME` (from `process.env.BOT_USERNAME` and webapp short name) need to be available to the frontend JavaScript to construct startapp links. These can be embedded in the HTML via a server-side template, or fetched from a dedicated configuration API endpoint. Format: `https://t.me/{BOT_USERNAME}/{WEBAPP_NAME}?startapp=invite_{token}`
 *   **Requirement E (Update UI for Friend's Status Change - Adapting PH6-32):**
     *   Implement a mechanism to refresh the displayed statuses of invites.
     *   **Option 1 (Page Focus - Recommended MVP):** When the browser tab/window for `invite-friends.html` regains focus (listen to `visibilitychange` or `focus` events), re-call `GET /api/sessions/:sessionId/invite-context` and re-render the invite list.
@@ -1623,6 +506,104 @@ Modify the `public/invite-friends.html` Mini-App and its JavaScript (`public/inv
     *   Consider a "Done" or "Close" button.
     *   If a `flowToken` was passed to this page, clicking "Done" could call `POST /api/booking-flow/continue` with the `flowToken` and a `stepId` like "invite_management_complete". The `BookingFlowManager` could then decide the absolute final step (e.g., just a completion message and close).
     *   For MVP, simply allowing the user to close the WebApp via `Telegram.WebApp.close()` (perhaps after a short "Invites managed!" message) is sufficient if this page is the definitive end of the primary booker's active flow. The Telegram Back button should also just close the WebApp.
+
+**Requirement I (Enhanced Sharing Options - PH6-26):**
+*   **"Share via Other" Button (Native Sharing):**
+    *   Implement `navigator.share` API integration for each invite link
+    *   Construct share data: `{ title: "Kambo Session Invite", text: "Join my Kambo session!", url: shareUrl }`
+    *   Call `navigator.share()` and handle success/error states
+    *   Graceful degradation to "Copy Link" if `navigator.share` is undefined
+    *   Update UI to "Shared ✔️" state and move to top of list on successful share
+
+*   **Enhanced "Copy Link" Experience:**
+    *   Update UI to "Link Copied ✔️" state after copying
+    *   Disable share buttons and move shared invites to top of list
+    *   Add brief visual feedback animation/toast notification
+
+#### **Requirement J (Advanced Invite Management UI - PH6-21, PH6-23):**
+*   **Stepper UI Implementation:**
+    *   Add visual stepper/progress indicator at top of page:
+        1. "Your Booking Confirmed" ✅
+        2. "Invite Friends" (current step, highlighted)
+        3. "Session Complete" (future step, grayed out)
+    *   Use CSS flexbox and step indicators with connecting lines
+
+*   **Dynamic Invite Generation via Stepper:**
+    *   Replace simple "Generate New Invite Link" button with stepper controls
+    *   Add "+" button (active if `current_shown_invites < maxInvites`)
+    *   Add "-" button (active if `current_shown_invites > count_of_actually_shared_invites`)
+    *   Clicking "+" calls `POST /api/sessions/:sessionId/generate-invite-token`
+    *   Clicking "-" removes last added, unshared invite UI section
+    *   Shared/used links cannot be removed by stepper
+
+*   **Enhanced Invite Status Tracking:**
+    *   Real-time status updates with auto-refresh every 30 seconds
+    *   Enhanced status indicators with timestamps and progress icons
+    *   Visual distinction between pending, shared, accepted, declined, and completed invites
+    *   Bulk operations UI (select multiple, resend, cancel)
+
+#### **Requirement K (Inline Query & Rich Telegram Sharing - PH6-25):**
+*   **"Share on Telegram" Button Enhancement (Rich Sharing Mode):**
+    *   Implement `window.Telegram.WebApp.switchInlineQuery()` integration
+    *   Button text: "Share on Telegram (Rich)" next to each generated invite link
+    *   On click: `window.Telegram.WebApp.switchInlineQuery('@YOUR_BOT_USERNAME', 'kbinvite_' + invite_token)`
+    *   This opens Telegram's chat selection interface automatically
+    *   Friend receives rich invite message with Accept/Decline buttons directly in chat
+    *   **BYPASSES intermediate steps** - friend goes directly to form-handler.html on Accept
+    *   Update UI to "Shared via Telegram ✔️" on successful switch
+    *   Disable share buttons and move to top of invite list
+
+*   **Two-Path Sharing Strategy:**
+    *   **Rich Sharing Path**: "Share on Telegram (Rich)" → inline query → direct bot interaction → edit-in-place WebApp button
+    *   **Link Sharing Path**: "Copy Link" & "Share via Other" → startapp URL → direct form-handler.html WebApp (ONE-CLICK EXPERIENCE)
+    *   Both paths lead to same final destination but Link Sharing now achieves true one-click-to-WebApp vision
+
+#### **Requirement L (StartApp Integration - One-Click WebApp Vision):**
+*   **StartApp URL Generation:**
+    *   Primary sharing method now uses `https://t.me/{BOT_USERNAME}/{WEBAPP_NAME}?startapp=invite_{token}` format
+    *   This bypasses traditional bot chat interaction and opens WebApp directly
+    *   Legacy format `https://t.me/{BOT_USERNAME}?start=invite_{token}` maintained as fallback for compatibility
+
+*   **Integration with form-handler.html (Detailed Implementation):**
+    *   **StartApp Flow Detection:**
+        ```javascript
+        // On form-handler.js page load
+        const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+        if (startParam && startParam.startsWith('invite_')) {
+          const inviteToken = startParam.replace('invite_', '');
+          await handleStartAppInviteFlow(inviteToken);
+        }
+        ```
+    *   **API Integration Logic:**
+        ```javascript
+        async function handleStartAppInviteFlow(inviteToken) {
+          showLoadingSpinner('Loading invitation details...');
+          try {
+            const response = await fetch(`/api/invite-context/${inviteToken}`);
+            const data = await response.json();
+            if (data.success) {
+              initializeInviteFriendForm(data.data);
+            } else {
+              showError(data.message);
+            }
+          } catch (error) {
+            showError('Failed to load invitation. Please try again.');
+          }
+          hideLoadingSpinner();
+        }
+        ```
+    *   **Form Rendering:**
+        *   Pre-populate session details in form header
+        *   Set form type based on `flowConfiguration.formType`
+        *   Configure submission endpoint with invite token
+        *   Enable friend-specific UI elements and validation
+    *   **No intermediate bot messages or additional clicks required - true one-click experience**
+
+*   **Backend API Requirements:**
+    *   New endpoint: `GET /api/invite-context/{inviteToken}` must be implemented
+    *   Returns session details, SessionType configuration, and friend invitation context
+    *   Enables form-handler.html to self-initialize when opened via startapp link
+    *   Must validate token and return appropriate error if token invalid/expired
 
 **Implementation Guide:**
 
@@ -1694,7 +675,7 @@ Modify the `public/invite-friends.html` Mini-App and its JavaScript (`public/inv
                 ```html
                 <!-- Example Template (to be cloned by JS) -->
                 <li class="invite-item" data-token="unique-token-here" data-status="pending">
-                    <span class="invite-link">Link: https://t.me/YourBotName?start=invite_unique-token-here</span>
+                    <span class="invite-link">Link: https://t.me/YourBotName/KamboKlarity?startapp=invite_unique-token-here</span>
                     <span class="invite-status">Status: Pending</span>
                     <span class="friend-name"></span> <!-- Populated if friend accepts -->
                     <button class="copy-link-button">Copy Link</button>
@@ -1733,7 +714,7 @@ Modify the `public/invite-friends.html` Mini-App and its JavaScript (`public/inv
             *   On success: appends new invite to DOM using `createInviteListItemDOM()`, updates remaining count, updates button state.
             *   On error: displays error.
         *   `generateNewInviteToken(sessionId, telegramId)`: Makes `POST` request, returns promise.
-        *   `handleCopyLinkClick(event)`: Gets token from `event.target.closest('.invite-item').dataset.token`, constructs link, uses `navigator.clipboard.writeText()`, shows feedback.
+        *   `handleCopyLinkClick(event)`: Gets token from `event.target.closest('.invite-item').dataset.token`, constructs startapp link (`https://t.me/{botUsername}/KamboKlarity?startapp=invite_{token}`), uses `navigator.clipboard.writeText()`, shows feedback.
         *   `handleShareTelegramClick(event)`: Similar to copy, constructs share URL, `window.open()`.
         *   `displayPageError(message)`, `displayInlineError(message, targetElement)` functions.
 
@@ -1829,7 +810,7 @@ Enable the Telegram bot's `/start` command handler to recognize and process deep
         2.  Make an API call to `GET /api/booking-flow/start-invite/{inviteToken}?friend_tg_id={friendTelegramId}`.
 *   **Requirement C (Handle API Response & Friend Interaction):**
     *   **If API call is successful (`response.success === true`):**
-        1.  Extract `nextStep.url` (e.g., to `join-session.html` or `form-handler.html`) and `inviteDetails` from the API response. The `nextStep.url` will already include the `flowToken`.
+        1.  Extract `nextStep.url` (to `form-handler.html` with appropriate parameters) and `inviteDetails` from the API response. The `nextStep.url` will already include the `flowToken`.
         2.  Construct a message for the friend using `inviteDetails`:
             *   Text: "👋 You've been invited by [Primary Booker Name] to a [Session Type Label] session!\n\n✨ **Session Type:** [Session Type Label]\n🗓️ **Date:** [Formatted Date]\n⏰ **Time:** [Formatted Time]\n\nWould you like to join?"
         3.  Present an inline keyboard with:
@@ -1850,6 +831,160 @@ Enable the Telegram bot's `/start` command handler to recognize and process deep
         *   If 'accepted_by_friend' (but waiver not done): "You've already indicated interest. Please complete the waiver..." (with button to `form-handler.html` with `flowToken`).
         *   If 'declined_by_friend': "You have previously declined this invite."
 *   **Requirement F (Standard `/start` Behavior):** If `ctx.startPayload` is empty or doesn't match the invite pattern, the standard `/start` command behavior should execute (e.g., welcome message).
+**Requirement G (Enhanced Friend Response API - PH6-29):**
+*   **New API Endpoint: `POST /api/session-invites/:token/respond`**
+    *   Input: `invite_token` (URL param), JSON body `{ response: 'accepted' | 'declined' }`
+    *   Handler logic:
+        1. Find `SessionInvite` by token, validate it's 'pending'
+        2. Update `SessionInvite.status` to response value
+        3. If response === 'accepted':
+            - Notify original inviter: "{Friend's placeholder name/ID} is considering your invite!"
+            - Notify admin
+            - Respond with: `{ success: true, action: 'proceedToBot', deepLink: 'https://t.me/YOUR_BOT_NAME?start=reg_or_waiver_for_invite_' + invite_token }`
+        4. If response === 'declined':
+            - Notify original inviter: "{Friend's placeholder name/ID} declined your invite."
+            - Notify admin
+            - Respond with: `{ success: true, action: 'invite_declined', message: "Thank you for responding." }`
+
+#### **Requirement H (Enhanced Deep Link Processing - PH6-30):**
+*   **Extended `/start` Command Handler:**
+    *   Handle new pattern: `reg_or_waiver_for_invite_TOKEN`
+    *   Parse TOKEN (the invite_token)
+    *   Find `SessionInvite` by token, verify status is 'accepted_by_friend'
+    *   Store `ctx.from.id` (friend's Telegram ID) and `ctx.from.first_name` on SessionInvite record
+    *   Check if `friendTelegramId` exists in Users table:
+        - If new user: Send registration form link with invite context
+        - If existing user: Send waiver form link directly
+    *   Set appropriate user state for friend registration/waiver flow
+
+#### **Requirement I (Inline Query Handler Implementation - PH6-25):**
+*   **Bot Inline Query Handler:**
+    *   Implement `bot.on('inline_query', async (ctx) => { ... })`
+    *   If `ctx.inlineQuery.query` starts with `kbinvite_`, parse the invite_token
+    *   Fetch `SessionInvite` by invite_token with parent Session details
+    *   Construct `InlineQueryResultArticle`:
+        - title: "{InviterFirstName} has invited you to a Kambo session!"
+        - description: "{SessionTypeLabel} on {FormattedDate} at {FormattedTime}."
+        - thumb_url: Optional KamboFrog.png URL
+        - input_message_content with rich invite message
+        - reply_markup with Accept/Decline inline keyboard buttons
+    *   Call `ctx.answerInlineQuery([resultArticle])`
+
+*   **Bot Callback Query Handler for Rich Invites (Edit-in-Place Logic):**
+    *   **CRITICAL: Use Edit-in-Place Pattern** - Never send new messages, always edit existing message
+    *   Handle `accept_invite_{token}` callback queries from rich sharing:
+        1. Validate invite token and update SessionInvite status
+        2. Check if friend is registered user
+        3. **Immediately edit the original message** to replace Accept/Decline buttons with "Proceed to Waiver" WebApp button
+        4. New message text: "✅ Invite accepted! Tap below to complete your waiver."
+        5. Single WebApp button: "Complete Waiver" → opens form-handler.html directly
+        6. Send notifications to primary booker and admin
+    *   Handle `decline_invite_{token}` callback queries:
+        1. Update SessionInvite status to declined
+        2. **Edit the original message** to remove buttons and show "❌ Invite declined. Thank you for responding."
+        3. Notify primary booker and admin
+    *   **No separate messages sent** - maintains clean chat experience with instant visual feedback
+
+## New Frontend Components Required
+
+### **Enhanced Friend Registration Flow**
+*   **registration-form.html Parameter Support:**
+    *   Support `inviteToken` and `friendTelegramId` URL parameters
+    *   Modified registration flow for invited friends
+    *   Post-registration redirect to waiver form with invite context
+
+*   **form-handler.html Friend Flow Integration (StartApp Support):**
+    *   **StartApp Parameter Detection:**
+        *   On page load, check `window.Telegram.WebApp.initDataUnsafe.start_param` for `invite_{token}` pattern
+        *   If detected, extract token and call `GET /api/invite-context/{inviteToken}` immediately
+        *   Show loading spinner with "Loading invitation details..." message during API call
+    *   **Self-Initialization Logic:**
+        *   Parse API response to determine form type (KAMBO_WAIVER_FRIEND_V1, etc.)
+        *   Pre-populate session details in form header (session type, date, time, primary booker name)
+        *   Render appropriate waiver form based on `sessionType.waiverType` configuration
+        *   Set form submission endpoint to include invite token context
+    *   **Enhanced Friend Waiver Flow:**
+        *   Streamlined UI specifically designed for invited friends
+        *   Automatic session association via invite token (no manual session selection)
+        *   Custom completion flow that notifies primary booker and admin
+        *   Error handling for expired/invalid invite tokens with helpful messaging
+    *   **Fallback Support:**
+        *   Maintain existing URL parameter support for backward compatibility
+        *   Graceful degradation if startapp parameter detection fails
+        *   Support both flow token and invite token initialization paths
+
+## API Endpoints to Add/Modify
+
+### New Endpoints
+```javascript
+POST /api/session-invites/:token/respond     // Friend accepts/declines invite
+GET /api/sessions/:sessionId/invite-context  // Enhanced with stepper data
+POST /api/sessions/:sessionId/generate-invite-token // Enhanced with stepper logic
+GET /api/invite-context/:inviteToken         // NEW: StartApp integration endpoint
+```
+
+### Enhanced Endpoints
+```javascript
+GET /api/booking-flow/start-invite/:inviteToken // Enhanced for friend registration flow
+POST /api/booking-flow/continue                 // Enhanced friend waiver processing
+```
+
+### Detailed API Specification: GET /api/invite-context/:inviteToken
+
+**Purpose:** Enable form-handler.html to self-initialize when opened via startapp link, supporting the one-click WebApp vision.
+
+**Parameters:**
+- `inviteToken` (URL parameter): The unique invite token from the startapp URL
+
+**Authentication:** None required (token-based validation)
+
+**Response Schema:**
+```javascript
+// Success Response (200)
+{
+  "success": true,
+  "data": {
+    "sessionDetails": {
+      "sessionTypeLabel": "Kambo Healing Session", 
+      "appointmentDateTime": "2024-06-15T10:00:00Z",
+      "appointmentDateTimeFormatted": "June 15, 2024 at 10:00 AM"
+    },
+    "sessionType": {
+      "waiverType": "KAMBO_V1",
+      "allowsGroupInvites": true,
+      "maxGroupSize": 4
+    },
+    "inviteContext": {
+      "primaryBookerName": "John Doe",
+      "friendTelegramId": null,  // To be filled when friend completes waiver
+      "status": "pending"
+    },
+    "flowConfiguration": {
+      "formType": "KAMBO_WAIVER_FRIEND_V1", // Specific friend version
+      "redirectAfterCompletion": "/booking-success-friend.html",
+      "requiresRegistration": true // If friend is not a registered user
+    }
+  }
+}
+
+// Error Response (404/400)
+{
+  "success": false,
+  "error": "INVALID_INVITE_TOKEN",
+  "message": "This invitation link is invalid or has expired."
+}
+```
+
+**Validation Logic:**
+1. Validate `inviteToken` exists and is associated with a valid `SessionInvite`
+2. Check invite status is 'pending' or 'accepted_by_friend' 
+3. Verify parent session is valid and future-dated
+4. Return appropriate error messages for expired/invalid tokens
+
+**Integration with form-handler.html:**
+- Called when `window.Telegram.WebApp.initDataUnsafe.start_param` contains `invite_{token}`
+- Enables form-handler.js to show loading spinner → fetch context → render form
+- Supports seamless one-click experience from startapp links
 
 **Implementation Guide:**
 
@@ -1880,6 +1015,45 @@ Enable the Telegram bot's `/start` command handler to recognize and process deep
         end
         ```
     *   **Tech Stack:** Node.js, Telegraf library.
+### Inline Query Handler
+```javascript
+bot.on('inline_query', async (ctx) => {
+  if (ctx.inlineQuery.query.startsWith('kbinvite_')) {
+    const inviteToken = ctx.inlineQuery.query.substring(9);
+    // Fetch invite details and create rich sharing result
+    // Return formatted InlineQueryResultArticle
+  }
+});
+```
+
+### Enhanced Callback Query Handler (Edit-in-Place Implementation)
+```javascript
+bot.on('callback_query', async (ctx) => {
+  const data = ctx.callbackQuery.data;
+  
+  if (data.startsWith('accept_invite_')) {
+    const inviteToken = data.replace('accept_invite_', '');
+    // Validate token and process acceptance
+    
+    // CRITICAL: Edit the existing message, don't send new one
+    await ctx.editMessageText(
+      '✅ Invite accepted! Tap below to complete your waiver.',
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: 'Complete Waiver', web_app: { url: webAppUrl } }
+          ]]
+        }
+      }
+    );
+    
+    // Send notifications to other parties
+  } else if (data.startsWith('decline_invite_')) {
+    // Edit message to show declined state with no buttons
+    await ctx.editMessageText('❌ Invite declined. Thank you for responding.');
+  }
+});
+```    
 
 *   **DB Schema:**
     *   Relies on `SessionInvite` (for token validation, status checks) and its relations, primarily accessed via the `BookingFlowManager` API.
@@ -1898,15 +1072,13 @@ Enable the Telegram bot's `/start` command handler to recognize and process deep
 *   **CRUD Operations (Bot Handler):**
     *   Primarily Read operations via the API call. The `BookingFlowManager` handles any state updates (e.g., marking invite as 'viewed' if desired, though this might be better done when the WebApp loads).
 
-*   **UX Flow (Friend's Perspective):**
-    1.  Friend receives an invite link (e.g., `https://t.me/YourBotName?start=invite_UNIQUE_TOKEN`).
-    2.  Friend clicks the link. Telegram opens a chat with the bot and sends the `/start invite_UNIQUE_TOKEN` command.
-    3.  Bot's `/start` handler parses the token.
-    4.  Bot calls `GET /api/booking-flow/start-invite/...`.
-    5.  If API call successful & token valid:
-        *   Bot sends a message to the friend with session details (from `inviteDetails`) and two buttons: "Accept & View Details" (WebApp) and "Decline Invite" (callback).
-    6.  If API call fails or token invalid:
-        *   Bot sends an appropriate error/informational message to the friend.
+*   **UX Flow (Friend's Perspective) - Updated for Edit-in-Place:**
+    1.  **Rich Invite Path**: Friend receives rich invite in Telegram chat with Accept/Decline buttons
+    2.  Friend clicks "Accept" → **Same message instantly transforms** to show "✅ Invite accepted!" with "Complete Waiver" WebApp button
+    3.  Friend clicks "Complete Waiver" → form-handler.html opens directly (ONE additional tap, same message location)
+    4.  **Link Invite Path**: Friend clicks startapp link → form-handler.html opens immediately (ZERO additional taps)
+    5.  **Legacy Link Path**: Friend clicks t.me/?start=invite_ link → bot sends message with session details and buttons
+    6.  **Result**: Rich invites achieve 2-tap experience (accept + proceed), Link invites achieve 1-tap experience
 
 *   **Security:**
     *   `inviteToken` is the key. The `BookingFlowManager` API is responsible for its secure validation.
@@ -1921,6 +1093,27 @@ Enable the Telegram bot's `/start` command handler to recognize and process deep
         *   Test handling of successful API response: verify `ctx.reply` is called with correct message text and inline keyboard structure (WebApp URL, callback data).
         *   Test handling of various error API responses (404, 500, specific business errors like "token already used"): verify correct error message sent to friend.
         *   Test self-invite click scenario if API supports distinguishing it.
+    ## Testing Strategy Enhancements
+
+### Integration Tests
+*   Friend invitation end-to-end flow testing
+*   Inline query handler testing with rich sharing
+*   Native sharing API testing with fallbacks
+*   Stepper UI functionality testing
+
+### Performance Tests
+*   Concurrent friend invitation acceptance
+*   Real-time status update performance
+*   Notification queue performance under load
+
+## Security Considerations
+
+*   Rate limiting on friend response endpoints
+*   Invite token validation and expiry
+*   Secure inline query result generation
+*   Protected friend registration flow
+
+
     *   **Integration Tests:**
         *   Requires a running bot instance and a running API server (with `BookingFlowManager` and its dependencies mocked or using a test DB).
         *   Send `/start invite_{valid_token}` to the bot via a test client or manually. Verify the bot's response message and button functionality (WebApp button opens correct URL, decline button sends correct callback).
@@ -1928,7 +1121,7 @@ Enable the Telegram bot's `/start` command handler to recognize and process deep
     *   **E2E Tests (as part of overall flow testing in Task 30):**
         *   Primary booker generates an invite.
         *   A different test Telegram user clicks the invite link.
-        *   Verify the entire sequence: bot message, clicking "Accept & View Details" opens the correct WebApp (`join-session.html` or `form-handler.html`).
+        *   Verify the entire sequence: bot message, clicking "Accept & View Details" opens form-handler.html with correct parameters.
 
 *   **Data Management:**
     *   The bot handler itself is largely stateless for this interaction, relying on the `inviteToken` and `BookingFlowManager` API.
@@ -1965,228 +1158,29 @@ Enable the Telegram bot's `/start` command handler to recognize and process deep
 *   Friend has blocked the bot (bot won't receive the `/start` command, or `ctx.reply` will fail).
 
 ---
-### Feature 10 (Task 26): `join-session.html` Mini-App for Friend's Initial View
+### ~~Feature 10 (Task 26): `join-session.html` Mini-App for Friend's Initial View~~ **[DEPRECATED]**
 **(Adapts Original: PH6-27 from `Details_Phase_6_updated.md`)**
 
-**Goal:**
-Create or refactor the `public/join-session.html` Mini-App and its JavaScript (`public/join-session.js`). This page is opened when an invited friend clicks the "View Invite & Accept" WebApp button from the bot message (generated in Task 25). It will display key invitation details (passed via URL parameters from the `BookingFlowManager`'s `start-invite` API response) and provide a button for the friend to confirm their interest and proceed to the next step in their acceptance flow (typically the waiver form via `form-handler.html`).
+**❌ DEPRECATED:** This feature is no longer needed due to the implementation of startapp URLs that provide direct one-click access to form-handler.html.
 
-**API Relationships:**
-*   **Loaded via redirect from Bot (originating from `BookingFlowManager`):** The URL to `join-session.html` will contain parameters like `flowToken`, `inviteToken`, `friend_tg_id`, and pre-fetched `primaryBookerName`, `sessionTypeLabel`, `appointmentTimeFormatted`, `sessionTypeId`, `appointmentDateTimeISO`. These details are sourced from the response of `GET /api/booking-flow/start-invite/:inviteToken` (Task 18).
-*   **Calls (Client-side in `public/join-session.js`):**
-    1.  `POST /api/booking-flow/continue` (New from Task 18):
-        *   Input: `{ flowToken, stepId: "friend_confirmed_invite_details", formData: { inviteToken, friend_tg_id, sessionTypeId, appointmentDateTimeISO } }`
-        *   Called when the friend clicks "Accept & Continue" (or similar).
-        *   Output: `{ success, nextStep: { type, url, ... } }` (typically redirecting to `form-handler.html` for waiver).
+**Deprecation Rationale:**
+- **StartApp Integration:** Friends now access form-handler.html directly via `https://t.me/{BOT_USERNAME}/{WEBAPP_NAME}?startapp=invite_{token}` 
+- **One-Click Experience:** Eliminates intermediate confirmation step, achieving true one-click-to-WebApp vision
+- **Rich Invite Edit-in-Place:** Rich invites use edit-in-place pattern to transform Accept button into "Complete Waiver" WebApp button
+- **Simplified Flow:** Both link and rich invite paths now lead directly to form-handler.html with appropriate context
 
-**Detailed Requirements:**
+**Migration Path:**
+- **Link Invites:** StartApp URL → form-handler.html (with startapp parameter detection)
+- **Rich Invites:** Accept callback → edit message with "Complete Waiver" WebApp button → form-handler.html
+- **Legacy Support:** Existing `/start invite_{token}` links can redirect to startapp URL or show deprecation notice
 
-*   **Requirement A (Mini-App Creation/Refactoring):**
-    *   Ensure `public/join-session.html`, `public/join-session.js`, and `public/join-session.css` (or leverage shared styles) exist or are created/refactored.
-    *   The page serves as an informational and confirmation step before the friend proceeds.
-*   **Requirement B (URL Parameter Parsing):**
-    *   `public/join-session.js` must parse the following essential parameters from URL query string upon page load:
-        *   `flowToken`: The active token for the current booking flow.
-        *   `inviteToken`: The unique token identifying this specific invitation.
-        *   `friend_tg_id`: The friend's Telegram ID.
-        *   `primaryBookerName`: Name of the person who invited them.
-        *   `sessionTypeLabel`: Label of the session (e.g., "Standard Kambo Session").
-        *   `appointmentTimeFormatted`: User-friendly date and time of the session.
-        *   `sessionTypeId`: The ID of the session type (needed for the next step, e.g., waiver).
-        *   `appointmentDateTimeISO`: The ISO string of the appointment (needed for the next step).
-    *   If `flowToken`, `inviteToken`, or `friend_tg_id` are missing, the page should display a clear error message (e.g., "Invalid or incomplete invite link.") and disable the proceed button. Other display details might show as "N/A" if missing but are less critical for proceeding.
-*   **Requirement C (Dynamic Content Display):**
-    *   Display a welcoming message: "👋 You're invited by **[Primary Booker Name]** to join a session!"
-    *   Clearly display the session details:
-        *   "**Session Type:** [Session Type Label]"
-        *   "**Date & Time:** [Appointment Time Formatted]"
-    *   (Optional) A brief message like "Please review the details above. If you'd like to join, click the button below."
-    *   Provide a clear call-to-action button: e.g., "Accept & Continue to Waiver" or "Confirm & Proceed".
-*   **Requirement D (Proceed Button Functionality):**
-    *   The "Accept & Continue" button (e.g., `#proceedButton`):
-        1.  When clicked, it should immediately disable itself and show a loading indicator (e.g., "Processing...").
-        2.  It triggers a client-side JavaScript function (`handleProceedClick`).
-        3.  This function constructs the payload for and calls `POST /api/booking-flow/continue`.
-        4.  The payload must include:
-            *   `flowToken` (parsed from URL).
-            *   `stepId`: A specific identifier for this action, e.g., `"friend_confirmed_invite_details"` or `"friend_proceed_to_waiver"`.
-            *   `formData`: An object containing at least `{ inviteToken, friend_tg_id, sessionTypeId, appointmentDateTimeISO }`. These are passed to ensure `BookingFlowManager` has all necessary context for the *next* step (e.g., loading the correct waiver form).
-*   **Requirement E (Handle `BookingFlowManager` Response):**
-    *   Upon receiving a response from `POST /api/booking-flow/continue`:
-        *   If `response.success === true` and `response.nextStep.type === "REDIRECT"` and `response.nextStep.url` is provided:
-            *   Perform `window.location.href = response.nextStep.url;`. This URL will typically point to `public/form-handler.html` for the waiver, including the same `flowToken` and other necessary context parameters for that form.
-        *   If `response.success === true` and `response.nextStep.type === "COMPLETE"` (less likely here, but possible if no waiver is needed for the friend for some reason):
-            *   Display `response.nextStep.message`.
-            *   If `response.nextStep.closeWebApp` is true, call `window.Telegram.WebApp.close()` after a short delay.
-        *   If `response.success === false` or an error occurs:
-            *   Display an appropriate error message from `response.message` or a generic one.
-            *   Re-enable the proceed button to allow the user to retry.
-*   **Requirement F (Telegram Back Button):**
-    *   On page load, show the Telegram Back Button: `window.Telegram.WebApp.BackButton.show()`.
-    *   Configure its `onClick` handler to simply close the WebApp: `window.Telegram.WebApp.BackButton.onClick(() => window.Telegram.WebApp.close());`.
-    *   Reasoning: If the friend navigates back from this informational page, they are abandoning this specific attempt to accept via the WebApp. The original bot message (from Task 25) with the "Accept & View Details" button would still be in their chat if they wish to re-initiate the WebApp flow.
-*   **Requirement G (Styling and UX):**
-    *   Maintain visual consistency with other project mini-apps (dark theme, video background, typography as per [`public/calendar-app.html`](public/calendar-app.html:0)).
-    *   Information should be clear, concise, and easy to understand.
-    *   The call-to-action button should be prominent.
-    *   Implement loading states for the proceed button during the API call.
+**Files to Remove/Archive:**
+- `public/join-session.html` (redundant)
+- `public/join-session.js` (redundant) 
+- `public/join-session.css` (redundant)
+- Related test files in `tests/public/`
 
-**Implementation Guide:**
-
-*   **Architecture Overview:**
-    *   Client-side Mini-App (`public/join-session.html`, `public/join-session.js`).
-    *   Serves as an interstitial page for invited friends, confirming details before they proceed.
-    *   Receives its initial state/context via URL parameters.
-    *   Communicates with `BookingFlowManager` via the `/api/booking-flow/continue` endpoint.
-    *   **Diagram (Join Session Page - Client-Side Logic):**
-        ```mermaid
-        sequenceDiagram
-            participant User as Friend
-            participant JoinSessionJS as join-session.js
-            participant FlowContinueAPI as POST /api/booking-flow/continue
-            
-            activate User
-            User->>JoinSessionJS: Opens join-session.html (URL has flowToken, inviteToken, friend_tg_id, displayDetails)
-            activate JoinSessionJS
-            JoinSessionJS->>JoinSessionJS: Parse URL Parameters
-            alt Essential Params Missing
-                JoinSessionJS->>User: Display Error ("Invalid Link"), Disable Proceed Button
-            else Essential Params Present
-                JoinSessionJS->>JoinSessionJS: Display Invite Details (Booker, Session Type, Time)
-                JoinSessionJS->>JoinSessionJS: Setup Telegram Back Button (to close WebApp)
-            end
-            
-            User->>JoinSessionJS: Clicks "Accept & Continue" Button
-            JoinSessionJS->>JoinSessionJS: Disable Button, Show Loading State
-            JoinSessionJS->>+FlowContinueAPI: Call with {flowToken, stepId, formData: {inviteToken, friend_tg_id, ...}}
-            FlowContinueAPI-->>-JoinSessionJS: API Response {success, nextStep: {type, url}} or Error
-            
-            alt API Call Successful
-                JoinSessionJS->>JoinSessionJS: Hide Loading State
-                alt nextStep is REDIRECT
-                    JoinSessionJS->>User: window.location.href = nextStep.url (e.g., to form-handler.html)
-                else nextStep is COMPLETE
-                    JoinSessionJS->>User: Display nextStep.message
-                    opt closeWebApp is true
-                        JoinSessionJS->>User: Telegram.WebApp.close()
-                    end
-                end
-            else API Call Failed
-                JoinSessionJS->>User: Display Error Message
-                JoinSessionJS->>JoinSessionJS: Re-enable "Accept & Continue" Button, Hide Loading
-            end
-            deactivate JoinSessionJS
-            deactivate User
-        end
-        ```
-    *   **Tech Stack:** HTML, CSS, Vanilla JavaScript.
-
-*   **DB Schema:** N/A for this client-side feature.
-
-*   **API Design (Consumption):**
-    *   Consumes parameters passed in its URL.
-    *   Calls `POST /api/booking-flow/continue`. A helper function (e.g., in a shared `public/js/flowApi.js` or directly in `join-session.js`) should be created to make this API call.
-
-*   **Frontend Structure (`public/join-session.html` & `public/join-session.js`):**
-    *   **`join-session.html`:**
-        *   Basic HTML structure with a main container.
-        *   Video background element.
-        *   Elements to display:
-            *   Welcome message: `<p>You're invited by <strong id="primaryBookerNameDisplay"></strong>!</p>`
-            *   Session Type: `<p><strong>Session Type:</strong> <span id="sessionTypeLabelDisplay"></span></p>`
-            *   Date & Time: `<p><strong>Date & Time:</strong> <span id="appointmentTimeDisplay"></span></p>`
-        *   Proceed button: `<button id="proceedButton">Accept & Continue to Waiver</button>`
-        *   Area for error messages: `<div id="errorMessageArea" class="error-message" style="display:none;"></div>`
-        *   Loading indicator (could be part of the button text or a separate spinner).
-    *   **`join-session.js`:**
-        *   Global or module-scoped variables to store parsed URL parameters (`flowToken`, `inviteToken`, `friendTelegramId`, `sessionTypeId`, `appointmentDateTimeISO`).
-        *   `initJoinSessionPage()` or `DOMContentLoaded` listener:
-            *   Calls `parseUrlParameters()`.
-            *   If critical parameters (like `flowToken`, `inviteToken`, `friend_tg_id`) are missing, calls `showFatalError("Invalid invite link.")` and returns.
-            *   Calls `displayInviteInformation()` using parsed parameters.
-            *   Sets up Telegram Back Button: `Telegram.WebApp.BackButton.show(); Telegram.WebApp.BackButton.onClick(() => Telegram.WebApp.close());`.
-            *   Adds event listener to `#proceedButton` to call `handleProceedButtonClick()`.
-        *   `parseUrlParameters()`: Function to extract all required parameters from `window.location.search`.
-        *   `displayInviteInformation()`: Populates `#primaryBookerNameDisplay`, `#sessionTypeLabelDisplay`, `#appointmentTimeDisplay` with data from parsed URL parameters.
-        *   `handleProceedButtonClick()`:
-            *   Disables `#proceedButton` and updates its text/shows a spinner.
-            *   Constructs the `payload` for `POST /api/booking-flow/continue`:
-                ```javascript
-                // const payload = {
-                //   flowToken: parsedFlowToken,
-                //   stepId: "friend_confirmed_invite_details", // Or a more generic "friend_accepted_info"
-                //   formData: {
-                //     inviteToken: parsedInviteToken,
-                //     friend_tg_id: parsedFriendTelegramId,
-                //     sessionTypeId: parsedSessionTypeId, // Pass along for next step context
-                //     appointmentDateTimeISO: parsedAppointmentDateTimeISO // Pass along
-                //   }
-                // };
-                ```
-            *   Makes the API call (e.g., `await flowApi.continueFlow(payload)`).
-            *   Handles success: if `nextStep.type === "REDIRECT"`, then `window.location.href = response.nextStep.url;`.
-            *   Handles error: calls `showErrorMessage(apiResponse.message)`, re-enables `#proceedButton`.
-        *   `showFatalError(message)`: Displays a prominent error and disables the proceed button permanently for this page load.
-        *   `showErrorMessage(message)`: Displays a temporary error.
-        *   Functions to manage loading state of the button.
-
-*   **CRUD Operations:** N/A for client-side. This page triggers backend processing via `BookingFlowManager`.
-
-*   **UX Flow:**
-    1.  Friend clicks "Accept & View Details" WebApp button in their Telegram chat (from Task 25).
-    2.  `public/join-session.html` loads.
-    3.  Page displays information: "You're invited by [Booker's Name] for [Session Type] on [Date/Time]."
-    4.  Friend reviews the details.
-    5.  Friend clicks "Accept & Continue to Waiver" (or similar) button. Button shows a loading state.
-    6.  `join-session.js` calls `POST /api/booking-flow/continue`.
-    7.  `BookingFlowManager` processes this "confirmation of details" step.
-    8.  `BookingFlowManager` responds with `nextStep` (typically a redirect to `public/form-handler.html` for the waiver, including the `flowToken`).
-    9.  The browser navigates to the waiver form page.
-
-*   **Security:**
-    *   Relies on the unguessability and secure handling of `flowToken` and `inviteToken` passed in the URL.
-    *   All API calls must be over HTTPS.
-    *   The `friend_tg_id` from the URL is used to identify the user in the context of this flow.
-
-*   **Testing:**
-    *   **Unit Tests (`public/join-session.js`):**
-        *   Test `parseUrlParameters()` with various valid and invalid URL inputs (missing params, malformed params).
-        *   Test `displayInviteInformation()` for correct DOM updates based on mock input data.
-        *   Mock the API call to `POST /api/booking-flow/continue`.
-        *   Test `handleProceedButtonClick()`:
-            *   Verify correct payload construction for the API call.
-            *   Test handling of successful API response (verifying `window.location.href` is set correctly).
-            *   Test handling of error API response (error message displayed, button re-enabled).
-        *   Verify Telegram Back Button setup.
-    *   **E2E Tests (as part of overall flow testing in Task 30):**
-        *   Full sequence: Friend clicks invite link in bot -> Bot sends message with "Accept & View Details" button -> Friend clicks button -> `join-session.html` loads.
-        *   Verify correct invite details are displayed on `join-session.html`.
-        *   Friend clicks "Accept & Continue" -> Verify redirection to `form-handler.html` (for waiver) with correct parameters (including `flowToken`).
-        *   Test scenario where essential URL parameters are missing when `join-session.html` loads (expect error display).
-
-*   **Data Management (Client-Side):**
-    *   Data is primarily passed via URL parameters.
-    *   No significant client-side storage beyond these parameters for the page's lifecycle.
-
-*   **Logging & Error Handling (Client-Side):**
-    *   Use `console.log` for debugging: parsed URL parameters, constructed API payloads, API responses.
-    *   Display user-friendly error messages in a dedicated `#errorMessageArea` if URL params are invalid or API calls fail.
-    *   Manage loading state of the proceed button.
-
-**Data Flow Steps (Client-Side `join-session.html`):**
-1.  Page loads. URL contains `flowToken`, `inviteToken`, `friend_tg_id`, and display details like `primaryBookerName`, `sessionTypeLabel`, `appointmentTimeFormatted`, `sessionTypeId`, `appointmentDateTimeISO`.
-2.  `join-session.js` parses these parameters from the URL.
-3.  JS populates the respective DOM elements to display the invitation details.
-4.  User clicks the "Accept & Continue to Waiver" button.
-5.  JS constructs a payload: `{ flowToken, stepId: "friend_confirmed_invite_details", formData: { inviteToken, friend_tg_id, sessionTypeId, appointmentDateTimeISO } }`.
-6.  JS makes a `POST` request to `/api/booking-flow/continue` with this payload.
-7.  The backend (`BookingFlowManager`) processes this step. If successful, it responds with `nextStep` containing a URL (e.g., to `form-handler.html` for the waiver, including the `flowToken`).
-8.  `join-session.js` receives the API response and, if successful and a redirect URL is provided, sets `window.location.href` to this new URL.
-
-**Key Edge Cases:**
-*   Critical URL parameters (`flowToken`, `inviteToken`, `friend_tg_id`) are missing or malformed: Page should display a clear error and prevent proceeding.
-*   API call to `/api/booking-flow/continue` fails (e.g., network error, server error, `BookingFlowManager` determines an issue like invite no longer valid): Page should display an error message and allow the user to retry by clicking the button again.
-*   User clicks the Telegram Back button: WebApp closes. They can re-initiate from the bot message if they choose.
+---
 
 ---
 ### Feature 11 (Task 27): Bot - Handle "Decline Invite" Callback
@@ -2351,6 +1345,255 @@ When an invited friend clicks the "Decline Invite 😔" button in the Telegram m
 *   `inviteToken` in callback data is somehow malformed or doesn't exist: DB lookup will fail; inform user invite is invalid.
 *   Primary booker's Telegram ID cannot be found (data integrity issue): Log error, friend's decline is still processed.
 *   Failure to edit the friend's message or send notification to primary booker: Log error. The core decline action (DB update) is the most critical part.
+
+---
+### Event Sourcing & Audit Trail – Implementation Pattern
+**(Adapts content from user prompt regarding Event Sourcing & Audit Trail 📝)**
+
+Problem: Complex multi-step operations need detailed logging for debugging and compliance.
+Solution - Event Sourcing Pattern:
+
+This pattern involves recording all state changes as a sequence of events. This provides a robust audit trail and can help in debugging and reconstructing state.
+
+**`BookingEventStore` Class:**
+```javascript
+// Event sourcing for booking operations
+const { v4: uuidv4 } = require('uuid'); // Assuming uuid is available
+
+class BookingEventStore {
+constructor(prisma, logger) {
+this.prisma = prisma;
+this.logger = logger;
+}
+async recordEvent(eventType, aggregateId, data, metadata = {}) {
+const event = {
+id: uuidv4(),
+eventType,
+aggregateId, // e.g., sessionId, inviteToken
+data: JSON.stringify(data), // Specific data for this event
+metadata: JSON.stringify({
+  ...metadata,
+  timestamp: new Date().toISOString(),
+  version: '1.0' // Event schema version
+}),
+createdAt: new Date()
+};
+
+// Assuming a BookingEvent model in prisma.schema
+await this.prisma.bookingEvent.create({ data: event });
+
+this.logger.info({
+eventId: event.id,
+eventType,
+aggregateId
+}, 'Critical booking event recorded');
+
+return event.id;
+}
+
+async getEventHistory(aggregateId) {
+return await this.prisma.bookingEvent.findMany({
+where: { aggregateId },
+orderBy: { createdAt: 'asc' }
+});
+}
+}
+```
+Use code with caution.
+
+**Usage Example in Waiver Processing (Illustrative):**
+The following shows how `_processPrimaryBookerWaiver` (conceptually part of `BookingFlowManager`) might use the `BookingEventStore`, adapted for critical vs. standard event logging as per new requirements.
+
+```javascript
+// Illustrative usage within BookingFlowManager or a similar service
+// This.eventStore would be an instance of BookingEventStore
+// This.logger is the standard application logger
+
+async _processPrimaryBookerWaiver(flowContext, formData) {
+const sessionIdAggregate = `session_waiver_${flowContext.userId}_${Date.now()}`; // Example aggregate ID
+
+// Record start of processing - Standard Log
+this.logger.info({
+operation: 'WAIVER_PROCESSING_STARTED',
+aggregateId: sessionIdAggregate,
+userId: flowContext.userId,
+sessionTypeId: flowContext.sessionTypeId,
+appointmentDateTime: flowContext.appointmentDateTimeISO
+}, 'Waiver processing started for primary booker.');
+
+try {
+// Delete placeholder
+if (flowContext.placeholderId) {
+await this.googleCalendarTool.deleteCalendarEvent(flowContext.placeholderId);
+// Record placeholder deletion - Standard Log
+this.logger.info({
+  operation: 'PLACEHOLDER_DELETED',
+  aggregateId: sessionIdAggregate,
+  placeholderId: flowContext.placeholderId
+}, 'Placeholder deleted.');
+}
+
+// Final slot check
+const isAvailable = await this.googleCalendarTool.isSlotTrulyAvailable(/*...*/);
+// Record slot availability check - Standard Log
+this.logger.info({
+operation: 'SLOT_AVAILABILITY_CHECKED',
+aggregateId: sessionIdAggregate,
+isAvailable,
+checkedAt: new Date().toISOString()
+}, 'Slot availability checked.');
+
+if (!isAvailable) {
+// Record booking failure - Critical Event
+await this.eventStore.recordEvent('BOOKING_FAILED', sessionIdAggregate, {
+  reason: 'SLOT_UNAVAILABLE',
+  flowContext
+});
+throw new BookingError('SLOT_UNAVAILABLE', 'Slot no longer available');
+}
+
+// Create session (assuming this happens within a transaction if part of a larger operation)
+const session = await this.prisma.session.create({/*...*/}); // Simplified
+// Record session creation - Critical Event
+await this.eventStore.recordEvent('SESSION_CREATED', sessionIdAggregate, {
+sessionDbId: session.id,
+status: session.status,
+primaryBookerTelegramId: flowContext.userId
+});
+
+// Create calendar event
+const googleEventId = await this.googleCalendarTool.createCalendarEvent(/*...*/);
+// Record GCal event creation - Standard Log
+this.logger.info({
+operation: 'GCAL_EVENT_CREATED',
+aggregateId: sessionIdAggregate,
+googleEventId,
+sessionDbId: session.id
+}, 'Google Calendar event created.');
+
+// Update session with calendar ID
+await this.prisma.session.update({
+where: { id: session.id },
+data: { googleEventId }
+});
+// Record session update - Standard Log
+this.logger.info({
+operation: 'SESSION_UPDATED_WITH_GCAL_ID',
+aggregateId: sessionIdAggregate,
+sessionDbId: session.id,
+googleEventId
+}, 'Session updated with Google Calendar ID.');
+
+// Record successful completion of this stage - Standard Log (as finalization is separate)
+this.logger.info({
+operation: 'PRIMARY_WAIVER_PROCESSING_COMPLETED',
+aggregateId: sessionIdAggregate,
+sessionDbId: session.id,
+outcome: 'SUCCESS'
+}, 'Primary booker waiver processing completed.');
+// Note: A critical 'BOOKING_FINALIZATION_COMPLETED' event would occur later, in Feature 12.
+
+return { session, googleEventId };
+
+} catch (error) {
+// Record waiver processing failure - Critical Event
+await this.eventStore.recordEvent('WAIVER_PROCESSING_FAILED', sessionIdAggregate, {
+error: error.message,
+errorCode: error.code || 'UNKNOWN',
+flowContext
+});
+throw error;
+}
+}
+```
+Use code with caution.
+
+**Note on Friend's Waiver Processing:**
+A similar approach would apply to `_processFriendWaiver`. When a friend successfully completes their waiver:
+*   The update to `SessionInvite.status` to `'waiver_completed_by_friend'` is a key state change.
+*   A critical event `FRIEND_INVITE_CONFIRMED` should be recorded using `this.eventStore.recordEvent()`, including details like `inviteToken`, `friendTelegramId`, `parentSessionId`.
+*   Other operational steps (like GCal updates for the friend, notifications) would be standard logs via `this.logger.info()`.
+*   Failure to process a friend's waiver should also result in a critical failure event.
+
+---
+### Event Sourcing Management and Retention Policy
+
+**Goal:**
+Ensure the `BookingEvent` audit trail remains a valuable, low-cost tool for debugging without causing unbounded database growth. This will be achieved by being selective about what is stored and by implementing an automated data pruning policy.
+
+**Detailed Requirements:**
+
+*   **Requirement A (Define Critical vs. Standard Events):**
+*   The `BookingFlowManager` and other services will distinguish between critical, state-changing events (stored in `BookingEvent` table) and standard operational logs (logged via Logger, not stored in DB).
+*   **Critical Events to be stored in the `BookingEvent` table:**
+    *   `SESSION_CREATED`: When a primary booker's session record is first created.
+    *   `FRIEND_INVITE_CONFIRMED`: When an invited friend successfully completes their part of the flow (e.g., waiver completion, final confirmation if applicable). This corresponds to `SessionInvite.status` becoming 'waiver_completed_by_friend' or a similar terminal positive state.
+    *   `BOOKING_FINALIZATION_COMPLETED`: When the entire booking (including primary and any confirmed friends) is finalized (as per Feature 12).
+    *   `INVITE_DECLINED`: When a friend explicitly declines an invitation.
+    *   All failure events that represent a significant deviation or failure in a critical part of the flow (e.g., `BOOKING_FINALIZATION_FAILED`, `GCAL_CREATE_FAILED` if it causes rollback, `WAIVER_PROCESSING_FAILED`).
+*   **Standard Logs (to be logged via Logger, not stored in `BookingEvent` DB table):**
+    *   Informational steps like `_STARTED`, `_CHECKED`, `_ENQUEUED` (e.g., `WAIVER_PROCESSING_STARTED`, `SLOT_AVAILABILITY_CHECKED`, `NOTIFICATION_ENQUEUED`).
+    *   Successful intermediate steps that are not themselves the final critical state change (e.g., `PLACEHOLDER_DELETED`, `GCAL_EVENT_CREATED` for a placeholder or initial event before finalization, `SESSION_UPDATED` with intermediate data).
+*   The `BookingEventStore.recordEvent()` method (detailed in "Event Sourcing & Audit Trail – Implementation Pattern") is used for critical events. Standard logs use the application's standard logger (e.g., `this.logger.info()`).
+
+*   **Requirement B (Implement Automated Data Pruning):**
+*   Create a new cron job: `src/workers/eventPruningCron.js`.
+*   This job will run on a schedule (e.g., daily at 2:00 AM UTC, configurable via environment variable `EVENT_PRUNING_CRON_SCHEDULE` with a default like `0 2 * * *`).
+*   It will delete records from the `BookingEvent` table that are older than a configured retention period.
+    ```javascript
+    // Example logic in src/workers/eventPruningCron.js
+    const prisma = require('../core/prisma'); // Adjust path as needed
+    const logger = require('../core/logger'); // Adjust path
+    const { EVENT_LOG_RETENTION_DAYS, EVENT_PRUNING_CRON_SCHEDULE } = require('../core/env'); // Adjust path
+    const cron = require('node-cron');
+
+    async function pruneOldEvents() {
+      logger.info('Starting event pruning cron job...');
+      const retentionDays = parseInt(EVENT_LOG_RETENTION_DAYS, 10) || 90;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+      try {
+        const result = await prisma.bookingEvent.deleteMany({
+          where: {
+            createdAt: {
+              lt: cutoffDate,
+            },
+          },
+        });
+        logger.info({ count: result.count, cutoffDate }, `Event pruning completed. ${result.count} old event records deleted.`);
+      } catch (error) {
+        logger.error({ error, cutoffDate }, 'Error during event pruning cron job.');
+      }
+    }
+
+    // Schedule the cron job
+    if (EVENT_PRUNING_CRON_SCHEDULE && cron.validate(EVENT_PRUNING_CRON_SCHEDULE)) {
+      cron.schedule(EVENT_PRUNING_CRON_SCHEDULE, pruneOldEvents);
+      logger.info(`Event pruning cron job scheduled with pattern: ${EVENT_PRUNING_CRON_SCHEDULE}`);
+    } else {
+      logger.warn('EVENT_PRUNING_CRON_SCHEDULE is not set or invalid. Event pruning job will not run.');
+      // Optionally, run once on startup if no schedule, or log a more prominent warning.
+    }
+
+    module.exports = { pruneOldEvents }; // For potential manual trigger or testing
+    ```
+    Use code with caution.
+
+*   **Requirement C (Configurable Retention Period):**
+*   The retention period will be managed via an environment variable, `EVENT_LOG_RETENTION_DAYS`.
+*   The default value will be 90 days (handled in the cron job logic if the env var is not set or invalid).
+*   This variable should be added to `src/core/env.js` and its validation.
+
+*   **Requirement D (Logging):**
+*   The pruning cron job (`src/workers/eventPruningCron.js`) must log its activity, including:
+    *   Start of the job.
+    *   The number of event records deleted during its run.
+    *   The cutoff date used for deletion.
+    *   Any errors encountered during the process.
+*   Logs should be made using the standard application logger.
+
+This new feature ensures the audit trail is both useful and sustainable, aligning with low-cost objectives by managing database growth.
 
 ---
 ---
@@ -2909,8 +2152,11 @@ Define and outline a comprehensive testing strategy for the new `BookingFlowMana
     *   Verify: Redirection to invites page, correct `maxInvites` display, token generation, DB `SessionInvite` records.
 3.  **Journey 3: Invited Friend - Full Acceptance**
     *   Prerequisite: Journey 2 completed, invite link generated.
-    *   Steps: Friend clicks invite link -> Bot shows details & buttons -> Friend clicks "Accept & View Details" -> `join-session.html` loads -> Friend clicks "Proceed" -> `form-handler.html` (friend waiver) loads -> Friend submits waiver.
-    *   Verify: Bot interaction, `join-session.html` display, redirection to waiver, `SessionInvite` status updates, GCal event description/title updates, notifications (friend, primary booker, admin).
+    *   **Updated Steps:** 
+        *   **Rich Invite Path:** Friend receives rich invite -> clicks "Accept" -> message transforms to "Complete Waiver" button -> clicks button -> `form-handler.html` loads -> Friend submits waiver
+        *   **Link Invite Path:** Friend clicks startapp link -> `form-handler.html` opens directly -> Friend submits waiver  
+        *   **Legacy Path:** Friend clicks `/start invite_` link -> Bot shows details -> Friend clicks "Accept & View Details" -> `form-handler.html` loads -> Friend submits waiver
+    *   Verify: Bot interaction, direct form-handler.html access, `SessionInvite` status updates, GCal event description/title updates, notifications (friend, primary booker, admin).
 4.  **Journey 4: Invited Friend - Declines**
     *   Prerequisite: Journey 2 completed, invite link generated.
     *   Steps: Friend clicks invite link -> Bot shows details & buttons -> Friend clicks "Decline Invite".

@@ -29,13 +29,18 @@ function parseUrlParameters() {
   params.appointmentDateTimeISO = searchParams.get("appointmentDateTimeISO");
 
   // If we have a flowToken but missing required parameters, try to extract them from the token
-  if (params.flowToken && (!params.telegramId || !params.sessionTypeId || !params.appointmentDateTimeISO)) {
+  if (
+    params.flowToken &&
+    (!params.telegramId ||
+      !params.sessionTypeId ||
+      !params.appointmentDateTimeISO)
+  ) {
     try {
       // Decode the JWT token to extract flow state
-      const tokenParts = params.flowToken.split('.');
+      const tokenParts = params.flowToken.split(".");
       if (tokenParts.length === 3) {
         const payload = JSON.parse(atob(tokenParts[1]));
-        
+
         // Extract missing parameters from flow state
         if (!params.telegramId && payload.userId) {
           params.telegramId = payload.userId.toString();
@@ -52,11 +57,11 @@ function parseUrlParameters() {
         if (!params.inviteToken && payload.inviteToken) {
           params.inviteToken = payload.inviteToken;
         }
-        
+
         console.log("[FormHandler] Extracted parameters from flowToken:", {
           telegramId: params.telegramId,
           sessionTypeId: params.sessionTypeId,
-          appointmentDateTimeISO: params.appointmentDateTimeISO
+          appointmentDateTimeISO: params.appointmentDateTimeISO,
         });
       }
     } catch (error) {
@@ -65,7 +70,8 @@ function parseUrlParameters() {
   }
 
   // Optional parameters
-  if (!params.placeholderId) params.placeholderId = searchParams.get("placeholderId");
+  if (!params.placeholderId)
+    params.placeholderId = searchParams.get("placeholderId");
   if (!params.inviteToken) params.inviteToken = searchParams.get("inviteToken");
   params.primaryBookerName = searchParams.get("primaryBookerName");
   params.waiverType = searchParams.get("waiverType");
@@ -126,34 +132,40 @@ async function initializeDynamicForm(formType) {
   const errorMessage = document.getElementById("errorMessage");
 
   // Handle various Kambo waiver types
-  if (formType === "KAMBO_WAIVER_V1" || 
-      formType === "KAMBO_WAIVER_FRIEND_V1" || 
-      formType === "KAMBO_V1" || 
-      formType === "KAMBO_FRIEND_V1") {
-    
+  if (
+    formType === "KAMBO_WAIVER_V1" ||
+    formType === "KAMBO_WAIVER_FRIEND_V1" ||
+    formType === "KAMBO_V1" ||
+    formType === "KAMBO_FRIEND_V1"
+  ) {
     try {
       // Load Kambo waiver content dynamically
-      const response = await fetch('/forms/kambo-waiver-content.html');
+      const response = await fetch("/forms/kambo-waiver-content.html");
       if (!response.ok) {
         throw new Error(`Failed to load waiver content: ${response.status}`);
       }
-      
+
       const waiverContent = await response.text();
       const kamboWaiverSection = document.getElementById("kamboWaiverSection");
-      
+
       if (kamboWaiverSection) {
         kamboWaiverSection.innerHTML = waiverContent;
         kamboWaiverSection.style.display = "block";
       }
-      
+
       document.getElementById("formTitle").textContent =
         "Kambo Preparation, Contra-Indications & Liability Form";
 
-      console.log("[FormHandler] Initialized Kambo waiver form for type:", formType);
+      console.log(
+        "[FormHandler] Initialized Kambo waiver form for type:",
+        formType,
+      );
       return true;
-      
     } catch (error) {
-      console.error("[FormHandler] Failed to load Kambo waiver content:", error);
+      console.error(
+        "[FormHandler] Failed to load Kambo waiver content:",
+        error,
+      );
       errorMessage.textContent = `Failed to load waiver form: ${error.message}`;
       errorDisplay.classList.remove("hidden");
       return false;
@@ -269,7 +281,7 @@ async function prefillUserData(telegramId) {
         // Pre-fill form fields
         const fieldMapping = {
           firstName: "firstName",
-          lastName: "lastName", 
+          lastName: "lastName",
           email: "email",
           phone: "phoneNumber", // API returns phoneNumber, form expects phone
           dob: "dateOfBirth", // API returns dateOfBirth, form expects dob
@@ -572,9 +584,9 @@ function collectFormData() {
   // Collect confirmation checkboxes
   const confirmationFields = [
     "avoidAgreement",
-    "substanceAgreement", 
+    "substanceAgreement",
     "liabilityAgreement",
-    "electronicSignature"
+    "electronicSignature",
   ];
   confirmationFields.forEach((fieldId) => {
     const element = document.getElementById(fieldId);

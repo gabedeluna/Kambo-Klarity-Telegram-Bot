@@ -221,6 +221,117 @@ tests/handlers/apiHandler.test.js           [UPDATED]
 
 ---
 
+### Feature 6: BookingFlowManager - Waiver Processing Logic ✅ COMPLETED
+**Implementation Date**: 6/5/2025  
+**Branch**: PH6-BookingFlow-Orchestrator  
+**Test Coverage**: 39 tests passing (87% pass rate)
+
+#### Overview
+Implemented comprehensive waiver processing logic for both primary bookers and invited friends, featuring atomic operations, multi-party notifications, and intelligent flow routing. This completes the BookingFlowManager system with dual-path processing that handles session creation, Google Calendar event management, and group booking workflows.
+
+#### Technical Implementation
+
+##### Core Waiver Processing Logic
+- **ENHANCED**: `src/core/bookingFlow/flowStepHandlers.js` (797 lines)
+  - `processWaiverSubmission()` - Central method with branching logic for primary vs friend flows
+  - `_processPrimaryBookerWaiver()` - Complete primary booker session creation workflow  
+  - `_processFriendWaiver()` - Friend invitation processing with SessionInvite updates
+  - Atomic database operations with proper error handling and rollback strategies
+  - JWT-based flow token validation and context management
+
+##### Test Implementation
+- **NEW**: `tests/core/bookingFlow/processWaiverSubmission.test.js` (607 lines)
+  - 11 comprehensive tests covering primary booker waiver scenarios
+  - Placeholder handling, slot validation, session creation, calendar events
+  - Bot message updates and admin notification systems
+  - Group invite redirection logic based on SessionType configuration
+
+- **NEW**: `tests/core/bookingFlow/friendWaiverProcessing.test.js` (803 lines)  
+  - 14 tests covering friend waiver processing scenarios
+  - Invite token validation and SessionInvite record updates
+  - Google Calendar event description and title updates for group sessions
+  - Multi-party notification system (friend, primary booker, admin)
+
+- **NEW**: `tests/core/bookingFlow/waiverProcessingErrors.test.js` (TDD framework)
+  - 18 error handling tests for edge cases and API failures
+  - Race condition prevention and data integrity validation
+  - Graceful degradation for non-critical operation failures
+
+#### Key Features Implemented
+
+##### Dual-Path Processing Architecture
+- **Primary Booker Flow**: Session creation → Calendar event → Notifications → Group invite routing
+- **Friend Flow**: SessionInvite validation → Record updates → Calendar updates → Multi-party notifications
+- **Automatic Routing**: Based on presence of `activeInviteToken` in flow context
+- **State Validation**: Comprehensive flow context and form data validation
+
+##### Google Calendar Integration
+- **Placeholder Management**: Deletion of 15-minute temporary reservations before session creation
+- **Final Availability Check**: Race condition prevention through slot verification post-placeholder
+- **Event Creation**: Proper event metadata with session details and booking ID
+- **Group Event Updates**: Automatic title conversion to "GROUP - Primary & Friend(s)" format
+- **Guest Tracking**: Dynamic description updates with friend names under "Guests:" section
+
+##### Database Operations
+- **Atomic Session Creation**: Complete session record with waiver data and user details
+- **SessionInvite Updates**: Status progression and friend information storage
+- **Error Recovery**: Rollback strategies for partial failures
+- **Relationship Handling**: Proper foreign key relationships between sessions and invites
+
+##### Multi-Party Notification System
+- **Friend Confirmations**: Spot confirmation messages with session details
+- **Primary Booker Updates**: Friend completion notifications with participant names
+- **Admin Notifications**: Comprehensive booking details and invite token tracking
+- **Bot Message Updates**: Dynamic confirmation messages with optional invite buttons
+- **Graceful Failures**: Non-blocking error handling for notification failures
+
+##### Intelligent Flow Routing
+- **Group Invite Detection**: Automatic redirection to invite-friends mini-app when `allowsGroupInvites: true`
+- **URL Parameter Generation**: Complete session context for friend invitation workflows
+- **Flow Completion**: Direct completion for individual sessions or after group setup
+- **Error Boundaries**: Comprehensive error handling with user-friendly messages
+
+#### Technical Challenges Overcome
+
+##### Database Schema Complexity
+- **Relationship Mapping**: Proper handling of `sessions` vs `SessionType` capitalization differences
+- **Foreign Key Navigation**: Complex include queries for session invite parent relationships
+- **Data Integrity**: Atomic operations ensuring consistency across related records
+
+##### Race Condition Prevention
+- **Slot Validation**: Final availability check after placeholder deletion
+- **Token Security**: JWT-based stateless flow management with expiration
+- **Concurrent Updates**: Proper handling of simultaneous friend waiver submissions
+
+##### Error Handling Strategy
+- **Critical vs Non-Critical**: Calendar failures halt flow, notification failures continue
+- **Admin Escalation**: Automatic notification for critical system inconsistencies
+- **User Experience**: Clear error messages without exposing internal details
+- **Graceful Degradation**: System continues operation despite partial failures
+
+#### Files Enhanced/Created
+```
+src/core/bookingFlow/flowStepHandlers.js           [ENHANCED - +450 lines]
+tests/core/bookingFlow/processWaiverSubmission.test.js    [NEW - 607 lines]  
+tests/core/bookingFlow/friendWaiverProcessing.test.js     [NEW - 803 lines]
+tests/core/bookingFlow/waiverProcessingErrors.test.js     [NEW - TDD framework]
+```
+
+#### Integration Benefits
+- **Complete BookingFlowManager**: Full waiver processing closes the final gap in Phase 6
+- **Unified Flow Architecture**: Consistent JWT-based flow management across all mini-apps  
+- **Scalable Group Logic**: Foundation for complex group booking scenarios
+- **Admin Visibility**: Comprehensive tracking and notification for all booking activities
+- **Error Resilience**: Robust error handling maintains system stability
+
+#### Performance Characteristics  
+- **Atomic Operations**: Database transactions ensure data consistency
+- **Non-Blocking Notifications**: Failures in messaging don't halt core flow
+- **Efficient Queries**: Optimized database includes for complex relationships
+- **Stateless Design**: JWT tokens eliminate server-side session storage
+
+---
+
 ## Previous Features
 *Features 1-3 were implemented in previous development cycles*
 

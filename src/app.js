@@ -1,8 +1,4 @@
-// Add console.log for entry point
-console.log(">>> Loading app.js...");
-
 const express = require("express");
-console.log(">>> express loaded.");
 
 const path = require("path"); // Keep path
 // const allToolSchemas = require("./tools/toolSchemas"); // Removed as per user request
@@ -136,9 +132,9 @@ async function initializeApp(deps) {
 
   // --- Create Express App ---
   const app = express();
-  console.log(">>> Express app created.");
+  logger.debug("Express app instance created");
   app.use(express.json()); // Middleware to parse JSON bodies
-  console.log(">>> express.json middleware added.");
+  logger.debug("Express JSON middleware configured");
 
   // Declare instances here to make them available in the return scope
   // let bookingGraphInstance; // Agent related - Removed
@@ -149,7 +145,7 @@ async function initializeApp(deps) {
     res.set("Content-Type", "text/plain");
     res.status(200).send("OK");
   });
-  console.log(">>> /health route added.");
+  logger.debug("Health check endpoint registered");
 
   // Serve static files (HTML, CSS, JS for forms/admin)
   // Must come *before* API/Form routes if they share base paths
@@ -202,9 +198,7 @@ async function initializeApp(deps) {
 
   // --- Initialization Logic (Moved inside) ---
   try {
-    console.log(
-      ">>> Initializing stateManager... (No longer needed, assumed initialized)",
-    );
+    logger.debug("StateManager initialization assumed complete");
     // stateManager should be initialized before being passed in, if necessary.
 
     // Agent-related tool wrapping and initialization removed.
@@ -267,9 +261,9 @@ async function initializeApp(deps) {
     logger.info("[app] Update Router Middleware registered.");
 
     // Telegraf Global Error Handler
-    console.log(">>> Registering bot.catch handler");
+    logger.debug("Registering Telegraf error handler");
     bot.catch(errorHandlerMiddleware);
-    console.log("Telegraf middleware and error handler registered.");
+    logger.info("Telegraf middleware and error handling configured");
     // --- End of Moved Block ---
   } catch (initError) {
     console.error(
@@ -318,14 +312,14 @@ async function initializeApp(deps) {
     // Use bot.handleUpdate, which processes the update and triggers middleware
     bot.handleUpdate(req.body, res);
   });
-  console.log(`Webhook callback handler registered at POST ${secretPath}`);
+  logger.info(`Webhook callback handler registered at POST ${secretPath}`);
 
   // --- Express Global Error Handler (Last Middleware) ---
   // This catches errors *outside* Telegraf's processing (e.g., in Express routes)
   app.use(errorHandlerMiddleware);
-  console.log("Express global error handler registered.");
+  logger.debug("Express global error handler registered");
 
-  console.log("initializeApp function finished.");
+  logger.info("Application initialization completed successfully");
 
   // --- Return the initialized app and potentially other core components ---
   return {

@@ -55,8 +55,10 @@ function initialize(deps) {
    * @param {Function} next - Function to call the next middleware.
    */
   async function routeUpdate(ctx, next) {
-    console.log(">>> routeUpdate FUNCTION ENTERED");
-    console.log(">>> routeUpdate START");
+    logger.debug(
+      { telegramId: ctx.from?.id },
+      "Processing update in routeUpdate middleware",
+    );
     const telegramId = ctx.from?.id;
     const user = ctx.state?.user;
     const isNewUser = ctx.state?.isNewUser;
@@ -107,7 +109,7 @@ function initialize(deps) {
 
       // 2. Handle Failed User Lookup (Error from previous middleware)
       if (user === undefined) {
-        console.log(">>> routeUpdate FAILED LOOKUP path");
+        logger.warn({ telegramId }, "User lookup failed, treating as new user");
         logger.error(
           { userId: telegramId },
           "Cannot route update: User lookup failed previously.",
@@ -122,11 +124,14 @@ function initialize(deps) {
       // 3. Route Based on Update Type and User State
       if (ctx.updateType === "message" && ctx.message?.text) {
         const messageText = ctx.message.text;
-        console.log(`>>> routeUpdate MESSAGE path - State: ${userState}`);
+        logger.debug({ telegramId, userState }, "Processing message update");
 
         // 3.1 Handle Commands
         if (messageText.startsWith("/")) {
-          console.log(">>> routeUpdate COMMAND path");
+          logger.debug(
+            { telegramId, command: ctx.message.text },
+            "Routing to command handler",
+          );
           logger.info(
             { telegramId, command: messageText },
             "Routing to command handler.",
@@ -148,20 +153,23 @@ function initialize(deps) {
         }
         // 3.3. Handle Generic Text (IDLE state)
         else if (userState === "IDLE") {
-          console.log(">>> routeUpdate IDLE TEXT path");
+          logger.debug({ telegramId }, "Processing idle text message");
           logger.debug(
             { telegramId },
             "Handling generic text message in IDLE state.",
           );
-          console.log(">>> routeUpdate IDLE TEXT before reply");
+          logger.debug({ telegramId }, "Sending idle text response");
           await ctx.reply(
             "I received your message, but I'm not sure how to handle it in the current context. Try starting with a command like /start or /help.",
           );
-          console.log(">>> routeUpdate IDLE TEXT after reply, before return");
+          logger.debug({ telegramId }, "Idle text response sent");
           return;
         } else {
           // Should not happen if states are handled
-          console.log(`>>> routeUpdate UNKNOWN state TEXT path: ${userState}`);
+          logger.warn(
+            { telegramId, userState },
+            "Unknown user state for text message",
+          );
           logger.warn(
             { telegramId, userState },
             "User in unhandled state received text message.",
@@ -172,7 +180,10 @@ function initialize(deps) {
           return;
         }
       } else if (ctx.updateType === "callback_query") {
-        console.log(">>> routeUpdate CALLBACK QUERY path");
+        logger.debug(
+          { telegramId, callbackData: ctx.callbackQuery?.data },
+          "Routing to callback query handler",
+        );
         // 4. Route Callback Queries (IDLE or BOOKING state - handler decides)
         logger.info(
           { telegramId, data: ctx.callbackQuery?.data },
@@ -180,7 +191,10 @@ function initialize(deps) {
         );
         await callbackQueryHandler.handleCallbackQuery(ctx, next);
       } else {
-        console.log(`>>> routeUpdate UNHANDLED type path: ${ctx.updateType}`);
+        logger.warn(
+          { telegramId, updateType: ctx.updateType },
+          "Unhandled update type",
+        );
         // 5. Warn and Pass Through Unhandled Update Types
         const messageType = ctx.message
           ? Object.keys(ctx.message).find(
@@ -205,11 +219,14 @@ function initialize(deps) {
         "Unhandled error during update processing.",
       );
       try {
-        console.log(">>> routeUpdate ERROR before reply");
+        logger.error(
+          { telegramId, error: err.message },
+          "Error processing update, sending error response",
+        );
         await ctx.reply(
           "Apologies, an unexpected error occurred while processing your request.",
         );
-        console.log(">>> routeUpdate ERROR after reply");
+        logger.debug({ telegramId }, "Error response sent to user");
       } catch (replyErr) {
         console.error(">>> routeUpdate FAILED TO SEND ERROR REPLY:", replyErr);
         logger.error(
@@ -219,7 +236,7 @@ function initialize(deps) {
       }
       // Do not call next() after an error
     } finally {
-      // console.log(">>> routeUpdate FINALLY block");
+      // Finally block - no logging needed
     }
   }
 
