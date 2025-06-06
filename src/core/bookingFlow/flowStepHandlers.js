@@ -278,7 +278,7 @@ async function handleFriendDecline(flowState) {
  * Handles primary booker waiver submission
  * @private
  */
-async function handlePrimaryWaiver(flowState, waiverData, sessionType) {
+async function _handlePrimaryWaiver(flowState, waiverData, sessionType) {
   logger.debug(
     { userId: flowState.userId },
     "[FlowStepHandlers] Handling primary waiver",
@@ -330,7 +330,7 @@ async function handlePrimaryWaiver(flowState, waiverData, sessionType) {
  * Handles friend waiver submission
  * @private
  */
-async function handleFriendWaiver(flowState, waiverData, _sessionType) {
+async function _handleFriendWaiver(flowState, waiverData, _sessionType) {
   logger.debug(
     { userId: flowState.userId },
     "[FlowStepHandlers] Handling friend waiver",

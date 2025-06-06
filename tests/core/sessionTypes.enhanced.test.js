@@ -52,6 +52,7 @@ describe("SessionType Enhanced Model Tests", () => {
         allowsGroupInvites: true,
         maxGroupSize: 4,
         customFormDefinitions: { testField: "testValue" },
+        updatedAt: new Date(),
       };
 
       const created = await sessionTypes.createType(testSessionType);
@@ -71,6 +72,7 @@ describe("SessionType Enhanced Model Tests", () => {
         label: "Test Defaults Session",
         durationMinutes: 90,
         price: 100.0,
+        updatedAt: new Date(),
       };
 
       const created = await sessionTypes.createType(testSessionType);
@@ -91,6 +93,7 @@ describe("SessionType Enhanced Model Tests", () => {
         waiverType: "NONE",
         allowsGroupInvites: false,
         maxGroupSize: 1,
+        updatedAt: new Date(),
       };
 
       const created = await sessionTypes.createType(testSessionType);
@@ -110,6 +113,7 @@ describe("SessionType Enhanced Model Tests", () => {
         waiverType: "KAMBO_V1",
         allowsGroupInvites: true,
         maxGroupSize: 6,
+        updatedAt: new Date(),
       };
 
       const created = await sessionTypes.createType(testSessionType);
@@ -132,6 +136,7 @@ describe("SessionType Enhanced Model Tests", () => {
         allowsGroupInvites: true,
         maxGroupSize: 3,
         customFormDefinitions: { steps: ["waiver", "payment", "confirmation"] },
+        updatedAt: new Date(),
       };
 
       await sessionTypes.createType(testSessionType);
@@ -161,6 +166,7 @@ describe("SessionType Enhanced Model Tests", () => {
           waiverType: "KAMBO_V1",
           allowsGroupInvites: false,
           maxGroupSize: 1,
+          updatedAt: new Date(),
         },
         {
           id: "test_all_session_2",
@@ -170,6 +176,7 @@ describe("SessionType Enhanced Model Tests", () => {
           waiverType: "NONE",
           allowsGroupInvites: true,
           maxGroupSize: 4,
+          updatedAt: new Date(),
         },
       ];
 
@@ -209,6 +216,7 @@ describe("SessionType Enhanced Model Tests", () => {
         waiverType: "KAMBO_V1",
         allowsGroupInvites: false,
         maxGroupSize: 1,
+        updatedAt: new Date(),
       };
 
       await sessionTypes.createType(initialData);
@@ -246,6 +254,7 @@ describe("SessionType Enhanced Model Tests", () => {
         waiverType: "KAMBO_V1",
         allowsGroupInvites: true,
         maxGroupSize: 1, // Edge case: allows invites but max size is 1
+        updatedAt: new Date(),
       };
 
       const created = await sessionTypes.createType(testSessionType);
@@ -275,6 +284,7 @@ describe("SessionType Enhanced Model Tests", () => {
             { type: "consent", formId: "consent_form_1" },
           ],
         },
+        updatedAt: new Date(),
       };
 
       const created = await sessionTypes.createType(testSessionType);

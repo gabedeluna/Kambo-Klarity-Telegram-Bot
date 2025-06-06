@@ -3,7 +3,7 @@
  * @description TDD tests for friend waiver processing logic according to Feature 6 specification
  */
 
-const jwt = require("jsonwebtoken");
+const _jwt = require("jsonwebtoken");
 
 // Mock all external dependencies
 const mockPrisma = {

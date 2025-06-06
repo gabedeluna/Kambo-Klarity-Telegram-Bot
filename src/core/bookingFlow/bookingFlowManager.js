@@ -142,7 +142,7 @@ async function startInviteAcceptanceFlow(data) {
     }
 
     // Fetch session type configuration
-    const sessionType = await sessionTypesCore.getById(
+    const _sessionType = await sessionTypesCore.getById(
       sessionInvite.session.sessionTypeId,
     );
 

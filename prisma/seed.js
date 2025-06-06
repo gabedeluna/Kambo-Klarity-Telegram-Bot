@@ -11,6 +11,7 @@ async function main() {
   console.log("🌱 Starting database seeding...");
 
   // Define session types with the new dynamic flow fields
+  const currentTime = new Date();
   const sessionTypes = [
     {
       id: "kambo_individual_standard",
@@ -24,6 +25,7 @@ async function main() {
       allowsGroupInvites: false,
       maxGroupSize: 1,
       customFormDefinitions: null,
+      updatedAt: currentTime,
     },
     {
       id: "kambo_group_ceremony",
@@ -37,6 +39,7 @@ async function main() {
       allowsGroupInvites: true,
       maxGroupSize: 4,
       customFormDefinitions: null,
+      updatedAt: currentTime,
     },
     {
       id: "consultation_session",
@@ -49,6 +52,7 @@ async function main() {
       allowsGroupInvites: false,
       maxGroupSize: 1,
       customFormDefinitions: null,
+      updatedAt: currentTime,
     },
     {
       id: "kambo_advanced_ceremony",
@@ -69,6 +73,7 @@ async function main() {
           "Emergency contact verification",
         ],
       },
+      updatedAt: currentTime,
     },
     {
       id: "integration_session",
@@ -87,6 +92,7 @@ async function main() {
           { type: "consent", formId: "integration_consent_1" },
         ],
       },
+      updatedAt: currentTime,
     },
   ];
 

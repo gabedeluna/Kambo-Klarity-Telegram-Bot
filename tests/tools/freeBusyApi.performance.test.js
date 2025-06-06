@@ -28,7 +28,7 @@ describe("FreeBusy API Performance Tests", () => {
   let freeBusyUtils;
   let configUtils;
   let slotGenerator;
-  let googleCalendarTool;
+  let _googleCalendarTool;
 
   const mockSessionCalendarId = "session@example.com";
   const mockPersonalCalendarId = "personal@example.com";

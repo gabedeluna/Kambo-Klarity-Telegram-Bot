@@ -37,6 +37,7 @@ model SessionInvite {
   @@index([friendTelegramId])
   @@index([inviteToken])
   @@index([parentSessionId, status])
+  @@unique([parentSessionId, friendTelegramId], name: "unique_friend_per_session")
 }
 
 model SessionType {

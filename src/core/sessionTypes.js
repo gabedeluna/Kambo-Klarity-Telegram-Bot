@@ -102,9 +102,10 @@ async function createType(data) {
     return newSessionType;
   } catch (error) {
     logger.error(
-      { err: error, data },
+      { err: error, message: error.message, data },
       "[sessionTypes] Error creating new session type in DB.",
     );
+    console.error("SessionType creation error:", error.message);
     return null;
   }
 }
