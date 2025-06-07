@@ -152,7 +152,7 @@ describe("Callback Query Handler", () => {
       await callbackQueryHandler.handleCallbackQuery(ctx);
       expect(mockLogger.debug).toHaveBeenCalledWith(
         { callbackData: "other_action:123", userId: "123" },
-        "Callback data does not match book_session prefix, ignoring.",
+        "Callback data does not match known patterns, ignoring.",
       );
       expect(ctx.answerCbQuery).toHaveBeenCalled();
       expect(mockStateManager.getUserProfileData).not.toHaveBeenCalled();
@@ -328,6 +328,134 @@ describe("Callback Query Handler", () => {
       // Verify no message editing or agent invocation happens
       // expect(ctx.telegram.editMessageText).not.toHaveBeenCalled(); // Assuming no edit for now
       expect(mockTelegramNotifier.sendTextMessage).not.toHaveBeenCalled(); // No error messages
+    });
+  });
+
+  describe("handleCallbackQuery - Decline Invite", () => {
+    // Mock axios for API calls
+    require("axios");
+    jest.mock("axios");
+    let mockAxios;
+
+    beforeEach(() => {
+      // Mock axios at the module level
+      jest.doMock("axios", () => ({
+        post: jest.fn(),
+      }));
+
+      // Clear module cache and require fresh mocks
+      jest.resetModules();
+      mockAxios = require("axios");
+
+      // Re-require the handler with mocked axios
+      callbackQueryHandler = require("../../src/handlers/callbackQueryHandler");
+
+      // Re-initialize with fresh deps
+      callbackQueryHandler.initialize({
+        logger: mockLogger,
+        stateManager: mockStateManager,
+        telegramNotifier: mockTelegramNotifier,
+      });
+
+      jest.clearAllMocks();
+    });
+
+    afterEach(() => {
+      jest.unmock("axios");
+    });
+
+    it("should handle decline_invite callback successfully", async () => {
+      const inviteToken = "ABC123TOKEN";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockAxios.post.mockResolvedValueOnce({
+        data: { success: true, message: "Invite declined successfully" },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.answerCbQuery).toHaveBeenCalled();
+      expect(mockAxios.post).toHaveBeenCalledWith(
+        expect.stringContaining(`/api/session-invites/${inviteToken}/respond`),
+        { response: "declined" },
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "Content-Type": "application/json",
+          }),
+        }),
+      );
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        { userId: "456", inviteToken },
+        "[callback] Friend declined invite successfully.",
+      );
+    });
+
+    it("should handle decline_invite API errors gracefully", async () => {
+      const inviteToken = "EXPIRED123";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      const axiosError = new Error("Request failed");
+      axiosError.response = {
+        status: 404,
+        data: { error: "Invite not found" },
+      };
+      mockAxios.post.mockRejectedValueOnce(axiosError);
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
+        "Sorry, this invitation is no longer valid.",
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { userId: "456", status: 404, error: { error: "Invite not found" } },
+        "[callback] API error declining invite.",
+      );
+    });
+
+    it("should handle decline_invite network errors", async () => {
+      const inviteToken = "NETWORK123";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockAxios.post.mockRejectedValueOnce(new Error("Network error"));
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
+        "Sorry, there was an issue processing your response. Please try again.",
+      );
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { err: expect.any(Error), userId: "456", inviteToken },
+        "[callback] Error calling decline invite API.",
+      );
+    });
+
+    it("should handle malformed decline_invite token", async () => {
+      const ctx = mockCtx("decline_invite_", 456);
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
+        "Invalid invitation link.",
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { userId: "456", callbackData: "decline_invite_" },
+        "[callback] Malformed decline invite token.",
+      );
+      expect(mockAxios.post).not.toHaveBeenCalled();
+    });
+
+    it("should ignore unknown callback patterns", async () => {
+      const ctx = mockCtx("unknown_pattern:test", 456);
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.answerCbQuery).toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        { callbackData: "unknown_pattern:test", userId: "456" },
+        "Callback data does not match known patterns, ignoring.",
+      );
+      expect(mockAxios.post).not.toHaveBeenCalled();
     });
   });
 });

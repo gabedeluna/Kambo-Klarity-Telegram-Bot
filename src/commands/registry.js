@@ -17,11 +17,16 @@ const {
 } = require("./handlers");
 
 const { handleBookCommand } = require("./client/book");
+const { handleStartCommand } = require("./client/start");
 
 // --- Command Registry ---
 
 const commandRegistry = {
   client: {
+    start: {
+      descr: "Start using the bot and handle invite links.",
+      handler: handleStartCommand,
+    },
     help: {
       descr: "Show commands available to you.",
       handler: handleClientHelpStub,

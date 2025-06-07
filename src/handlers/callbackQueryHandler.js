@@ -1,4 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
+const axios = require("axios");
+const config = require("../core/env");
 
 let logger, stateManager, telegramNotifier;
 
@@ -40,22 +42,37 @@ async function handleCallbackQuery(ctx) {
   const callbackData = ctx.callbackQuery.data;
 
   // Check if it's a session booking callback
-  if (!callbackData.startsWith("book_session:")) {
-    logger.debug(
-      { callbackData, userId: telegramId },
-      "Callback data does not match book_session prefix, ignoring.",
-    );
-    try {
-      await ctx.answerCbQuery(); // Acknowledge other callbacks silently
-    } catch (err) {
-      logger.warn(
-        { err, userId: telegramId },
-        "Failed to answer non-matching callback query.",
-      );
-    }
-    return; // Or call next() if other handlers might exist
+  if (callbackData.startsWith("book_session:")) {
+    await handleBookSessionCallback(ctx, telegramId, callbackData);
+    return;
   }
 
+  // Check if it's a decline invite callback
+  if (callbackData.startsWith("decline_invite_")) {
+    await handleDeclineInviteCallback(ctx, telegramId, callbackData);
+    return;
+  }
+
+  // Unknown callback pattern
+  logger.debug(
+    { callbackData, userId: telegramId },
+    "Callback data does not match known patterns, ignoring.",
+  );
+  try {
+    await ctx.answerCbQuery(); // Acknowledge other callbacks silently
+  } catch (err) {
+    logger.warn(
+      { err, userId: telegramId },
+      "Failed to answer non-matching callback query.",
+    );
+  }
+  return; // Or call next() if other handlers might exist
+}
+
+/**
+ * Handles book_session callback queries
+ */
+async function handleBookSessionCallback(ctx, telegramId, callbackData) {
   const selectedSessionTypeId = callbackData.split(":")[1];
   logger.info(
     { userId: telegramId, selectedSessionTypeId },
@@ -165,6 +182,130 @@ async function handleCallbackQuery(ctx) {
   // } catch (editErr) {
   //    logger.error({ err: editErr, userId: telegramId }, "Failed to edit message after agent removal.");
   // }
+}
+
+/**
+ * Handles decline_invite callback queries
+ */
+async function handleDeclineInviteCallback(ctx, telegramId, callbackData) {
+  const inviteToken = callbackData.replace("decline_invite_", "");
+
+  // Validate token format
+  if (!inviteToken || inviteToken.length === 0) {
+    logger.warn(
+      { userId: telegramId, callbackData },
+      "[callback] Malformed decline invite token.",
+    );
+    try {
+      await ctx.answerCbQuery("Invalid invitation link.");
+    } catch (err) {
+      logger.warn(
+        { err, userId: telegramId },
+        "Failed to answer callback query for malformed token.",
+      );
+    }
+    return;
+  }
+
+  logger.info(
+    { userId: telegramId, inviteToken },
+    "[callback] Processing decline invite callback.",
+  );
+
+  // Acknowledge the button press immediately
+  try {
+    await ctx.answerCbQuery();
+  } catch (err) {
+    logger.warn(
+      { err, userId: telegramId },
+      "[callback] Failed to answer decline invite callback query.",
+    );
+    // Continue processing even if ack fails
+  }
+
+  // Call the friend response API
+  try {
+    const apiUrl = `${config.ngrokUrl}/api/session-invites/${inviteToken}/respond`;
+
+    logger.debug(
+      { userId: telegramId, apiUrl },
+      "[callback] Calling decline invite API.",
+    );
+
+    await axios.post(
+      apiUrl,
+      { response: "declined" },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    // const responseData = response.data;
+
+    logger.info(
+      { userId: telegramId, inviteToken },
+      "[callback] Friend declined invite successfully.",
+    );
+
+    // Optionally edit the original message to show declined status
+    try {
+      await ctx.editMessageText(
+        "You have declined this invitation.",
+        { reply_markup: { inline_keyboard: [] } }, // Remove buttons
+      );
+    } catch (editErr) {
+      logger.debug(
+        { err: editErr, userId: telegramId },
+        "[callback] Could not edit message after decline (may be old message).",
+      );
+    }
+  } catch (err) {
+    // Handle axios errors specifically
+    if (err.response) {
+      const status = err.response.status;
+      const errorData = err.response.data || {};
+
+      logger.warn(
+        { userId: telegramId, status, error: errorData },
+        "[callback] API error declining invite.",
+      );
+
+      let errorMessage = "Sorry, there was an issue processing your response.";
+      if (status === 404) {
+        errorMessage = "Sorry, this invitation is no longer valid.";
+      } else if (status === 409) {
+        errorMessage = "This invitation has already been responded to.";
+      }
+
+      try {
+        await ctx.answerCbQuery(errorMessage);
+      } catch (cbErr) {
+        logger.warn(
+          { err: cbErr, userId: telegramId },
+          "Failed to send error callback response.",
+        );
+      }
+    } else {
+      // Network error or other issue
+      logger.error(
+        { err, userId: telegramId, inviteToken },
+        "[callback] Error calling decline invite API.",
+      );
+
+      try {
+        await ctx.answerCbQuery(
+          "Sorry, there was an issue processing your response. Please try again.",
+        );
+      } catch (cbErr) {
+        logger.warn(
+          { err: cbErr, userId: telegramId },
+          "Failed to send network error callback response.",
+        );
+      }
+    }
+  }
 }
 
 module.exports = { initialize, handleCallbackQuery };

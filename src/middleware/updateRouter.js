@@ -190,6 +190,19 @@ function initialize(deps) {
           "Routing callback query",
         );
         await callbackQueryHandler.handleCallbackQuery(ctx, next);
+      } else if (ctx.updateType === "inline_query") {
+        logger.debug(
+          { telegramId, query: ctx.inlineQuery?.query },
+          "Routing to inline query handler",
+        );
+        // 5. Route Inline Queries
+        logger.info(
+          { telegramId, query: ctx.inlineQuery?.query },
+          "Routing inline query",
+        );
+        // Import and call inline query handler
+        const { handleInlineQuery } = require("../handlers/inlineQueryHandler");
+        await handleInlineQuery(ctx);
       } else {
         logger.warn(
           { telegramId, updateType: ctx.updateType },

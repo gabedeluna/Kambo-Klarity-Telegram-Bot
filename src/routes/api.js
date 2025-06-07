@@ -9,6 +9,7 @@ const apiHandler = require("../handlers/apiHandler"); // Main API handler
 const sessionTypesApiHandler = require("../handlers/api/sessionTypesApiHandler"); // Handler for session type specific APIs
 const bookingFlowApiHandler = require("../handlers/api/bookingFlowApiHandler"); // Handler for booking flow APIs
 const placeholderApiHandler = require("../handlers/api/placeholderApiHandler"); // Handler for placeholder booking APIs
+const friendResponseHandler = require("../handlers/api/friendResponseHandler"); // Handler for friend response APIs
 const config = require("../core/env"); // Configuration for frontend config endpoint
 
 let prisma, logger, telegramNotifier, bot, googleCalendarTool; // Added bot and googleCalendarTool
@@ -61,6 +62,9 @@ function initialize(deps) {
 
   // Initialize the placeholderApiHandler, passing required dependencies
   placeholderApiHandler.initialize({ prisma, logger, googleCalendarTool });
+
+  // Initialize the friendResponseHandler, passing required dependencies
+  friendResponseHandler.initialize({ prisma, logger, telegramNotifier });
 }
 
 /**
@@ -132,6 +136,12 @@ function getRouter() {
   router.post(
     "/booking-flow/continue",
     bookingFlowApiHandler.handleContinueFlow,
+  );
+
+  // Friend Response API Route
+  router.post(
+    "/session-invites/:token/respond",
+    friendResponseHandler.handleFriendResponse,
   );
 
   // Invite Context API Route (for StartApp integration)

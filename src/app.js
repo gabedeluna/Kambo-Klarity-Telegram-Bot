@@ -135,6 +135,18 @@ async function initializeApp(deps) {
   initializeBookCommandHandler({ notifier: notifierInstance, logger });
   logger.info("[Book Command Handler] Initialized.");
 
+  // Initialize Start Command Handler
+  const { initializeStartCommandHandler } = require("./commands/client/start");
+  initializeStartCommandHandler({ notifier: notifierInstance, logger });
+  logger.info("[Start Command Handler] Initialized.");
+
+  // Initialize Inline Query Handler
+  const {
+    initializeInlineQueryHandler,
+  } = require("./handlers/inlineQueryHandler");
+  initializeInlineQueryHandler({ logger, prisma });
+  logger.info("[Inline Query Handler] Initialized.");
+
   // --- Create Express App ---
   const app = express();
   logger.debug("Express app instance created");
