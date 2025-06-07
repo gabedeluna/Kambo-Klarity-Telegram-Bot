@@ -7,13 +7,23 @@ const mockPrisma = {
     update: jest.fn(),
     findUnique: jest.fn(),
   },
-  sessionInvite: {
+  sessions: {
     create: jest.fn(),
     update: jest.fn(),
     findUnique: jest.fn(),
   },
+  sessionInvite: {
+    create: jest.fn(),
+    update: jest.fn(),
+    findUnique: jest.fn(),
+    count: jest.fn(),
+  },
   user: {
     findUnique: jest.fn(),
+  },
+  users: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
   },
   sessionType: {
     findUnique: jest.fn(),
@@ -28,11 +38,18 @@ const mockGoogleCalendarTool = {
   createEvent: jest.fn(),
   updateEvent: jest.fn(),
   deleteEvent: jest.fn(),
+  createCalendarEvent: jest.fn(),
+  deleteCalendarEvent: jest.fn(),
+  isSlotTrulyAvailable: jest.fn(),
+  getCalendarEvent: jest.fn(),
+  updateCalendarEventDescription: jest.fn(),
+  updateCalendarEventSummary: jest.fn(),
 };
 
 const mockTelegramNotifier = {
   sendTextMessage: jest.fn(),
   sendAdminNotification: jest.fn(),
+  sendUserNotification: jest.fn(),
 };
 
 const mockLogger = {
@@ -154,10 +171,13 @@ describe("BookingFlowManager", () => {
       });
 
       // Assert
-      expect(result.nextStep.type).toBe("COMPLETE");
+      expect(result.nextStep.type).toBe("REDIRECT");
+      expect(result.nextStep.url).toContain(
+        "/booking-confirmed.html?flowToken=",
+      );
 
       const decodedToken = jwt.verify(result.flowToken, process.env.JWT_SECRET);
-      expect(decodedToken.currentStep).toBe("completed");
+      expect(decodedToken.currentStep).toBe("finalize_booking");
     });
 
     it("should return error response for invalid session type", async () => {
@@ -293,6 +313,8 @@ describe("BookingFlowManager", () => {
     };
 
     const mockWaiverData = {
+      firstName: "John",
+      lastName: "Doe",
       fullName: "John Doe",
       email: "john@example.com",
       phone: "+1234567890",
@@ -301,6 +323,13 @@ describe("BookingFlowManager", () => {
       medicalConditions: "None",
       medications: "None",
       consent: true,
+      telegramId: 123456789,
+      liability_form_data: {
+        signed: true,
+        fullName: "John Doe",
+        email: "john@example.com",
+        date: "2024-01-15",
+      },
     };
 
     it("should process primary waiver and redirect to invite friends for group session", async () => {
@@ -308,10 +337,6 @@ describe("BookingFlowManager", () => {
       mockSessionTypesCore.getById.mockResolvedValue(
         mockSessionTypeWithWaiverAndInvites,
       );
-      mockPrisma.session.create.mockResolvedValue({ id: 10 });
-      mockGoogleCalendarTool.deleteEvent.mockResolvedValue(true);
-      mockGoogleCalendarTool.createEvent.mockResolvedValue("gcal-event-123");
-      mockTelegramNotifier.sendTextMessage.mockResolvedValue(true);
 
       // Act
       const result = await BookingFlowManager.processWaiverSubmission(
@@ -319,27 +344,21 @@ describe("BookingFlowManager", () => {
         mockWaiverData,
       );
 
-      // Assert
-      expect(mockPrisma.session.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          userId: 123456789,
-          sessionTypeId: "kambo-session-1",
-          appointmentDateTime: new Date("2024-01-15T10:00:00.000Z"),
-          status: "CONFIRMED",
-          waiverData: mockWaiverData,
-        }),
-      });
-      expect(mockGoogleCalendarTool.deleteEvent).toHaveBeenCalledWith(
-        "gcal-placeholder-123",
-      );
-      expect(mockGoogleCalendarTool.createEvent).toHaveBeenCalled();
-      expect(mockTelegramNotifier.sendTextMessage).toHaveBeenCalled();
+      // Assert - No longer creates session during waiver processing
+      expect(mockPrisma.sessions.create).not.toHaveBeenCalled();
 
+      // Should redirect to invite friends for group sessions
       expect(result.nextStep.type).toBe("REDIRECT");
       expect(result.nextStep.url).toContain("invite-friends.html");
 
       const decodedToken = jwt.verify(result.flowToken, process.env.JWT_SECRET);
       expect(decodedToken.currentStep).toBe("awaiting_friend_invites");
+      // Should store waiver data in flow token for later session creation
+      expect(decodedToken.firstName).toBe("John");
+      expect(decodedToken.lastName).toBe("Doe");
+      expect(decodedToken.liability_form_data).toEqual(
+        mockWaiverData.liability_form_data,
+      );
     });
 
     it("should process primary waiver and complete flow for single session", async () => {
@@ -347,9 +366,13 @@ describe("BookingFlowManager", () => {
       mockSessionTypesCore.getById.mockResolvedValue(
         mockSessionTypeNoWaiverNoInvites,
       );
-      mockPrisma.session.create.mockResolvedValue({ id: 10 });
-      mockGoogleCalendarTool.deleteEvent.mockResolvedValue(true);
-      mockGoogleCalendarTool.createEvent.mockResolvedValue("gcal-event-123");
+      mockGoogleCalendarTool.isSlotTrulyAvailable.mockResolvedValue(true);
+      mockPrisma.sessions.create.mockResolvedValue({ id: 10 });
+      mockGoogleCalendarTool.deleteCalendarEvent.mockResolvedValue(true);
+      mockGoogleCalendarTool.createCalendarEvent.mockResolvedValue(
+        "gcal-event-123",
+      );
+      mockPrisma.sessions.update.mockResolvedValue({ id: 10 });
       mockTelegramNotifier.sendTextMessage.mockResolvedValue(true);
 
       const singleFlowState = {
@@ -364,10 +387,13 @@ describe("BookingFlowManager", () => {
       );
 
       // Assert
-      expect(result.nextStep.type).toBe("COMPLETE");
+      expect(result.nextStep.type).toBe("REDIRECT");
+      expect(result.nextStep.url).toContain(
+        "/booking-confirmed.html?flowToken=",
+      );
 
       const decodedToken = jwt.verify(result.flowToken, process.env.JWT_SECRET);
-      expect(decodedToken.currentStep).toBe("completed");
+      expect(decodedToken.currentStep).toBe("finalize_booking");
     });
 
     it("should process friend waiver and complete friend flow", async () => {
@@ -380,12 +406,38 @@ describe("BookingFlowManager", () => {
         inviteToken: "invite-token-123",
       };
 
-      mockSessionTypesCore.getById.mockResolvedValue(
-        mockSessionTypeWithWaiverAndInvites,
-      );
+      // Mock the complete sessionInvite with session relationship
+      const mockSessionInvite = {
+        id: 1,
+        inviteToken: "invite-token-123",
+        status: "pending",
+        parentSessionId: 10,
+        sessions: {
+          id: 10,
+          telegram_id: BigInt(123456789),
+          first_name: "John",
+          last_name: "Doe",
+          appointment_datetime: new Date("2024-01-15T10:00:00.000Z"),
+          googleEventId: "gcal-event-123",
+          SessionType: {
+            label: "Kambo Session",
+          },
+        },
+      };
+
+      mockPrisma.sessionInvite.findUnique.mockResolvedValue(mockSessionInvite);
       mockPrisma.sessionInvite.update.mockResolvedValue({ id: 1 });
-      mockGoogleCalendarTool.updateEvent.mockResolvedValue(true);
-      mockTelegramNotifier.sendTextMessage.mockResolvedValue(true);
+      mockPrisma.sessionInvite.count.mockResolvedValue(1);
+      mockGoogleCalendarTool.getCalendarEvent.mockResolvedValue({
+        description: "Session details",
+        summary: "Kambo Session - John Doe",
+      });
+      mockGoogleCalendarTool.updateCalendarEventDescription.mockResolvedValue(
+        true,
+      );
+      mockGoogleCalendarTool.updateCalendarEventSummary.mockResolvedValue(true);
+      mockTelegramNotifier.sendUserNotification.mockResolvedValue(true);
+      mockTelegramNotifier.sendAdminNotification.mockResolvedValue(true);
 
       // Act
       const result = await BookingFlowManager.processWaiverSubmission(
@@ -393,33 +445,49 @@ describe("BookingFlowManager", () => {
         mockWaiverData,
       );
 
-      // Assert
+      // Assert - Should call findUnique to get session details
+      expect(mockPrisma.sessionInvite.findUnique).toHaveBeenCalledWith({
+        where: { inviteToken: "invite-token-123" },
+        include: {
+          sessions: {
+            include: {
+              SessionType: true,
+            },
+          },
+        },
+      });
+
+      // Should update sessionInvite with friend waiver data
       expect(mockPrisma.sessionInvite.update).toHaveBeenCalledWith({
         where: { inviteToken: "invite-token-123" },
-        data: expect.objectContaining({
-          status: "ACCEPTED",
-          waiverData: mockWaiverData,
-        }),
+        data: {
+          status: "waiver_completed_by_friend",
+          friendTelegramId: mockWaiverData.telegramId,
+          friendNameOnWaiver: "John Doe",
+          friendLiabilityFormData: mockWaiverData.liability_form_data,
+        },
       });
-      expect(mockGoogleCalendarTool.updateEvent).toHaveBeenCalled();
+
       expect(result.nextStep.type).toBe("COMPLETE");
     });
 
-    it("should handle database errors gracefully", async () => {
-      // Arrange
-      mockSessionTypesCore.getById.mockResolvedValue(
-        mockSessionTypeWithWaiverAndInvites,
+    it("should handle session type lookup errors gracefully", async () => {
+      // Arrange - Primary waiver processing with sessionType lookup failure
+      mockSessionTypesCore.getById.mockRejectedValue(
+        new Error("Session type lookup failed"),
       );
-      mockPrisma.session.create.mockRejectedValue(new Error("Database error"));
 
-      // Act & Assert
-      await expect(
-        BookingFlowManager.processWaiverSubmission(
-          mockFlowState,
-          mockWaiverData,
-        ),
-      ).rejects.toThrow("Failed to process waiver submission");
+      // Act
+      const result = await BookingFlowManager.processWaiverSubmission(
+        mockFlowState,
+        mockWaiverData,
+      );
 
+      // Assert - Should return error response
+      expect(result.nextStep.type).toBe("ERROR");
+      expect(result.nextStep.message).toContain(
+        "An error occurred while processing your booking",
+      );
       expect(mockLogger.error).toHaveBeenCalled();
     });
   });
@@ -543,7 +611,7 @@ describe("BookingFlowManager", () => {
       expect(result.action.url).toContain("invite-friends.html");
     });
 
-    it("should return completion for session with no waiver and no invites", () => {
+    it("should return redirect to confirmation page for session with no waiver and no invites", () => {
       // Arrange
       const flowState = { currentStep: "initial", flowType: "primary_booking" };
       const sessionType = { waiverType: "NONE", allowsGroupInvites: false };
@@ -554,9 +622,10 @@ describe("BookingFlowManager", () => {
         sessionType,
       );
 
-      // Assert
-      expect(result.nextStep).toBe("completed");
-      expect(result.action.type).toBe("COMPLETE");
+      // Assert - Should redirect to confirmation page instead of completing
+      expect(result.nextStep).toBe("finalize_booking");
+      expect(result.action.type).toBe("REDIRECT");
+      expect(result.action.url).toBe("/booking-confirmed.html?flowToken=");
     });
   });
 
@@ -606,6 +675,320 @@ describe("BookingFlowManager", () => {
       expect(() => BookingFlowManager.parseFlowToken("invalid-token")).toThrow(
         "Invalid or expired flow token",
       );
+    });
+  });
+
+  describe("finalizeBookingAndNotify", () => {
+    it("should successfully finalize a primary booking flow", async () => {
+      // Arrange
+      const flowData = {
+        userId: 123456789,
+        flowType: "primary_booking",
+        currentStep: "finalize_booking",
+        sessionTypeId: "kambo-session-1",
+        appointmentDateTimeISO: "2024-01-15T10:00:00.000Z",
+        placeholderId: "gcal-placeholder-123",
+        firstName: "John",
+        lastName: "Doe",
+        liability_form_data: { signed: true },
+      };
+
+      const flowToken = jwt.sign(flowData, process.env.JWT_SECRET, {
+        expiresIn: "2h",
+      });
+
+      // Mock session type
+      mockSessionTypesCore.getById.mockResolvedValue(
+        mockSessionTypeWithWaiverAndInvites,
+      );
+
+      // Mock slot availability check
+      mockGoogleCalendarTool.isSlotTrulyAvailable = jest
+        .fn()
+        .mockResolvedValue(true);
+
+      // Mock placeholder deletion
+      mockGoogleCalendarTool.deleteCalendarEvent = jest
+        .fn()
+        .mockResolvedValue(true);
+
+      // Mock session creation
+      mockPrisma.sessions.create.mockResolvedValue({
+        id: 1,
+        telegram_id: BigInt(123456789),
+        session_type_id_fk: "kambo-session-1",
+        appointment_datetime: new Date("2024-01-15T10:00:00.000Z"),
+        session_status: "CONFIRMED",
+      });
+
+      // Mock calendar event creation
+      mockGoogleCalendarTool.createCalendarEvent = jest
+        .fn()
+        .mockResolvedValue("gcal-event-123");
+
+      // Mock session update
+      mockPrisma.sessions.update.mockResolvedValue({
+        id: 1,
+        googleEventId: "gcal-event-123",
+      });
+
+      // Mock admin notification
+      mockTelegramNotifier.sendAdminNotification.mockResolvedValue(true);
+
+      // Act
+      const result =
+        await BookingFlowManager.finalizeBookingAndNotify(flowToken);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.sessionTypeLabel).toBe("Kambo Session");
+      expect(result.appointmentDateTimeFormatted).toContain(
+        "Monday, January 15, 2024",
+      );
+
+      // Verify core booking operations were called
+      expect(mockGoogleCalendarTool.deleteCalendarEvent).toHaveBeenCalledWith(
+        "gcal-placeholder-123",
+      );
+      expect(mockGoogleCalendarTool.isSlotTrulyAvailable).toHaveBeenCalledWith(
+        "2024-01-15T10:00:00.000Z",
+        120,
+      );
+      expect(mockPrisma.sessions.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          telegram_id: BigInt(123456789),
+          session_type_id_fk: "kambo-session-1",
+          appointment_datetime: new Date("2024-01-15T10:00:00.000Z"),
+          session_status: "CONFIRMED",
+          first_name: "John",
+          last_name: "Doe",
+          liability_form_data: { signed: true },
+        }),
+      });
+      expect(mockGoogleCalendarTool.createCalendarEvent).toHaveBeenCalled();
+      expect(mockTelegramNotifier.sendAdminNotification).toHaveBeenCalled();
+    });
+
+    it("should be idempotent when called twice with same flowToken", async () => {
+      // Arrange
+      const flowData = {
+        userId: 123456789,
+        flowType: "primary_booking",
+        currentStep: "finalize_booking",
+        sessionTypeId: "kambo-session-1",
+        appointmentDateTimeISO: "2024-01-15T10:00:00.000Z",
+        placeholderId: "gcal-placeholder-123",
+        firstName: "John",
+        lastName: "Doe",
+        liability_form_data: { signed: true },
+      };
+
+      const flowToken = jwt.sign(flowData, process.env.JWT_SECRET, {
+        expiresIn: "2h",
+      });
+
+      // Mock session type
+      mockSessionTypesCore.getById.mockResolvedValue(
+        mockSessionTypeWithWaiverAndInvites,
+      );
+
+      // Mock slot availability check
+      mockGoogleCalendarTool.isSlotTrulyAvailable = jest
+        .fn()
+        .mockResolvedValue(true);
+
+      // Mock successful database and external service calls
+      mockGoogleCalendarTool.deleteCalendarEvent = jest
+        .fn()
+        .mockResolvedValue(true);
+      mockPrisma.sessions.create.mockResolvedValue({
+        id: 1,
+        telegram_id: BigInt(123456789),
+      });
+      mockGoogleCalendarTool.createCalendarEvent = jest
+        .fn()
+        .mockResolvedValue("gcal-event-123");
+      mockPrisma.sessions.update.mockResolvedValue({ id: 1 });
+      mockTelegramNotifier.sendAdminNotification.mockResolvedValue(true);
+
+      // Act - Call twice with same token
+      const result1 =
+        await BookingFlowManager.finalizeBookingAndNotify(flowToken);
+      const result2 =
+        await BookingFlowManager.finalizeBookingAndNotify(flowToken);
+
+      // Assert - Both calls should succeed and return the same result
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+      expect(result1).toEqual(result2);
+
+      // Core logic should only be executed once
+      expect(mockPrisma.sessions.create).toHaveBeenCalledTimes(1);
+      expect(mockGoogleCalendarTool.createCalendarEvent).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    it("should handle slot unavailability error", async () => {
+      // Arrange
+      const flowData = {
+        userId: 123456789,
+        flowType: "primary_booking",
+        currentStep: "finalize_booking",
+        sessionTypeId: "kambo-session-1",
+        appointmentDateTimeISO: "2024-01-15T10:00:00.000Z",
+        placeholderId: "gcal-placeholder-123",
+        firstName: "John",
+        lastName: "Doe",
+        liability_form_data: { signed: true },
+      };
+
+      const flowToken = jwt.sign(flowData, process.env.JWT_SECRET, {
+        expiresIn: "2h",
+      });
+
+      // Mock session type
+      mockSessionTypesCore.getById.mockResolvedValue(
+        mockSessionTypeWithWaiverAndInvites,
+      );
+
+      // Mock slot unavailability
+      mockGoogleCalendarTool.isSlotTrulyAvailable = jest
+        .fn()
+        .mockResolvedValue(false);
+
+      // Act & Assert
+      await expect(
+        BookingFlowManager.finalizeBookingAndNotify(flowToken),
+      ).rejects.toThrow(
+        "Sorry, the selected slot was taken while you were completing the waiver.",
+      );
+    });
+
+    it("should handle calendar event creation failure after session creation", async () => {
+      // Arrange
+      const flowData = {
+        userId: 123456789,
+        flowType: "primary_booking",
+        currentStep: "finalize_booking",
+        sessionTypeId: "kambo-session-1",
+        appointmentDateTimeISO: "2024-01-15T10:00:00.000Z",
+        placeholderId: "gcal-placeholder-123",
+        firstName: "John",
+        lastName: "Doe",
+        liability_form_data: { signed: true },
+      };
+
+      const flowToken = jwt.sign(flowData, process.env.JWT_SECRET, {
+        expiresIn: "2h",
+      });
+
+      // Mock session type
+      mockSessionTypesCore.getById.mockResolvedValue(
+        mockSessionTypeWithWaiverAndInvites,
+      );
+
+      // Mock successful slot availability and session creation
+      mockGoogleCalendarTool.isSlotTrulyAvailable = jest
+        .fn()
+        .mockResolvedValue(true);
+      mockGoogleCalendarTool.deleteCalendarEvent = jest
+        .fn()
+        .mockResolvedValue(true);
+      mockPrisma.sessions.create.mockResolvedValue({
+        id: 1,
+        telegram_id: BigInt(123456789),
+        session_type_id_fk: "kambo-session-1",
+        appointment_datetime: new Date("2024-01-15T10:00:00.000Z"),
+        session_status: "CONFIRMED",
+      });
+
+      // Mock calendar event creation failure
+      mockGoogleCalendarTool.createCalendarEvent = jest
+        .fn()
+        .mockRejectedValue(new Error("Calendar API error"));
+
+      // Mock session update for flagging manual review
+      mockPrisma.sessions.update.mockResolvedValue({
+        id: 1,
+        session_status: "NEEDS_MANUAL_REVIEW",
+      });
+
+      // Mock admin notification
+      mockTelegramNotifier.sendAdminNotification.mockResolvedValue(true);
+
+      // Act & Assert
+      await expect(
+        BookingFlowManager.finalizeBookingAndNotify(flowToken),
+      ).rejects.toThrow(
+        "Session was created but calendar event failed. An admin has been notified.",
+      );
+
+      // Verify session was flagged for manual review
+      expect(mockPrisma.sessions.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { session_status: "NEEDS_MANUAL_REVIEW" },
+      });
+
+      // Verify admin notification was sent
+      expect(mockTelegramNotifier.sendAdminNotification).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "CRITICAL: Session created in DB but Calendar event failed",
+        ),
+      );
+    });
+  });
+
+  describe("determineNextStep - Confirmation Page Redirect", () => {
+    it("should redirect to confirmation page for completed waiver without group invites", () => {
+      // Arrange
+      const flowState = {
+        userId: 123456789,
+        flowType: "primary_booking",
+        currentStep: "waiver_completed",
+        sessionTypeId: "kambo-session-1",
+        appointmentDateTimeISO: "2024-01-15T10:00:00.000Z",
+      };
+
+      const sessionType = {
+        ...mockSessionTypeNoWaiverNoInvites, // No group invites allowed
+        allowsGroupInvites: false,
+      };
+
+      // Act
+      const result = BookingFlowManager.determineNextStep(
+        flowState,
+        sessionType,
+      );
+
+      // Assert
+      expect(result.nextStep).toBe("finalize_booking");
+      expect(result.action.type).toBe("REDIRECT");
+      expect(result.action.url).toBe("/booking-confirmed.html?flowToken=");
+    });
+
+    it("should redirect to confirmation page for simple flow without waiver or invites", () => {
+      // Arrange
+      const flowState = {
+        userId: 123456789,
+        flowType: "primary_booking",
+        currentStep: "initial",
+        sessionTypeId: "simple-session",
+        appointmentDateTimeISO: "2024-01-15T10:00:00.000Z",
+      };
+
+      const sessionType = mockSessionTypeNoWaiverNoInvites;
+
+      // Act
+      const result = BookingFlowManager.determineNextStep(
+        flowState,
+        sessionType,
+      );
+
+      // Assert
+      expect(result.nextStep).toBe("finalize_booking");
+      expect(result.action.type).toBe("REDIRECT");
+      expect(result.action.url).toBe("/booking-confirmed.html?flowToken=");
     });
   });
 });

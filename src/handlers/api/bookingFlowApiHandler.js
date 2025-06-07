@@ -242,6 +242,84 @@ async function handleStartInviteFlow(req, res) {
 }
 
 /**
+ * Handles POST /api/booking-flow/complete-booking
+ * Finalizes a booking flow
+ */
+async function completeBooking(req, res) {
+  logger.info(
+    { body: req.body },
+    "[BookingFlowApiHandler] Processing complete booking request",
+  );
+
+  try {
+    const { flowToken, telegramId } = req.body;
+
+    // Validate required fields
+    if (!flowToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid input: flowToken is required.",
+      });
+    }
+
+    if (!telegramId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid input: telegramId is required.",
+      });
+    }
+
+    // Parse flow token to validate user ID security
+    try {
+      const flowState = bookingFlowManager.parseFlowToken(flowToken);
+      const requestUserId = parseInt(telegramId);
+
+      if (flowState.userId !== requestUserId) {
+        logger.warn(
+          {
+            flowUserId: flowState.userId,
+            requestUserId,
+            telegramId,
+          },
+          "[BookingFlowApiHandler] Security violation: flowToken userId mismatch",
+        );
+        return res.status(403).json({
+          success: false,
+          message: "Access denied: Invalid flow token for this user.",
+        });
+      }
+    } catch (tokenError) {
+      logger.error(
+        { error: tokenError.message },
+        "[BookingFlowApiHandler] Error parsing flow token for security check",
+      );
+      return res.status(400).json({
+        success: false,
+        message: "Invalid flow token.",
+      });
+    }
+
+    // Call BookingFlowManager to finalize the booking
+    const result = await bookingFlowManager.finalizeBookingAndNotify(flowToken);
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    logger.error(
+      { error: error.message, body: req.body },
+      "[BookingFlowApiHandler] Error in completeBooking",
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "An internal error occurred while completing the booking.",
+    });
+  }
+}
+
+/**
  * Handles POST /api/booking-flow/continue
  * Continues a flow with step data submission
  */
@@ -322,4 +400,5 @@ module.exports = {
   handleStartPrimaryFlow,
   handleStartInviteFlow,
   handleContinueFlow,
+  completeBooking,
 };

@@ -45,8 +45,11 @@ function determineNextStep(flowState, sessionType) {
         };
       } else {
         return {
-          nextStep: "completed",
-          action: { type: "COMPLETE" },
+          nextStep: "finalize_booking",
+          action: {
+            type: "REDIRECT",
+            url: "/booking-confirmed.html?flowToken=",
+          },
         };
       }
     } else if (currentStep === "waiver_completed") {
@@ -60,8 +63,11 @@ function determineNextStep(flowState, sessionType) {
         };
       } else {
         return {
-          nextStep: "completed",
-          action: { type: "COMPLETE" },
+          nextStep: "finalize_booking",
+          action: {
+            type: "REDIRECT",
+            url: "/booking-confirmed.html?flowToken=",
+          },
         };
       }
     }
@@ -80,17 +86,23 @@ function determineNextStep(flowState, sessionType) {
         };
       } else {
         return {
-          nextStep: "completed",
-          action: { type: "COMPLETE" },
+          nextStep: "finalize_booking",
+          action: {
+            type: "REDIRECT",
+            url: "/booking-confirmed.html?flowToken=",
+          },
         };
       }
     }
   }
 
-  // Default completion
+  // Default completion - redirect to confirmation page
   return {
-    nextStep: "completed",
-    action: { type: "COMPLETE" },
+    nextStep: "booking_confirmation",
+    action: {
+      type: "REDIRECT",
+      url: "/booking-confirmed.html?flowToken=",
+    },
   };
 }
 
@@ -386,212 +398,42 @@ async function _processPrimaryBookerWaiver(flowState, waiverData) {
       };
     }
 
-    // Handle Google Calendar placeholder deletion if present
-    if (flowState.placeholderId) {
-      try {
-        logger.debug(
-          { placeholderId: flowState.placeholderId },
-          "Deleting placeholder event",
-        );
-        await googleCalendarTool.deleteCalendarEvent(flowState.placeholderId);
-        logger.debug(
-          { placeholderId: flowState.placeholderId },
-          "Placeholder event deleted successfully",
-        );
-      } catch (error) {
-        logger.warn(
-          { error, placeholderId: flowState.placeholderId },
-          "Failed to delete placeholder event - continuing anyway",
-        );
-      }
-    }
-
-    // Final slot availability check (critical)
-    const isAvailable = await googleCalendarTool.isSlotTrulyAvailable(
-      flowState.appointmentDateTimeISO,
-      sessionType.durationMinutes,
-    );
-
-    if (!isAvailable) {
-      logger.warn(
-        { appointmentDateTime: flowState.appointmentDateTimeISO },
-        "Slot became unavailable during waiver completion",
-      );
-      return {
-        nextStep: {
-          type: "ERROR",
-          message:
-            "Sorry, the selected slot was taken while you were completing the waiver. Please return to the calendar and choose a new time.",
-        },
-      };
-    }
-
-    // Create Session record
-    const sessionData = {
-      telegram_id: flowState.userId,
-      session_type_id_fk: flowState.sessionTypeId,
-      appointment_datetime: new Date(flowState.appointmentDateTimeISO),
-      session_status: "CONFIRMED",
+    // Store waiver data in flow state for later session creation
+    const waiverCompletedFlowState = {
+      ...flowState,
+      currentStep: "waiver_completed",
+      firstName: waiverData.firstName,
+      lastName: waiverData.lastName,
       liability_form_data: waiverData.liability_form_data,
-      first_name: waiverData.firstName,
-      last_name: waiverData.lastName,
     };
 
-    const session = await prisma.sessions.create({ data: sessionData });
-    logger.debug({ sessionId: session.id }, "Session created successfully");
-
-    // Create confirmed Google Calendar event
-    const eventStartTime = new Date(flowState.appointmentDateTimeISO);
-    const eventEndTime = new Date(
-      eventStartTime.getTime() + sessionType.durationMinutes * 60000,
+    // Determine next step using existing logic
+    const { nextStep, action } = determineNextStep(
+      waiverCompletedFlowState,
+      sessionType,
     );
 
-    const eventData = {
-      summary: `Client ${waiverData.firstName} ${waiverData.lastName} - ${sessionType.label}`,
-      start: eventStartTime,
-      end: eventEndTime,
-      description: `${sessionType.label} session for ${waiverData.firstName} ${waiverData.lastName}\nBooking ID: ${session.id}`,
+    // Create final flow state with the determined next step
+    const finalFlowState = {
+      ...waiverCompletedFlowState,
+      currentStep: nextStep,
     };
 
-    let googleEventId;
-    try {
-      googleEventId = await googleCalendarTool.createCalendarEvent(eventData);
-      logger.debug(
-        { googleEventId, sessionId: session.id },
-        "Calendar event created successfully",
-      );
+    // Generate new flow token with final state
+    const flowToken = generateFlowToken(finalFlowState);
 
-      // Update session with Google Calendar event ID
-      await prisma.sessions.update({
-        where: { id: session.id },
-        data: { googleEventId },
-      });
-    } catch (error) {
-      logger.error(
-        { error, sessionId: session.id },
-        "Calendar event creation failed - session exists in DB but not on calendar",
-      );
+    logger.debug(
+      { nextStep, userId: flowState.userId },
+      "[FlowStepHandlers] Primary booker waiver processed, proceeding to next step",
+    );
 
-      // Notify admin about the critical inconsistency
-      try {
-        await telegramNotifier.sendAdminNotification(
-          `CRITICAL: Session created in DB but Calendar event failed. Session ID: ${session.id}, User: ${waiverData.firstName} ${waiverData.lastName} (${flowState.userId}), Time: ${flowState.appointmentDateTimeISO}. Error: ${error.message}`,
-        );
-      } catch (notifError) {
-        logger.error(
-          { notifError },
-          "Failed to send admin notification about calendar failure",
-        );
-      }
-
-      return {
-        nextStep: {
-          type: "ERROR",
-          message:
-            "Session was created but calendar event failed. An admin has been notified.",
-        },
-      };
-    }
-
-    // Update bot message for primary booker
-    try {
-      const user = await prisma.users.findUnique({
-        where: { telegram_id: flowState.userId },
-      });
-
-      if (user?.edit_msg_id) {
-        const formattedDateTime = new Date(
-          flowState.appointmentDateTimeISO,
-        ).toLocaleString("en-US", {
-          timeZone: "America/Chicago",
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        });
-
-        let confirmationMessage = `✅ Your ${sessionType.label} session is confirmed for ${formattedDateTime}!`;
-        let inlineKeyboard = null;
-
-        // Add invite button if group invites are allowed
-        if (sessionType.allowsGroupInvites && sessionType.maxGroupSize > 1) {
-          const inviteUrl = `/invite-friends.html?sessionId=${session.id}&telegramId=${flowState.userId}&maxGroupSize=${sessionType.maxGroupSize}`;
-          inlineKeyboard = {
-            inline_keyboard: [
-              [
-                {
-                  text: "Invite Friends",
-                  web_app: { url: inviteUrl },
-                },
-              ],
-            ],
-          };
-        }
-
-        await telegramNotifier.editMessageText({
-          telegramId: flowState.userId,
-          messageId: user.edit_msg_id,
-          text: confirmationMessage,
-          reply_markup: inlineKeyboard,
-        });
-
-        // Clear edit_msg_id
-        await prisma.users.update({
-          where: { telegram_id: flowState.userId },
-          data: { edit_msg_id: null },
-        });
-      }
-    } catch (error) {
-      logger.error(
-        { error, userId: flowState.userId },
-        "Failed to update bot message - continuing anyway",
-      );
-    }
-
-    // Send admin notification
-    try {
-      const formattedDateTime = new Date(
-        flowState.appointmentDateTimeISO,
-      ).toLocaleString("en-US", {
-        timeZone: "America/Chicago",
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-
-      await telegramNotifier.sendAdminNotification(
-        `CONFIRMED BOOKING: Client ${waiverData.firstName} ${waiverData.lastName} (TGID: ${flowState.userId}) for ${sessionType.label} on ${formattedDateTime}. Waiver submitted.`,
-      );
-    } catch (error) {
-      logger.error(
-        { error, userId: flowState.userId },
-        "Failed to send admin notification - continuing anyway",
-      );
-    }
-
-    // Determine next step
-    if (sessionType.allowsGroupInvites && sessionType.maxGroupSize > 1) {
-      const inviteUrl = `/invite-friends.html?sessionId=${session.id}&telegramId=${flowState.userId}&maxGroupSize=${sessionType.maxGroupSize}&flowToken=`;
-      return {
-        nextStep: {
-          type: "REDIRECT",
-          url: inviteUrl,
-        },
-      };
-    } else {
-      return {
-        nextStep: {
-          type: "COMPLETE",
-          message: "Booking Confirmed! You'll receive a message from the bot.",
-          closeWebApp: true,
-        },
-      };
-    }
+    return {
+      flowToken,
+      nextStep: {
+        type: action.type,
+        url: action.url + flowToken,
+      },
+    };
   } catch (error) {
     logger.error(
       { error, userId: flowState.userId },
