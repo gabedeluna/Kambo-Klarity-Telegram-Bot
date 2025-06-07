@@ -25,16 +25,23 @@ const mockStateManager = {
 };
 const mockTelegramNotifier = {
   sendTextMessage: jest.fn(),
+  sendUserNotification: jest.fn(),
 };
 
 // Mock Telegraf context
-const mockCtx = (callbackQueryDataString, fromId = 123, chatId = 123) => ({
-  from: { id: fromId },
+const mockCtx = (
+  callbackQueryDataString,
+  fromId = 123,
+  chatId = 123,
+  firstName = "TestUser",
+) => ({
+  from: { id: fromId, first_name: firstName },
   chat: { id: chatId },
   callbackQuery: callbackQueryDataString
     ? { data: callbackQueryDataString }
     : undefined,
   answerCbQuery: jest.fn().mockResolvedValue(true),
+  editMessageText: jest.fn().mockResolvedValue(true),
   // telegram: { // Not directly used by the handler after agent removal, but good to have if needed
   //   editMessageText: jest.fn().mockResolvedValue(true),
   // },
@@ -331,131 +338,496 @@ describe("Callback Query Handler", () => {
     });
   });
 
-  describe("handleCallbackQuery - Decline Invite", () => {
-    // Mock axios for API calls
-    require("axios");
-    jest.mock("axios");
-    let mockAxios;
+  describe("handleCallbackQuery - Decline Invite (Direct DB)", () => {
+    // Mock prisma for direct database operations
+    let mockPrisma;
 
     beforeEach(() => {
-      // Mock axios at the module level
-      jest.doMock("axios", () => ({
-        post: jest.fn(),
-      }));
+      // Mock prisma dependency
+      mockPrisma = {
+        sessionInvite: {
+          findFirst: jest.fn(),
+          update: jest.fn(),
+        },
+      };
 
-      // Clear module cache and require fresh mocks
+      // Re-require the handler with fresh setup
       jest.resetModules();
-      mockAxios = require("axios");
-
-      // Re-require the handler with mocked axios
       callbackQueryHandler = require("../../src/handlers/callbackQueryHandler");
 
-      // Re-initialize with fresh deps
+      // Initialize with mocks including prisma
       callbackQueryHandler.initialize({
         logger: mockLogger,
         stateManager: mockStateManager,
         telegramNotifier: mockTelegramNotifier,
+        prisma: mockPrisma,
       });
 
       jest.clearAllMocks();
     });
 
-    afterEach(() => {
-      jest.unmock("axios");
-    });
-
-    it("should handle decline_invite callback successfully", async () => {
+    // Task 1: Basic structure and parsing tests
+    it("should parse invite token from callback data correctly", async () => {
       const inviteToken = "ABC123TOKEN";
-      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+      const ctx = mockCtx(
+        `decline_invite_${inviteToken}`,
+        456,
+        123,
+        "TestFriend",
+      );
 
-      mockAxios.post.mockResolvedValueOnce({
-        data: { success: true, message: "Invite declined successfully" },
+      // Mock valid session invite
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
       });
 
       await callbackQueryHandler.handleCallbackQuery(ctx);
 
-      expect(ctx.answerCbQuery).toHaveBeenCalled();
-      expect(mockAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining(`/api/session-invites/${inviteToken}/respond`),
-        { response: "declined" },
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            "Content-Type": "application/json",
-          }),
-        }),
-      );
-
       expect(mockLogger.info).toHaveBeenCalledWith(
-        { userId: "456", inviteToken },
-        "[callback] Friend declined invite successfully.",
+        { callbackData: `decline_invite_${inviteToken}`, userId: "456" },
+        "Processing decline_invite callback.",
       );
     });
 
-    it("should handle decline_invite API errors gracefully", async () => {
-      const inviteToken = "EXPIRED123";
-      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
-
-      const axiosError = new Error("Request failed");
-      axiosError.response = {
-        status: 404,
-        data: { error: "Invite not found" },
-      };
-      mockAxios.post.mockRejectedValueOnce(axiosError);
-
-      await callbackQueryHandler.handleCallbackQuery(ctx);
-
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Sorry, this invitation is no longer valid.",
-      );
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        { userId: "456", status: 404, error: { error: "Invite not found" } },
-        "[callback] API error declining invite.",
-      );
-    });
-
-    it("should handle decline_invite network errors", async () => {
-      const inviteToken = "NETWORK123";
-      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
-
-      mockAxios.post.mockRejectedValueOnce(new Error("Network error"));
-
-      await callbackQueryHandler.handleCallbackQuery(ctx);
-
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Sorry, there was an issue processing your response. Please try again.",
-      );
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        { err: expect.any(Error), userId: "456", inviteToken },
-        "[callback] Error calling decline invite API.",
-      );
-    });
-
-    it("should handle malformed decline_invite token", async () => {
+    it("should handle malformed callback data with missing token", async () => {
       const ctx = mockCtx("decline_invite_", 456);
 
       await callbackQueryHandler.handleCallbackQuery(ctx);
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Invalid invitation link.",
-      );
       expect(mockLogger.warn).toHaveBeenCalledWith(
         { userId: "456", callbackData: "decline_invite_" },
         "[callback] Malformed decline invite token.",
       );
-      expect(mockAxios.post).not.toHaveBeenCalled();
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
+        "Invalid invitation link.",
+      );
+      expect(mockPrisma.sessionInvite.findFirst).not.toHaveBeenCalled();
     });
 
-    it("should ignore unknown callback patterns", async () => {
-      const ctx = mockCtx("unknown_pattern:test", 456);
+    it("should extract friendTelegramId from ctx.from.id", async () => {
+      const inviteToken = "TEST123";
+      const friendTelegramId = 456;
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, friendTelegramId);
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
 
       await callbackQueryHandler.handleCallbackQuery(ctx);
 
-      expect(ctx.answerCbQuery).toHaveBeenCalled();
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        { callbackData: "unknown_pattern:test", userId: "456" },
-        "Callback data does not match known patterns, ignoring.",
+      expect(mockPrisma.sessionInvite.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          status: "declined_by_friend",
+          friendTelegramId: friendTelegramId.toString(),
+        },
+      });
+    });
+
+    it("should answer callback query immediately with correct message", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
+        "Your decline has been recorded. Thank you.",
       );
-      expect(mockAxios.post).not.toHaveBeenCalled();
+    });
+
+    // Task 2: Valid decline flow with database updates
+    it("should fetch SessionInvite with all required relations", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(mockPrisma.sessionInvite.findFirst).toHaveBeenCalledWith({
+        where: { inviteToken },
+        include: {
+          parentSession: {
+            include: {
+              user: true,
+              sessionType: true,
+            },
+          },
+        },
+      });
+    });
+
+    it("should update SessionInvite status to declined_by_friend", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(mockPrisma.sessionInvite.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          status: "declined_by_friend",
+          friendTelegramId: "456",
+        },
+      });
+    });
+
+    it("should edit message with proper decline confirmation text including session details", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(
+        `decline_invite_${inviteToken}`,
+        456,
+        123,
+        "TestFriend",
+      );
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "You have declined the invitation to the Kambo Session session with PrimaryUser. Thanks for letting us know!",
+        { reply_markup: { inline_keyboard: [] } },
+      );
+    });
+
+    // Task 3: Invalid token and already processed invite scenarios
+    it("should handle non-existent invite token gracefully", async () => {
+      const inviteToken = "NONEXISTENT";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue(null);
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "This invitation is no longer valid.",
+        { reply_markup: { inline_keyboard: [] } },
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { token: inviteToken },
+        "[decline] Session invite not found.",
+      );
+    });
+
+    it("should handle already declined invitation", async () => {
+      const inviteToken = "ALREADY_DECLINED";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "declined_by_friend",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "This invitation has already been processed.",
+        { reply_markup: { inline_keyboard: [] } },
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        {
+          token: inviteToken,
+          currentStatus: "declined_by_friend",
+          friendTelegramId: "456",
+          isRapidClick: false,
+        },
+        "[decline] Invite already responded to.",
+      );
+    });
+
+    it("should handle invitation with status waiver_completed_by_friend", async () => {
+      const inviteToken = "WAIVER_COMPLETED";
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, 456);
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "waiver_completed_by_friend",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "This invitation has already been processed.",
+        { reply_markup: { inline_keyboard: [] } },
+      );
+    });
+
+    // Task 4: Notification sending and error handling
+    it("should send notification to primary booker with friend name and session details", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(
+        `decline_invite_${inviteToken}`,
+        456,
+        123,
+        "TestFriend",
+      );
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(mockTelegramNotifier.sendUserNotification).toHaveBeenCalledWith(
+        "789",
+        "😔 TestFriend has declined your invitation to the Kambo Session session on January 15, 2025 at 4:00 AM.",
+      );
+    });
+
+    it("should use generic 'A friend' if ctx.from.first_name is missing", async () => {
+      const inviteToken = "TEST123";
+      const ctx = {
+        from: { id: 456 }, // No first_name property
+        chat: { id: 123 },
+        callbackQuery: { data: `decline_invite_${inviteToken}` },
+        answerCbQuery: jest.fn().mockResolvedValue(true),
+        editMessageText: jest.fn().mockResolvedValue(true),
+      };
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(mockTelegramNotifier.sendUserNotification).toHaveBeenCalledWith(
+        "789",
+        "😔 A friend has declined your invitation to the Kambo Session session on January 15, 2025 at 4:00 AM.",
+      );
+    });
+
+    it("should continue processing even if notification sending fails", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(
+        `decline_invite_${inviteToken}`,
+        456,
+        123,
+        "TestFriend",
+      );
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      mockTelegramNotifier.sendUserNotification.mockRejectedValue(
+        new Error("Notification failed"),
+      );
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      // Should still update database and edit message
+      expect(mockPrisma.sessionInvite.update).toHaveBeenCalled();
+      expect(ctx.editMessageText).toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ err: expect.any(Error) }),
+        "[decline] Failed to send notification to primary booker, but decline was processed successfully.",
+      );
+    });
+
+    it("should log notification failures without throwing", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(
+        `decline_invite_${inviteToken}`,
+        456,
+        123,
+        "TestFriend",
+      );
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      mockTelegramNotifier.sendUserNotification.mockRejectedValue(
+        new Error("Network error"),
+      );
+
+      // Should not throw
+      await expect(
+        callbackQueryHandler.handleCallbackQuery(ctx),
+      ).resolves.not.toThrow();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: expect.any(Error),
+          inviteToken,
+          friendTelegramId: "456",
+        }),
+        "[decline] Failed to send notification to primary booker, but decline was processed successfully.",
+      );
+    });
+
+    // Enhanced error handling tests
+    it("should handle missing primary booker Telegram ID gracefully", async () => {
+      const inviteToken = "TEST123";
+      const ctx = mockCtx(
+        `decline_invite_${inviteToken}`,
+        456,
+        123,
+        "TestFriend",
+      );
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          id: "session123",
+          user: { telegramId: null, firstName: "PrimaryUser" }, // Missing telegram ID
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-15T10:00:00Z"),
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      // Should still update database and edit message
+      expect(mockPrisma.sessionInvite.update).toHaveBeenCalled();
+      expect(ctx.editMessageText).toHaveBeenCalled();
+
+      // Should log the data integrity error
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inviteToken,
+          friendTelegramId: "456",
+          sessionId: "session123",
+        }),
+        "[decline] Primary booker Telegram ID not found - data integrity issue.",
+      );
+
+      // Should not attempt to send notification
+      expect(mockTelegramNotifier.sendUserNotification).not.toHaveBeenCalled();
+    });
+
+    it("should detect and handle multiple rapid clicks with specific messaging", async () => {
+      const inviteToken = "RAPID_CLICK_TEST";
+      const friendTelegramId = 456;
+      const ctx = mockCtx(`decline_invite_${inviteToken}`, friendTelegramId);
+
+      // Mock already declined by same user
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 1,
+        status: "declined_by_friend",
+        inviteToken,
+        friendTelegramId: friendTelegramId.toString(),
+        parentSession: {
+          user: { telegramId: "789", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+        },
+      });
+
+      await callbackQueryHandler.handleCallbackQuery(ctx);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          token: inviteToken,
+          currentStatus: "declined_by_friend",
+          friendTelegramId: "456",
+          isRapidClick: true,
+        }),
+        "[decline] Multiple rapid clicks detected - invite already declined by same user.",
+      );
+
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "You have already declined this invitation.",
+        { reply_markup: { inline_keyboard: [] } },
+      );
+
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
+        "You already declined this invitation.",
+      );
     });
   });
 });

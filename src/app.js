@@ -239,6 +239,7 @@ async function initializeApp(deps) {
       stateManager, // Use injected stateManager
       // bookingAgent: bookingAgent, // Removed agent dependency
       telegramNotifier: notifierInstance,
+      prisma, // Add prisma for direct database access
     }); // Initialize the module
     logger.info("callbackQueryHandler initialized successfully.");
 

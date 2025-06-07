@@ -1,9 +1,11 @@
 /**
  * @fileoverview Tests for form handler StartApp functionality
+ * @jest-environment jsdom
  */
 
 // Mock global dependencies
 global.fetch = jest.fn();
+global.window = global;
 global.Telegram = {
   WebApp: {
     ready: jest.fn(),

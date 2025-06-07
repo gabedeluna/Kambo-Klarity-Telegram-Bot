@@ -174,6 +174,103 @@ public/form-handler/main.js                            [ENHANCED]
 - **Scalable Architecture**: Clean separation of concerns enables future enhancements
 - **Platform Integration**: Deep integration with Telegram's sharing and linking features
 
+### Feature 11: Bot Direct Database Decline Handler ✅ COMPLETED
+**Implementation Date**: 6/6/2025  
+**Branch**: PH6-BookingFlow-Orchestrator  
+**Test Coverage**: 16 unit tests + 4 integration tests passing (100% pass rate)
+
+#### Overview
+Refactored the decline invite callback handler to use direct database operations instead of HTTP API calls, improving performance and reliability. This feature implements the complete decline invitation flow as specified, including proper user feedback, database updates, and primary booker notifications with enhanced error handling.
+
+#### Technical Implementation
+
+##### Direct Database Integration
+- **ENHANCED**: `src/handlers/callbackQueryHandler.js`
+  - Removed dependency on axios and HTTP API calls
+  - Added prisma dependency for direct database operations
+  - Implemented complete decline flow with proper database queries
+  - Enhanced error handling for all edge cases from specifications
+
+##### Core Functionality
+- **Database Operations**:
+  - Direct `SessionInvite` queries with proper includes for related data
+  - Atomic status updates to `'declined_by_friend'`
+  - Proper handling of `friendTelegramId` assignment
+  - Comprehensive validation of invite status and existence
+
+- **User Experience**:
+  - Proper callback acknowledgment: "Your decline has been recorded. Thank you."
+  - Message editing with session-specific decline confirmation
+  - Inline keyboard removal after decline action
+  - Clear user feedback for all scenarios (valid, invalid, already processed)
+
+##### Enhanced Error Handling
+- **Edge Case Management**:
+  - Multiple rapid clicks detection with specific user messaging
+  - Missing primary booker Telegram ID handling (data integrity issues)
+  - Network failure graceful degradation for notifications
+  - Malformed token validation with appropriate user feedback
+
+- **Notification System**:
+  - Primary booker notifications with formatted date/time
+  - Friend name extraction with fallback to "A friend"
+  - Session type and appointment details in notifications
+  - Graceful handling of notification failures without breaking core functionality
+
+##### Specification Compliance
+- **Requirement A**: Callback parsing for `decline_invite_{token}` format
+- **Requirement B**: Token validation, database updates, and status management
+- **Requirement C**: Proper user feedback and message editing
+- **Requirement D**: Primary booker notifications with session details
+
+#### Comprehensive Test Suite
+
+##### Unit Tests (16 tests passing)
+- **Basic Structure Tests**: Token parsing, malformed data handling, callback acknowledgment
+- **Database Flow Tests**: Prisma queries, status updates, message editing
+- **Error Scenario Tests**: Invalid tokens, already processed invites, various edge cases
+- **Notification Tests**: Primary booker messaging, error handling, graceful degradation
+- **Enhanced Error Handling Tests**: Missing Telegram IDs, rapid click detection
+
+##### Integration Tests (4 tests passing)
+- **Complete Decline Flow**: End-to-end testing from callback to notifications
+- **Already Processed Handling**: Proper responses for non-pending invites
+- **Non-existent Token Handling**: 404 responses and error messaging
+- **Rapid Decline Attempts**: Race condition handling and status validation
+
+#### Technical Improvements
+
+##### Performance Enhancements
+- **Eliminated HTTP Roundtrip**: Direct database access removes API call overhead
+- **Single Database Query**: Efficient data fetching with proper includes
+- **Atomic Operations**: Consistent database updates without transaction complexity
+
+##### Reliability Improvements
+- **Reduced Network Dependencies**: No axios dependency for core decline functionality
+- **Enhanced Error Recovery**: Graceful handling of notification failures
+- **Data Integrity Protection**: Comprehensive validation and edge case handling
+
+##### User Experience Enhancements
+- **Immediate Feedback**: Proper callback acknowledgment with user-friendly messages
+- **Context-Aware Messaging**: Session-specific decline confirmations
+- **Clear Error Communication**: Specific messages for different failure scenarios
+
+#### Files Modified
+```
+src/handlers/callbackQueryHandler.js                   [ENHANCED - 150+ lines modified]
+src/app.js                                            [ENHANCED - added prisma dependency]
+
+tests/handlers/callbackQueryHandler.test.js            [ENHANCED - 16 new tests]
+tests/integration/friendInviteFlow.test.js             [ENHANCED - 4 new tests]
+```
+
+#### Implementation Benefits
+- **Performance**: Faster decline processing without HTTP roundtrips
+- **Reliability**: Reduced failure points by eliminating network dependencies
+- **Maintainability**: Cleaner code structure with direct database operations
+- **User Experience**: Immediate feedback and clear error messaging
+- **Specification Compliance**: Complete adherence to all specified requirements
+
 ---
 
 ### Feature 8: Invite Friends Mini-App & Group Session Management ✅ COMPLETED

@@ -1,8 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
-const axios = require("axios");
-const config = require("../core/env");
 
-let logger, stateManager, telegramNotifier;
+let logger, stateManager, telegramNotifier, prisma;
 
 /**
  * Initializes the callback query handler module with required dependencies.
@@ -11,15 +9,22 @@ let logger, stateManager, telegramNotifier;
  * @param {object} deps.logger - The logger instance.
  * @param {object} deps.stateManager - The state manager instance.
  * @param {object} deps.telegramNotifier - The telegram notifier instance.
+ * @param {object} deps.prisma - The prisma client instance.
  * @throws {Error} If any required dependency is missing.
  */
 function initialize(deps) {
-  if (!deps.logger || !deps.stateManager || !deps.telegramNotifier) {
+  if (
+    !deps.logger ||
+    !deps.stateManager ||
+    !deps.telegramNotifier ||
+    !deps.prisma
+  ) {
     throw new Error("Missing required dependencies for callbackQueryHandler");
   }
   logger = deps.logger;
   stateManager = deps.stateManager;
   telegramNotifier = deps.telegramNotifier;
+  prisma = deps.prisma;
   logger.info("callbackQueryHandler initialized successfully.");
 }
 
@@ -185,10 +190,11 @@ async function handleBookSessionCallback(ctx, telegramId, callbackData) {
 }
 
 /**
- * Handles decline_invite callback queries
+ * Handles decline_invite callback queries using direct database access
  */
 async function handleDeclineInviteCallback(ctx, telegramId, callbackData) {
   const inviteToken = callbackData.replace("decline_invite_", "");
+  const friendTelegramId = telegramId;
 
   // Validate token format
   if (!inviteToken || inviteToken.length === 0) {
@@ -208,13 +214,13 @@ async function handleDeclineInviteCallback(ctx, telegramId, callbackData) {
   }
 
   logger.info(
-    { userId: telegramId, inviteToken },
-    "[callback] Processing decline invite callback.",
+    { callbackData, userId: telegramId },
+    "Processing decline_invite callback.",
   );
 
-  // Acknowledge the button press immediately
+  // Acknowledge the button press immediately with proper message
   try {
-    await ctx.answerCbQuery();
+    await ctx.answerCbQuery("Your decline has been recorded. Thank you.");
   } catch (err) {
     logger.warn(
       { err, userId: telegramId },
@@ -223,87 +229,188 @@ async function handleDeclineInviteCallback(ctx, telegramId, callbackData) {
     // Continue processing even if ack fails
   }
 
-  // Call the friend response API
   try {
-    const apiUrl = `${config.ngrokUrl}/api/session-invites/${inviteToken}/respond`;
-
-    logger.debug(
-      { userId: telegramId, apiUrl },
-      "[callback] Calling decline invite API.",
-    );
-
-    await axios.post(
-      apiUrl,
-      { response: "declined" },
-      {
-        headers: {
-          "Content-Type": "application/json",
+    // Fetch the SessionInvite with all required relations
+    const sessionInvite = await prisma.sessionInvite.findFirst({
+      where: { inviteToken },
+      include: {
+        parentSession: {
+          include: {
+            user: true,
+            sessionType: true,
+          },
         },
       },
-    );
+    });
 
-    // const responseData = response.data;
+    if (!sessionInvite) {
+      logger.warn(
+        { token: inviteToken },
+        "[decline] Session invite not found.",
+      );
+      try {
+        await ctx.editMessageText("This invitation is no longer valid.", {
+          reply_markup: { inline_keyboard: [] },
+        });
+      } catch (editErr) {
+        logger.debug(
+          { err: editErr, userId: telegramId },
+          "[decline] Could not edit message for invalid invite.",
+        );
+      }
+      return;
+    }
+
+    // Check if already responded (handles multiple rapid clicks)
+    if (sessionInvite.status !== "pending") {
+      const isRapidClick =
+        sessionInvite.status === "declined_by_friend" &&
+        sessionInvite.friendTelegramId === friendTelegramId;
+
+      logger.warn(
+        {
+          token: inviteToken,
+          currentStatus: sessionInvite.status,
+          friendTelegramId,
+          isRapidClick,
+        },
+        isRapidClick
+          ? "[decline] Multiple rapid clicks detected - invite already declined by same user."
+          : "[decline] Invite already responded to.",
+      );
+
+      try {
+        const message = isRapidClick
+          ? "You have already declined this invitation."
+          : "This invitation has already been processed.";
+
+        await ctx.editMessageText(message, {
+          reply_markup: { inline_keyboard: [] },
+        });
+      } catch (editErr) {
+        logger.debug(
+          { err: editErr, userId: telegramId },
+          "[decline] Could not edit message for already processed invite.",
+        );
+      }
+
+      // Still answer callback query for rapid clicks to provide feedback
+      try {
+        const callbackMessage = isRapidClick
+          ? "You already declined this invitation."
+          : "This invitation was already processed.";
+        await ctx.answerCbQuery(callbackMessage);
+      } catch (cbErr) {
+        logger.debug(
+          { err: cbErr, userId: telegramId },
+          "[decline] Could not answer callback query for already processed invite.",
+        );
+      }
+
+      return;
+    }
+
+    // Update the SessionInvite status to declined_by_friend
+    await prisma.sessionInvite.update({
+      where: { id: sessionInvite.id },
+      data: {
+        status: "declined_by_friend",
+        friendTelegramId: friendTelegramId,
+      },
+    });
 
     logger.info(
-      { userId: telegramId, inviteToken },
-      "[callback] Friend declined invite successfully.",
+      { inviteToken, friendTelegramId },
+      "SessionInvite status updated to declined_by_friend.",
     );
 
-    // Optionally edit the original message to show declined status
+    // Edit the friend's message with proper decline confirmation
+    const sessionTypeLabel = sessionInvite.parentSession.sessionType.label;
+    const primaryBookerName =
+      sessionInvite.parentSession.user.firstName || "the primary booker";
+
     try {
       await ctx.editMessageText(
-        "You have declined this invitation.",
-        { reply_markup: { inline_keyboard: [] } }, // Remove buttons
+        `You have declined the invitation to the ${sessionTypeLabel} session with ${primaryBookerName}. Thanks for letting us know!`,
+        { reply_markup: { inline_keyboard: [] } },
       );
     } catch (editErr) {
       logger.debug(
         { err: editErr, userId: telegramId },
-        "[callback] Could not edit message after decline (may be old message).",
+        "[decline] Could not edit message after decline.",
+      );
+    }
+
+    // Send notification to primary booker
+    try {
+      const primaryBookerTelegramId =
+        sessionInvite.parentSession.user.telegramId;
+
+      // Handle missing primary booker Telegram ID (data integrity issue)
+      if (!primaryBookerTelegramId) {
+        logger.error(
+          {
+            inviteToken,
+            friendTelegramId,
+            sessionId: sessionInvite.parentSession.id,
+          },
+          "[decline] Primary booker Telegram ID not found - data integrity issue.",
+        );
+        // Continue processing - the core decline action is still completed
+        return;
+      }
+
+      const friendName = ctx.from.first_name || "A friend";
+      const appointmentDate = sessionInvite.parentSession.appointmentDateTime;
+
+      let formattedDate = "TBD";
+      let formattedTime = "TBD";
+
+      if (appointmentDate) {
+        formattedDate = appointmentDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        formattedTime = appointmentDate.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+      }
+
+      const notificationMessage = `😔 ${friendName} has declined your invitation to the ${sessionTypeLabel} session on ${formattedDate} at ${formattedTime}.`;
+
+      await telegramNotifier.sendUserNotification(
+        primaryBookerTelegramId,
+        notificationMessage,
+      );
+
+      logger.info(
+        { inviteToken, primaryBookerTelegramId, friendTelegramId },
+        "[decline] Primary booker notified of decline.",
+      );
+    } catch (notificationErr) {
+      logger.warn(
+        { err: notificationErr, inviteToken, friendTelegramId },
+        "[decline] Failed to send notification to primary booker, but decline was processed successfully.",
       );
     }
   } catch (err) {
-    // Handle axios errors specifically
-    if (err.response) {
-      const status = err.response.status;
-      const errorData = err.response.data || {};
+    logger.error(
+      { err, inviteToken, userId: telegramId },
+      "[decline] Error processing decline invite callback.",
+    );
 
+    try {
+      await ctx.answerCbQuery(
+        "Sorry, there was an issue processing your response. Please try again.",
+      );
+    } catch (cbErr) {
       logger.warn(
-        { userId: telegramId, status, error: errorData },
-        "[callback] API error declining invite.",
+        { err: cbErr, userId: telegramId },
+        "Failed to send error callback response.",
       );
-
-      let errorMessage = "Sorry, there was an issue processing your response.";
-      if (status === 404) {
-        errorMessage = "Sorry, this invitation is no longer valid.";
-      } else if (status === 409) {
-        errorMessage = "This invitation has already been responded to.";
-      }
-
-      try {
-        await ctx.answerCbQuery(errorMessage);
-      } catch (cbErr) {
-        logger.warn(
-          { err: cbErr, userId: telegramId },
-          "Failed to send error callback response.",
-        );
-      }
-    } else {
-      // Network error or other issue
-      logger.error(
-        { err, userId: telegramId, inviteToken },
-        "[callback] Error calling decline invite API.",
-      );
-
-      try {
-        await ctx.answerCbQuery(
-          "Sorry, there was an issue processing your response. Please try again.",
-        );
-      } catch (cbErr) {
-        logger.warn(
-          { err: cbErr, userId: telegramId },
-          "Failed to send network error callback response.",
-        );
-      }
     }
   }
 }

@@ -843,4 +843,160 @@ describe("Friend Invite Flow Integration Tests", () => {
       });
     });
   });
+
+  describe("Decline Flow Integration", () => {
+    it("should handle complete decline flow from callback to notifications", async () => {
+      const inviteToken = "decline-integration-token-123";
+      const friendTelegramId = "friend456";
+      const primaryBookerTelegramId = "primary123";
+
+      // Mock session invite data
+      const mockSessionInvite = {
+        id: 1,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: {
+            telegramId: primaryBookerTelegramId,
+            firstName: "PrimaryUser",
+          },
+          sessionType: {
+            label: "Kambo Integration Session",
+          },
+          appointmentDateTime: new Date("2025-01-20T15:00:00Z"),
+        },
+      };
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue(mockSessionInvite);
+      mockPrisma.sessionInvite.update.mockResolvedValue({
+        ...mockSessionInvite,
+        status: "declined_by_friend",
+        friendTelegramId,
+      });
+
+      // Test the decline API endpoint
+      const response = await request(app)
+        .post(`/api/session-invites/${inviteToken}/respond`)
+        .send({
+          response: "declined",
+          friendTelegramId,
+        })
+        .expect(200);
+
+      expect(response.body).toEqual({
+        success: true,
+        message: "Invitation declined",
+      });
+
+      // Verify database was updated
+      expect(mockPrisma.sessionInvite.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          status: "declined",
+          respondedAt: expect.any(Date),
+        },
+      });
+
+      // Verify notification was sent to primary booker
+      expect(mockTelegramNotifier.sendMessage).toHaveBeenCalledWith({
+        telegramId: primaryBookerTelegramId,
+        text: expect.stringContaining(
+          "Unfortunately, your friend has declined",
+        ),
+      });
+    });
+
+    it("should handle decline with already processed invite", async () => {
+      const inviteToken = "already-processed-token";
+
+      // Mock already processed invite
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue({
+        id: 2,
+        status: "declined_by_friend",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "primary123", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+        },
+      });
+
+      const response = await request(app)
+        .post(`/api/session-invites/${inviteToken}/respond`)
+        .send({
+          response: "declined",
+          friendTelegramId: "friend456",
+        })
+        .expect(409);
+
+      expect(response.body).toEqual({
+        error: "Invitation has already been responded to",
+      });
+    });
+
+    it("should handle decline with non-existent invite token", async () => {
+      const inviteToken = "non-existent-token";
+
+      mockPrisma.sessionInvite.findFirst.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post(`/api/session-invites/${inviteToken}/respond`)
+        .send({
+          response: "declined",
+          friendTelegramId: "friend456",
+        })
+        .expect(404);
+
+      expect(response.body).toEqual({
+        error: "Invitation not found or expired",
+      });
+    });
+
+    it("should handle multiple rapid decline attempts", async () => {
+      const inviteToken = "rapid-decline-token";
+      const friendTelegramId = "friend456";
+
+      const mockSessionInvite = {
+        id: 3,
+        status: "pending",
+        inviteToken,
+        parentSession: {
+          user: { telegramId: "primary123", firstName: "PrimaryUser" },
+          sessionType: { label: "Kambo Session" },
+          appointmentDateTime: new Date("2025-01-20T15:00:00Z"),
+        },
+      };
+
+      // First call succeeds
+      mockPrisma.sessionInvite.findFirst
+        .mockResolvedValueOnce(mockSessionInvite)
+        .mockResolvedValueOnce({
+          ...mockSessionInvite,
+          status: "declined_by_friend",
+        });
+
+      // First decline request
+      const response1 = await request(app)
+        .post(`/api/session-invites/${inviteToken}/respond`)
+        .send({
+          response: "declined",
+          friendTelegramId,
+        })
+        .expect(200);
+
+      expect(response1.body.success).toBe(true);
+
+      // Second decline request should fail
+      const response2 = await request(app)
+        .post(`/api/session-invites/${inviteToken}/respond`)
+        .send({
+          response: "declined",
+          friendTelegramId,
+        })
+        .expect(409);
+
+      expect(response2.body).toEqual({
+        error: "Invitation has already been responded to",
+      });
+    });
+  });
 });
